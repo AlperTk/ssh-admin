@@ -40,7 +40,7 @@ const registry_js_1 = require("./registry.js");
 class ConnectionPool {
     sessions = new Map();
     hostToSession = new Map(); // host → sessionId (max 1 per host)
-    async open(alias) {
+    async open(alias, timeout = 5000) {
         const hostConfig = (0, registry_js_1.getServer)(alias);
         const credentials = (0, registry_js_1.resolveCredentials)(alias, hostConfig);
         // Check if there's already a session for this host
@@ -60,9 +60,9 @@ class ConnectionPool {
             host: hostConfig.host,
             port: hostConfig.port,
             username: hostConfig.username,
-            readyTimeout: 30000,
-            keepaliveInterval: 10000,
-            keepaliveCountMax: 3,
+            readyTimeout: timeout,
+            keepaliveInterval: Math.max(10000, timeout / 3),
+            keepaliveCountMax: 10,
             GSSAPIAuthentication: false,
             addressFamily: 4,
         };
@@ -76,15 +76,15 @@ class ConnectionPool {
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 client.end();
-                reject(new Error(`Connection to '${alias}' timed out after 30s`));
-            }, 30000);
+                reject(new Error(`Connection to '${alias}' timed out after ${timeout / 1000}s`));
+            }, timeout);
             let session = null;
             client.on("ready", () => {
                 clearTimeout(timer);
                 const verifyTimer = setTimeout(() => {
                     client.end();
-                    reject(new Error(`Connection verification timed out after 10s for '${alias}'`));
-                }, 10000);
+                    reject(new Error(`Connection verification timed out after ${Math.max(30, timeout / 1000)}s for '${alias}'`));
+                }, Math.max(30000, timeout));
                 console.error("[DEBUG] SSH ready for alias:", alias);
                 client.exec("echo ping", (err, stream) => {
                     if (err) {

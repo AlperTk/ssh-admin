@@ -22,7 +22,7 @@ index.ts (MCP tools) → pool.ts (SSH sessions) → ssh2 Client
 4. Wrap errors: return `{ success: false, error }` with `isError: true`
 
 ## Pool API
-- `pool.open(alias)` → `{ sessionId, status }` (async)
+- `pool.open(alias, timeout?)` → `{ sessionId, status }` (async)
 - `pool.close(sessionId)` → `{ success, message }`
 - `pool.list()` → `SessionInfo[]`
 - `pool.executeCommand(sessionId, command, timeout?)` → `{ stdout, stderr, exitCode, durationMs }` (async)
@@ -43,5 +43,8 @@ index.ts (MCP tools) → pool.ts (SSH sessions) → ssh2 Client
 ## Constraints
 - Max 1 session per host (auto-reuse)
 - Passwords from env: `SSH_PASSWORD_<ALIAS>`
-- Default timeout: 60000ms
+- Default connection timeout: 5000ms (configurable via `timeout` param)
+- Keepalive: interval = max(10s, timeout/3), count = 10
+- Verification timeout: max(30s, timeout)
+- Default command timeout: 60000ms
 - Registry dir auto-created at `~/.mcp-ssh/`

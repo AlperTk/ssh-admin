@@ -2,7 +2,7 @@ import { SessionInfo, CommandResult } from "./types.js";
 declare class ConnectionPool {
     private sessions;
     private hostToSession;
-    open(alias: string): Promise<{
+    open(alias: string, timeout?: number): Promise<{
         sessionId: string;
         status: string;
         verified: boolean;

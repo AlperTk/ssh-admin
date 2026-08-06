@@ -51214,7 +51214,7 @@ var ConnectionPool = class {
   sessions = /* @__PURE__ */ new Map();
   hostToSession = /* @__PURE__ */ new Map();
   // host → sessionId (max 1 per host)
-  async open(alias) {
+  async open(alias, timeout = 5e3) {
     const hostConfig = getServer(alias);
     const credentials = resolveCredentials(alias, hostConfig);
     const existingSessionId = this.hostToSession.get(hostConfig.host);
@@ -51232,9 +51232,9 @@ var ConnectionPool = class {
       host: hostConfig.host,
       port: hostConfig.port,
       username: hostConfig.username,
-      readyTimeout: 3e4,
-      keepaliveInterval: 1e4,
-      keepaliveCountMax: 3,
+      readyTimeout: timeout,
+      keepaliveInterval: Math.max(1e4, timeout / 3),
+      keepaliveCountMax: 10,
       GSSAPIAuthentication: false,
       addressFamily: 4
     };
@@ -51248,15 +51248,15 @@ var ConnectionPool = class {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         client.end();
-        reject(new Error(`Connection to '${alias}' timed out after 30s`));
-      }, 3e4);
+        reject(new Error(`Connection to '${alias}' timed out after ${timeout / 1e3}s`));
+      }, timeout);
       let session = null;
       client.on("ready", () => {
         clearTimeout(timer);
         const verifyTimer = setTimeout(() => {
           client.end();
-          reject(new Error(`Connection verification timed out after 10s for '${alias}'`));
-        }, 1e4);
+          reject(new Error(`Connection verification timed out after ${Math.max(30, timeout / 1e3)}s for '${alias}'`));
+        }, Math.max(3e4, timeout));
         console.error("[DEBUG] SSH ready for alias:", alias);
         client.exec("echo ping", (err, stream) => {
           if (err) {
@@ -51521,11 +51521,12 @@ server.tool(
   "connection_open",
   "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
   {
-    alias: external_exports.string().describe("Server alias from registry")
+    alias: external_exports.string().describe("Server alias from registry"),
+    timeout: external_exports.number().optional().describe("Connection timeout in milliseconds (default: 5000)")
   },
-  async ({ alias }) => {
+  async ({ alias, timeout }) => {
     try {
-      const result = await pool.open(alias);
+      const result = await pool.open(alias, timeout);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
       };

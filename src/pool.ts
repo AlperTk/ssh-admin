@@ -20,7 +20,7 @@ class ConnectionPool {
   private sessions = new Map<string, InternalSession>();
   private hostToSession = new Map<string, string>(); // host → sessionId (max 1 per host)
 
-  async open(alias: string): Promise<{ sessionId: string; status: string; verified: boolean }> {
+  async open(alias: string, timeout: number = 5000): Promise<{ sessionId: string; status: string; verified: boolean }> {
     const hostConfig = getServer(alias);
     const credentials = resolveCredentials(alias, hostConfig);
 
@@ -43,9 +43,9 @@ class ConnectionPool {
       host: hostConfig.host,
       port: hostConfig.port,
       username: hostConfig.username,
-      readyTimeout: 30000,
-      keepaliveInterval: 10000,
-      keepaliveCountMax: 3,
+      readyTimeout: timeout,
+      keepaliveInterval: Math.max(10000, timeout / 3),
+      keepaliveCountMax: 10,
       GSSAPIAuthentication: false,
       addressFamily: 4,
     };
@@ -61,8 +61,8 @@ class ConnectionPool {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         client.end();
-        reject(new Error(`Connection to '${alias}' timed out after 30s`));
-      }, 30000);
+        reject(new Error(`Connection to '${alias}' timed out after ${timeout / 1000}s`));
+      }, timeout);
 
       let session: InternalSession | null = null;
 
@@ -70,8 +70,8 @@ class ConnectionPool {
         clearTimeout(timer);
         const verifyTimer = setTimeout(() => {
           client.end();
-          reject(new Error(`Connection verification timed out after 10s for '${alias}'`));
-        }, 10000);
+          reject(new Error(`Connection verification timed out after ${Math.max(30, timeout / 1000)}s for '${alias}'`));
+        }, Math.max(30000, timeout));
 
         console.error("[DEBUG] SSH ready for alias:", alias);
         client.exec("echo ping", (err: Error | undefined, stream: any) => {

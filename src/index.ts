@@ -123,10 +123,11 @@ server.tool(
   "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
   {
     alias: z.string().describe("Server alias from registry"),
+    timeout: z.number().optional().describe("Connection timeout in milliseconds (default: 5000)"),
   },
-  async ({ alias }) => {
+  async ({ alias, timeout }) => {
     try {
-      const result = await pool.open(alias);
+      const result = await pool.open(alias, timeout);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };

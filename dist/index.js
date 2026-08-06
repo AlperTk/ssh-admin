@@ -92,9 +92,10 @@ server.tool("registry_delete_server", "Remove a server from the registry", {
 // ── Connection Tools ────────────────────────────────────────────
 server.tool("connection_open", "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.", {
     alias: zod_1.z.string().describe("Server alias from registry"),
-}, async ({ alias }) => {
+    timeout: zod_1.z.number().optional().describe("Connection timeout in milliseconds (default: 5000)"),
+}, async ({ alias, timeout }) => {
     try {
-        const result = await pool_js_1.pool.open(alias);
+        const result = await pool_js_1.pool.open(alias, timeout);
         return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
