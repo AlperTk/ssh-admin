@@ -48,7 +48,7 @@ class ConnectionPool {
         if (existingSessionId) {
             const existing = this.sessions.get(existingSessionId);
             if (existing?.connected) {
-                return { sessionId: existingSessionId, status: "already_connected" };
+                return { sessionId: existingSessionId, status: "already_connected", verified: true };
             }
             // Stale session, clean up
             this.sessions.delete(existingSessionId);
@@ -63,6 +63,8 @@ class ConnectionPool {
             readyTimeout: 30000,
             keepaliveInterval: 10000,
             keepaliveCountMax: 3,
+            GSSAPIAuthentication: false,
+            addressFamily: 4,
         };
         if (hostConfig.authMethod === "key" && credentials.key) {
             console.error("[DEBUG] Using privateKey from file");
@@ -79,21 +81,53 @@ class ConnectionPool {
             let session = null;
             client.on("ready", () => {
                 clearTimeout(timer);
-                session = {
-                    sessionId,
-                    alias,
-                    host: hostConfig.host,
-                    port: hostConfig.port,
-                    username: hostConfig.username,
-                    client,
-                    connected: true,
-                    connectedAt: new Date(),
-                    lastUsed: new Date(),
-                    authConfig: credentials,
-                };
-                this.sessions.set(sessionId, session);
-                this.hostToSession.set(hostConfig.host, sessionId);
-                resolve({ sessionId, status: "connected" });
+                const verifyTimer = setTimeout(() => {
+                    client.end();
+                    reject(new Error(`Connection verification timed out after 10s for '${alias}'`));
+                }, 10000);
+                console.error("[DEBUG] SSH ready for alias:", alias);
+                client.exec("echo ping", (err, stream) => {
+                    if (err) {
+                        clearTimeout(verifyTimer);
+                        client.end();
+                        reject(new Error(`Connection verification failed for '${alias}': ${err.message}`));
+                        return;
+                    }
+                    let output = "";
+                    stream.on("data", (data) => {
+                        output += data.toString();
+                    });
+                    stream.on("close", () => {
+                        clearTimeout(verifyTimer);
+                        if (output.trim() === "ping") {
+                            console.error("[DEBUG] Connection verified for alias:", alias);
+                            session = {
+                                sessionId,
+                                alias,
+                                host: hostConfig.host,
+                                port: hostConfig.port,
+                                username: hostConfig.username,
+                                client,
+                                connected: true,
+                                connectedAt: new Date(),
+                                lastUsed: new Date(),
+                                authConfig: credentials,
+                            };
+                            this.sessions.set(sessionId, session);
+                            this.hostToSession.set(hostConfig.host, sessionId);
+                            resolve({ sessionId, status: "connected", verified: true });
+                        }
+                        else {
+                            client.end();
+                            reject(new Error(`Connection verification failed for '${alias}': unexpected response '${output.trim()}'`));
+                        }
+                    });
+                    stream.on("error", (err) => {
+                        clearTimeout(verifyTimer);
+                        client.end();
+                        reject(new Error(`Connection verification stream error for '${alias}': ${err.message}`));
+                    });
+                });
             });
             client.on("error", (err) => {
                 clearTimeout(timer);

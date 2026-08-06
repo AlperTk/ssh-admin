@@ -20,7 +20,7 @@ class ConnectionPool {
   private sessions = new Map<string, InternalSession>();
   private hostToSession = new Map<string, string>(); // host → sessionId (max 1 per host)
 
-  async open(alias: string): Promise<{ sessionId: string; status: string }> {
+  async open(alias: string): Promise<{ sessionId: string; status: string; verified: boolean }> {
     const hostConfig = getServer(alias);
     const credentials = resolveCredentials(alias, hostConfig);
 
@@ -29,7 +29,7 @@ class ConnectionPool {
     if (existingSessionId) {
       const existing = this.sessions.get(existingSessionId);
       if (existing?.connected) {
-        return { sessionId: existingSessionId, status: "already_connected" };
+        return { sessionId: existingSessionId, status: "already_connected", verified: true };
       }
       // Stale session, clean up
       this.sessions.delete(existingSessionId);
@@ -46,6 +46,8 @@ class ConnectionPool {
       readyTimeout: 30000,
       keepaliveInterval: 10000,
       keepaliveCountMax: 3,
+      GSSAPIAuthentication: false,
+      addressFamily: 4,
     };
 
     if (hostConfig.authMethod === "key" && credentials.key) {
@@ -66,22 +68,57 @@ class ConnectionPool {
 
       client.on("ready", () => {
         clearTimeout(timer);
-        session = {
-          sessionId,
-          alias,
-          host: hostConfig.host,
-          port: hostConfig.port,
-          username: hostConfig.username,
-          client,
-          connected: true,
-          connectedAt: new Date(),
-          lastUsed: new Date(),
-          authConfig: credentials,
-        };
+        const verifyTimer = setTimeout(() => {
+          client.end();
+          reject(new Error(`Connection verification timed out after 10s for '${alias}'`));
+        }, 10000);
 
-        this.sessions.set(sessionId, session);
-        this.hostToSession.set(hostConfig.host, sessionId);
-        resolve({ sessionId, status: "connected" });
+        console.error("[DEBUG] SSH ready for alias:", alias);
+        client.exec("echo ping", (err: Error | undefined, stream: any) => {
+          if (err) {
+            clearTimeout(verifyTimer);
+            client.end();
+            reject(new Error(`Connection verification failed for '${alias}': ${err.message}`));
+            return;
+          }
+
+          let output = "";
+          stream.on("data", (data: Buffer) => {
+            output += data.toString();
+          });
+
+          stream.on("close", () => {
+            clearTimeout(verifyTimer);
+            if (output.trim() === "ping") {
+              console.error("[DEBUG] Connection verified for alias:", alias);
+              session = {
+                sessionId,
+                alias,
+                host: hostConfig.host,
+                port: hostConfig.port,
+                username: hostConfig.username,
+                client,
+                connected: true,
+                connectedAt: new Date(),
+                lastUsed: new Date(),
+                authConfig: credentials,
+              };
+
+              this.sessions.set(sessionId, session);
+              this.hostToSession.set(hostConfig.host, sessionId);
+              resolve({ sessionId, status: "connected", verified: true });
+            } else {
+              client.end();
+              reject(new Error(`Connection verification failed for '${alias}': unexpected response '${output.trim()}'`));
+            }
+          });
+
+          stream.on("error", (err: Error) => {
+            clearTimeout(verifyTimer);
+            client.end();
+            reject(new Error(`Connection verification stream error for '${alias}': ${err.message}`));
+          });
+        });
       });
 
       client.on("error", (err: Error) => {

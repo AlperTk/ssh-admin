@@ -5,6 +5,7 @@ declare class ConnectionPool {
     open(alias: string): Promise<{
         sessionId: string;
         status: string;
+        verified: boolean;
     }>;
     close(sessionId: string): {
         success: boolean;
