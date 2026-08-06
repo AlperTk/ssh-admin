@@ -1,5 +1,7 @@
 # mcp-ssh — Development Info
 
+MCP server for managing SSH servers. Provides host registry (`~/.mcp-ssh/hosts.json`), session pool, and command execution tools.
+
 ## Setup
 ```bash
 npm install

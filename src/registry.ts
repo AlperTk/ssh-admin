@@ -92,12 +92,13 @@ export function deleteServer(alias: string): void {
   saveRegistry(registry);
 }
 
-export function resolveCredentials(alias: string, host: HostConfig): { keyPath?: string; password?: string } {
+export function resolveCredentials(alias: string, host: HostConfig): { key?: Buffer; password?: string } {
   const envKey = `SSH_PASSWORD_${alias.toUpperCase()}`;
   const password = process.env[envKey];
 
-  if (host.authMethod === "key") {
-    return { keyPath: host.keyPath };
+  if (host.authMethod === "key" && host.keyPath) {
+    const keyContent = fs.readFileSync(host.keyPath);
+    return { key: keyContent };
   }
 
   if (host.authMethod === "password" && !password) {

@@ -51195,8 +51195,9 @@ function deleteServer(alias) {
 function resolveCredentials(alias, host) {
   const envKey = `SSH_PASSWORD_${alias.toUpperCase()}`;
   const password = process.env[envKey];
-  if (host.authMethod === "key") {
-    return { keyPath: host.keyPath };
+  if (host.authMethod === "key" && host.keyPath) {
+    const keyContent = fs.readFileSync(host.keyPath);
+    return { key: keyContent };
   }
   if (host.authMethod === "password" && !password) {
     throw new Error(
@@ -51233,9 +51234,15 @@ var ConnectionPool = class {
       username: hostConfig.username,
       readyTimeout: 3e4,
       keepaliveInterval: 1e4,
-      keepaliveCountMax: 3,
-      ...credentials
+      keepaliveCountMax: 3
     };
+    if (hostConfig.authMethod === "key" && credentials.key) {
+      console.error("[DEBUG] Using privateKey from file");
+      connectOpts.privateKey = credentials.key;
+    }
+    if (credentials.password) {
+      connectOpts.password = credentials.password;
+    }
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         client.end();
@@ -51269,7 +51276,8 @@ var ConnectionPool = class {
         this.hostToSession.delete(hostConfig.host);
         reject(new Error(`SSH connection failed for '${alias}': ${err.message}`));
       });
-      client.on("close", () => {
+      client.on("close", (...args) => {
+        console.error("[DEBUG] SSH close event args:", JSON.stringify(args));
         if (session) {
           session.connected = false;
         }
@@ -51308,55 +51316,62 @@ var ConnectionPool = class {
   async executeCommand(sessionId, command, timeout = 6e4) {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Session '${sessionId}' not found or closed`);
+      throw new Error(`Session '${sessionId}' not found or closed. Try calling pool.open() again to establish a new connection.`);
     }
     session.lastUsed = /* @__PURE__ */ new Date();
     return new Promise((resolve, reject) => {
       const start = Date.now();
-      session.client.exec(command, { env: { TERM: "xterm" } }, (err, stream) => {
-        if (err) {
-          reject(new Error(`Command execution failed: ${err.message}`));
-          return;
-        }
-        let stdout = "";
-        let stderr = "";
-        let exitCode = null;
-        const timer = setTimeout(() => {
-          stream.close();
-          reject(new Error(`Command timed out after ${timeout}ms`));
-        }, timeout);
-        stream.on("data", (data) => {
-          stdout += data.toString();
-        });
-        stream.stderr.on("data", (data) => {
-          stderr += data.toString();
-        });
-        stream.on("exit", (code) => {
-          exitCode = code;
-          clearTimeout(timer);
-          resolve({
-            stdout: stdout.trimEnd(),
-            stderr: stderr.trimEnd(),
-            exitCode: code ?? -1,
-            durationMs: Date.now() - start
+      try {
+        console.error("[DEBUG] executing:", command);
+        session.client.exec(command, { env: { TERM: "xterm" } }, (err, stream) => {
+          if (err) {
+            console.error("[DEBUG] exec callback error:", err.message);
+            reject(new Error(`Command execution failed: ${err.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+            return;
+          }
+          let stdout = "";
+          let stderr = "";
+          let exitCode = null;
+          const timer = setTimeout(() => {
+            stream.close();
+            reject(new Error(`Command timed out after ${timeout}ms`));
+          }, timeout);
+          stream.on("data", (data) => {
+            stdout += data.toString();
           });
-        });
-        stream.on("close", () => {
-          if (exitCode === null) {
+          stream.stderr.on("data", (data) => {
+            stderr += data.toString();
+          });
+          stream.on("exit", (code) => {
+            exitCode = code;
             clearTimeout(timer);
             resolve({
               stdout: stdout.trimEnd(),
               stderr: stderr.trimEnd(),
-              exitCode: 1,
+              exitCode: code ?? -1,
               durationMs: Date.now() - start
             });
-          }
+          });
+          stream.on("close", () => {
+            if (exitCode === null) {
+              clearTimeout(timer);
+              resolve({
+                stdout: stdout.trimEnd(),
+                stderr: stderr.trimEnd(),
+                exitCode: 1,
+                durationMs: Date.now() - start
+              });
+            }
+          });
+          stream.on("error", (err2) => {
+            clearTimeout(timer);
+            reject(new Error(`Stream error: ${err2.message}`));
+          });
         });
-        stream.on("error", (err2) => {
-          clearTimeout(timer);
-          reject(new Error(`Stream error: ${err2.message}`));
-        });
-      });
+      } catch (e) {
+        console.error("[DEBUG] exec sync error:", e.message);
+        reject(new Error(`Command execution failed: ${e.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+      }
     });
   }
   getSessionCount() {

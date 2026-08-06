@@ -46,8 +46,15 @@ class ConnectionPool {
       readyTimeout: 30000,
       keepaliveInterval: 10000,
       keepaliveCountMax: 3,
-      ...credentials,
     };
+
+    if (hostConfig.authMethod === "key" && credentials.key) {
+      console.error("[DEBUG] Using privateKey from file");
+      connectOpts.privateKey = credentials.key;
+    }
+    if (credentials.password) {
+      connectOpts.password = credentials.password;
+    }
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -87,7 +94,8 @@ class ConnectionPool {
         reject(new Error(`SSH connection failed for '${alias}': ${err.message}`));
       });
 
-      client.on("close", () => {
+      client.on("close", (...args: any[]) => {
+        console.error("[DEBUG] SSH close event args:", JSON.stringify(args));
         if (session) {
           session.connected = false;
         }
@@ -135,7 +143,7 @@ class ConnectionPool {
   ): Promise<CommandResult> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new Error(`Session '${sessionId}' not found or closed`);
+      throw new Error(`Session '${sessionId}' not found or closed. Try calling pool.open() again to establish a new connection.`);
     }
 
     // Update last used
@@ -144,11 +152,14 @@ class ConnectionPool {
     return new Promise((resolve, reject) => {
       const start = Date.now();
 
-      session.client.exec(command, { env: { TERM: "xterm" } }, (err: Error | undefined, stream: any) => {
-        if (err) {
-          reject(new Error(`Command execution failed: ${err.message}`));
-          return;
-        }
+      try {
+        console.error("[DEBUG] executing:", command);
+        session.client.exec(command, { env: { TERM: "xterm" } }, (err: Error | undefined, stream: any) => {
+          if (err) {
+            console.error("[DEBUG] exec callback error:", err.message);
+            reject(new Error(`Command execution failed: ${err.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+            return;
+          }
 
         let stdout = "";
         let stderr = "";
@@ -195,6 +206,10 @@ class ConnectionPool {
           reject(new Error(`Stream error: ${err.message}`));
         });
       });
+    } catch (e: any) {
+      console.error("[DEBUG] exec sync error:", e.message);
+      reject(new Error(`Command execution failed: ${e.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+    }
     });
   }
 

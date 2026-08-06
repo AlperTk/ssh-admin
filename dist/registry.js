@@ -118,8 +118,9 @@ function deleteServer(alias) {
 function resolveCredentials(alias, host) {
     const envKey = `SSH_PASSWORD_${alias.toUpperCase()}`;
     const password = process.env[envKey];
-    if (host.authMethod === "key") {
-        return { keyPath: host.keyPath };
+    if (host.authMethod === "key" && host.keyPath) {
+        const keyContent = fs.readFileSync(host.keyPath);
+        return { key: keyContent };
     }
     if (host.authMethod === "password" && !password) {
         throw new Error(`No password found for host '${alias}'. Set environment variable ${envKey}.`);

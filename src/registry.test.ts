@@ -9,7 +9,7 @@ const TEST_REGISTRY = path.join(TEST_REGISTRY_DIR, "hosts.json");
 // Set env var BEFORE importing registry
 process.env.MCP_SSH_REGISTRY_PATH = TEST_REGISTRY;
 
-const { addServer, listServers, getServer, updateServer, deleteServer } = await import("./registry.js");
+const { addServer, listServers, getServer, updateServer, deleteServer, resolveCredentials } = await import("./registry.js");
 
 describe("Registry", () => {
   afterEach(() => {
@@ -102,7 +102,7 @@ describe("Registry", () => {
     expect(result.host).toBe("10.0.0.20"); // host unchanged
   });
 
-  it("should throw on updating host/port", () => {
+it("should throw on updating host/port", () => {
     addServer({
       alias: "no-update",
       host: "10.0.0.30",
@@ -113,6 +113,9 @@ describe("Registry", () => {
 
     expect(() => updateServer("no-update", { host: "10.0.0.99" })).toThrow(
       "Cannot update 'host'"
+    );
+    expect(() => updateServer("no-update", { port: 2222 })).toThrow(
+      "Cannot update 'host' or 'port'"
     );
   });
 
@@ -129,7 +132,59 @@ describe("Registry", () => {
     expect(() => getServer("delete-me")).toThrow("not found");
   });
 
-  it("should throw on deleting non-existent server", () => {
+it("should throw on deleting non-existent server", () => {
     expect(() => deleteServer("ghost")).toThrow("not found");
+  });
+
+it("should return key for key-based auth", () => {
+    const tempKeyPath = path.join(TEST_REGISTRY_DIR, "test_key");
+    fs.mkdirSync(TEST_REGISTRY_DIR, { recursive: true });
+    fs.writeFileSync(tempKeyPath, "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----");
+
+    addServer({
+      alias: "key-test",
+      host: "10.0.0.50",
+      port: 22,
+      username: "user",
+      authMethod: "key",
+      keyPath: tempKeyPath,
+    });
+
+    const server = getServer("key-test");
+    const creds = resolveCredentials("key-test", server);
+    expect(creds.key).toBeInstanceOf(Buffer);
+    expect(creds.key).toHaveLength(74);
+  });
+
+  it("should return password for password-based auth", () => {
+    process.env.SSH_PASSWORD_PASSTEST = "secret123";
+
+    addServer({
+      alias: "passtest",
+      host: "10.0.0.60",
+      port: 22,
+      username: "user",
+      authMethod: "password",
+    });
+
+    const server = getServer("passtest");
+    const creds = resolveCredentials("passtest", server);
+    expect(creds.password).toBe("secret123");
+    expect(creds.key).toBeUndefined();
+
+    delete process.env.SSH_PASSWORD_PASSTEST;
+  });
+
+  it("should throw when password is missing for password-based auth", () => {
+    addServer({
+      alias: "nopass",
+      host: "10.0.0.70",
+      port: 22,
+      username: "user",
+      authMethod: "password",
+    });
+
+    const server = getServer("nopass");
+    expect(() => resolveCredentials("nopass", server)).toThrow("No password found");
   });
 });
