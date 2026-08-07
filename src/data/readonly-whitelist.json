@@ -11,6 +11,7 @@
     "top",
     "ps",
     "uname",
+    "nproc",
     "whoami",
     "id",
     "uptime",
