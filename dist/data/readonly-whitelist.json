@@ -137,6 +137,7 @@
     "fuser",
     "lspci",
     "lsusb",
+    "lscpu",
     "dmidecode",
     "sensors",
     "hdparm",
@@ -468,6 +469,7 @@
     "mddump",
     "mdtest",
     "mdstat",
-    "mdcheck"
+    "mdcheck",
+    "docker"
   ]
 }

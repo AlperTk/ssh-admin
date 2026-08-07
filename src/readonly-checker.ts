@@ -18,6 +18,36 @@ const SYSTEMCTL_READ_ONLY = [
   'property', 'daemon-status', 'log', 'is-system-running',
 ];
 
+// docker: sadece read-only alt komutlar izinli
+const DOCKER_READ_ONLY = [
+  'ps', 'images', 'inspect', 'logs', 'top', 'stats', 'version', 'info',
+  'diff', 'port', 'events', 'pull', 'config', 'node', 'service', 'task',
+  'volume', 'network', 'plugin', 'secret', 'swarm', 'container', 'image',
+  'system',
+];
+
+const DOCKER_WRITE_COMMANDS = [
+  'rm', 'rmi', 'prune', 'stop', 'start', 'restart', 'kill', 'run',
+  'update', 'rename', 'tag', 'push', 'save', 'load', 'import',
+  'export', 'commit', 'cp', 'attach', 'wait', 'build', 'create',
+  'pause', 'unpause', 'resize', 'modify',
+];
+
+// docker iki seviyeli alt komutlar: {namespace} {action} — action write ise engelle
+const DOCKER_NAMESPACE_WRITE = new Map([
+  ['system', ['prune']],
+  ['image', ['rm', 'push', 'save', 'load', 'history', 'tag']],
+  ['container', ['rm', 'start', 'stop', 'restart', 'kill', 'exec', 'update', 'rename', 'cp', 'attach', 'wait', 'pause', 'unpause', 'resize']],
+  ['volume', ['rm', 'create']],
+  ['network', ['rm', 'connect', 'disconnect']],
+  ['plugin', ['install', 'remove', 'disable', 'enable']],
+  ['secret', ['rm', 'create', 'update']],
+  ['config', ['rm', 'create', 'update']],
+  ['node', ['demote', 'promote', 'update', 'rm']],
+  ['service', ['rm', 'create', 'update', 'scale', 'rollback']],
+  ['swarm', ['leave', 'unlock', 'lock', 'init', 'join', 'ca']],
+]);
+
 // Komut substitution: $() ve backtick içi komutlar kontrol edilmeli
 const COMMAND_SUBSTITUTION_REGEX = /\$\(.*?\)|`[^`]+`/g;
 
@@ -366,6 +396,93 @@ class CommandChecker {
         if (!SYSTEMCTL_READ_ONLY.includes(subCmd)) {
           return true;
         }
+      }
+    }
+
+    // docker: sadece read-only subkomutlar izinli
+    if (firstToken === 'docker') {
+      const idx = cmd.toLowerCase().indexOf('docker');
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith('-')) {
+          const spaceIdx = rest.indexOf(' ');
+          if (spaceIdx === -1) {
+            rest = '';
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        const subCmd = this.getFirstToken(rest);
+        if (!subCmd) {
+          return false;
+        }
+        // İki seviyeli alt komut kontrolü: docker {namespace} {action}
+        if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
+          let nsRest = rest.substring(subCmd.length).trimStart();
+          while (nsRest.startsWith('-')) {
+            const spaceIdx = nsRest.indexOf(' ');
+            if (spaceIdx === -1) break;
+            nsRest = nsRest.substring(spaceIdx).trimStart();
+          }
+          const action = this.getFirstToken(nsRest);
+          if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) {
+            return true;
+          }
+        }
+        if (DOCKER_READ_ONLY.includes(subCmd)) {
+          return false;
+        }
+        if (DOCKER_WRITE_COMMANDS.includes(subCmd)) {
+          return true;
+        }
+        // docker exec özel kontrol
+        if (subCmd === 'exec') {
+          let execRest = rest.substring(subCmd.length).trimStart();
+          // container flag ve container adını atla
+          while (execRest.startsWith('-')) {
+            const spaceIdx = execRest.indexOf(' ');
+            if (spaceIdx === -1) break;
+            const afterFlag = execRest.substring(spaceIdx).trimStart();
+            if (afterFlag.startsWith('-')) {
+              const nextSpace = afterFlag.indexOf(' ');
+              if (nextSpace === -1) break;
+              execRest = afterFlag.substring(nextSpace).trimStart();
+            } else {
+              execRest = afterFlag;
+              break;
+            }
+          }
+          // container adını atla (veya --container flag)
+          if (execRest.startsWith('--container')) {
+            const eqIdx = execRest.indexOf('=');
+            if (eqIdx !== -1) {
+              execRest = execRest.substring(eqIdx + 1).trimStart();
+            } else {
+              const spaceIdx = execRest.indexOf(' ');
+              if (spaceIdx === -1) return false;
+              execRest = execRest.substring(spaceIdx).trimStart();
+            }
+          } else {
+            const spaceIdx = execRest.indexOf(' ');
+            if (spaceIdx === -1) return false;
+            execRest = execRest.substring(spaceIdx).trimStart();
+          }
+          // kalan komutu kontrol et
+          if (execRest) {
+            const execCmd = this.getFirstToken(execRest);
+            if (this.allowedCommands.has(execCmd)) {
+              const tempChecker = new CommandChecker();
+              const checkResult = tempChecker.check(execRest);
+              if (!checkResult.allowed) {
+                return true;
+              }
+            } else {
+              return true;
+            }
+          }
+          return false;
+        }
+        return true;
       }
     }
 

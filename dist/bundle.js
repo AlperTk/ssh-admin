@@ -51464,6 +51464,73 @@ var SYSTEMCTL_READ_ONLY = [
   "log",
   "is-system-running"
 ];
+var DOCKER_READ_ONLY = [
+  "ps",
+  "images",
+  "inspect",
+  "logs",
+  "top",
+  "stats",
+  "version",
+  "info",
+  "diff",
+  "port",
+  "events",
+  "pull",
+  "config",
+  "node",
+  "service",
+  "task",
+  "volume",
+  "network",
+  "plugin",
+  "secret",
+  "swarm",
+  "container",
+  "image",
+  "system"
+];
+var DOCKER_WRITE_COMMANDS = [
+  "rm",
+  "rmi",
+  "prune",
+  "stop",
+  "start",
+  "restart",
+  "kill",
+  "run",
+  "update",
+  "rename",
+  "tag",
+  "push",
+  "save",
+  "load",
+  "import",
+  "export",
+  "commit",
+  "cp",
+  "attach",
+  "wait",
+  "build",
+  "create",
+  "pause",
+  "unpause",
+  "resize",
+  "modify"
+];
+var DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
+  ["system", ["prune"]],
+  ["image", ["rm", "push", "save", "load", "history", "tag"]],
+  ["container", ["rm", "start", "stop", "restart", "kill", "exec", "update", "rename", "cp", "attach", "wait", "pause", "unpause", "resize"]],
+  ["volume", ["rm", "create"]],
+  ["network", ["rm", "connect", "disconnect"]],
+  ["plugin", ["install", "remove", "disable", "enable"]],
+  ["secret", ["rm", "create", "update"]],
+  ["config", ["rm", "create", "update"]],
+  ["node", ["demote", "promote", "update", "rm"]],
+  ["service", ["rm", "create", "update", "scale", "rollback"]],
+  ["swarm", ["leave", "unlock", "lock", "init", "join", "ca"]]
+]);
 var COMMAND_SUBSTITUTION_REGEX = /\$\(.*?\)|`[^`]+`/g;
 var CommandChecker = class _CommandChecker {
   allowedCommands;
@@ -51756,6 +51823,86 @@ var CommandChecker = class _CommandChecker {
         if (!SYSTEMCTL_READ_ONLY.includes(subCmd)) {
           return true;
         }
+      }
+    }
+    if (firstToken === "docker") {
+      const idx = cmd.toLowerCase().indexOf("docker");
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith("-")) {
+          const spaceIdx = rest.indexOf(" ");
+          if (spaceIdx === -1) {
+            rest = "";
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        const subCmd = this.getFirstToken(rest);
+        if (!subCmd) {
+          return false;
+        }
+        if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
+          let nsRest = rest.substring(subCmd.length).trimStart();
+          while (nsRest.startsWith("-")) {
+            const spaceIdx = nsRest.indexOf(" ");
+            if (spaceIdx === -1) break;
+            nsRest = nsRest.substring(spaceIdx).trimStart();
+          }
+          const action = this.getFirstToken(nsRest);
+          if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) {
+            return true;
+          }
+        }
+        if (DOCKER_READ_ONLY.includes(subCmd)) {
+          return false;
+        }
+        if (DOCKER_WRITE_COMMANDS.includes(subCmd)) {
+          return true;
+        }
+        if (subCmd === "exec") {
+          let execRest = rest.substring(subCmd.length).trimStart();
+          while (execRest.startsWith("-")) {
+            const spaceIdx = execRest.indexOf(" ");
+            if (spaceIdx === -1) break;
+            const afterFlag = execRest.substring(spaceIdx).trimStart();
+            if (afterFlag.startsWith("-")) {
+              const nextSpace = afterFlag.indexOf(" ");
+              if (nextSpace === -1) break;
+              execRest = afterFlag.substring(nextSpace).trimStart();
+            } else {
+              execRest = afterFlag;
+              break;
+            }
+          }
+          if (execRest.startsWith("--container")) {
+            const eqIdx = execRest.indexOf("=");
+            if (eqIdx !== -1) {
+              execRest = execRest.substring(eqIdx + 1).trimStart();
+            } else {
+              const spaceIdx = execRest.indexOf(" ");
+              if (spaceIdx === -1) return false;
+              execRest = execRest.substring(spaceIdx).trimStart();
+            }
+          } else {
+            const spaceIdx = execRest.indexOf(" ");
+            if (spaceIdx === -1) return false;
+            execRest = execRest.substring(spaceIdx).trimStart();
+          }
+          if (execRest) {
+            const execCmd = this.getFirstToken(execRest);
+            if (this.allowedCommands.has(execCmd)) {
+              const tempChecker = new _CommandChecker();
+              const checkResult = tempChecker.check(execRest);
+              if (!checkResult.allowed) {
+                return true;
+              }
+            } else {
+              return true;
+            }
+          }
+          return false;
+        }
+        return true;
       }
     }
     if (firstToken === "eval") {

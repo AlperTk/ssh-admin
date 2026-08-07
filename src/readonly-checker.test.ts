@@ -131,6 +131,7 @@ describe("CommandChecker", () => {
       expect(checker.check("fuser /dev/sda")).toEqual({ allowed: true });
       expect(checker.check("lspci")).toEqual({ allowed: true });
       expect(checker.check("lsusb")).toEqual({ allowed: true });
+      expect(checker.check("lscpu")).toEqual({ allowed: true });
       expect(checker.check("dmidecode -t memory")).toEqual({ allowed: true });
       expect(checker.check("sensors")).toEqual({ allowed: true });
       expect(checker.check("hdparm -I /dev/sda")).toEqual({ allowed: true });
@@ -738,6 +739,72 @@ describe("CommandChecker", () => {
       expect(checker.check("systemctl emergency")).toMatchObject({ allowed: false });
     });
 
+    it("should allow docker read commands", () => {
+      expect(checker.check("docker ps")).toEqual({ allowed: true });
+      expect(checker.check("docker ps --format \"table {{.Names}}\\t{{.Image}}\\t{{.Status}}\\t{{.Ports}}\"")).toEqual({ allowed: true });
+      expect(checker.check("docker images")).toEqual({ allowed: true });
+      expect(checker.check("docker images -a")).toEqual({ allowed: true });
+      expect(checker.check("docker inspect container1")).toEqual({ allowed: true });
+      expect(checker.check("docker inspect --format '{{.NetworkSettings.IPAddress}}' container1")).toEqual({ allowed: true });
+      expect(checker.check("docker logs container1")).toEqual({ allowed: true });
+      expect(checker.check("docker logs --tail 100 container1")).toEqual({ allowed: true });
+      expect(checker.check("docker logs -f container1")).toEqual({ allowed: true });
+      expect(checker.check("docker top container1")).toEqual({ allowed: true });
+      expect(checker.check("docker stats container1")).toEqual({ allowed: true });
+      expect(checker.check("docker version")).toEqual({ allowed: true });
+      expect(checker.check("docker info")).toEqual({ allowed: true });
+      expect(checker.check("docker diff container1")).toEqual({ allowed: true });
+      expect(checker.check("docker port container1")).toEqual({ allowed: true });
+      expect(checker.check("docker events")).toEqual({ allowed: true });
+      expect(checker.check("docker pull ubuntu:latest")).toEqual({ allowed: true });
+      expect(checker.check("docker config ls")).toEqual({ allowed: true });
+      expect(checker.check("docker node ls")).toEqual({ allowed: true });
+      expect(checker.check("docker service ls")).toEqual({ allowed: true });
+      expect(checker.check("docker task ls")).toEqual({ allowed: true });
+      expect(checker.check("docker volume ls")).toEqual({ allowed: true });
+      expect(checker.check("docker network ls")).toEqual({ allowed: true });
+      expect(checker.check("docker plugin ls")).toEqual({ allowed: true });
+      expect(checker.check("docker secret ls")).toEqual({ allowed: true });
+      expect(checker.check("docker swarm status")).toEqual({ allowed: true });
+      expect(checker.check("docker container ls")).toEqual({ allowed: true });
+      expect(checker.check("docker image ls")).toEqual({ allowed: true });
+      expect(checker.check("docker system df")).toEqual({ allowed: true });
+      expect(checker.check("docker exec container1 cat /etc/os-release")).toEqual({ allowed: true });
+      expect(checker.check("docker exec -it container1 cat /etc/os-release")).toEqual({ allowed: true });
+    });
+
+    it("should block docker write commands", () => {
+      expect(checker.check("docker rm container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker rmi image1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker run ubuntu bash")).toMatchObject({ allowed: false });
+      expect(checker.check("docker stop container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker start container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker restart container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker kill container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker update --memory 1G container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker rename old new")).toMatchObject({ allowed: false });
+      expect(checker.check("docker tag img repo/img")).toMatchObject({ allowed: false });
+      expect(checker.check("docker push repo/img")).toMatchObject({ allowed: false });
+      expect(checker.check("docker save img > file")).toMatchObject({ allowed: false });
+      expect(checker.check("docker import file img")).toMatchObject({ allowed: false });
+      expect(checker.check("docker export container > tar")).toMatchObject({ allowed: false });
+      expect(checker.check("docker commit container img")).toMatchObject({ allowed: false });
+      expect(checker.check("docker cp container:/file .")).toMatchObject({ allowed: false });
+      expect(checker.check("docker pause container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker unpause container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker build -t img .")).toMatchObject({ allowed: false });
+      expect(checker.check("docker create ubuntu")).toMatchObject({ allowed: false });
+      expect(checker.check("docker system prune")).toMatchObject({ allowed: false });
+      expect(checker.check("docker attach container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker wait container1")).toMatchObject({ allowed: false });
+    });
+
+    it("should block docker exec with write commands", () => {
+      expect(checker.check("docker exec container1 touch /tmp/x")).toMatchObject({ allowed: false });
+      expect(checker.check("docker exec container1 rm -rf /tmp/*")).toMatchObject({ allowed: false });
+      expect(checker.check("docker exec container1 echo hello > /tmp/out")).toMatchObject({ allowed: false });
+    });
+
     it("should handle exec with /bin/ path", () => {
       expect(checker.check("exec /bin/bash")).toMatchObject({ allowed: false });
       expect(checker.check("exec /usr/bin/zsh")).toMatchObject({ allowed: false });
@@ -1065,6 +1132,7 @@ describe("CommandChecker", () => {
     it("should allow more hardware info tools", () => {
       expect(checker.check("lspci")).toEqual({ allowed: true });
       expect(checker.check("lsusb")).toEqual({ allowed: true });
+      expect(checker.check("lscpu")).toEqual({ allowed: true });
     });
 
     it("should allow more dmesg and journalctl options", () => {
