@@ -10,7 +10,9 @@ const REGISTRY_FILE = process.env.MCP_SSH_REGISTRY_PATH || path.join(REGISTRY_DI
 
 function ensureRegistryDir() {
   if (!fs.existsSync(REGISTRY_DIR)) {
-    fs.mkdirSync(REGISTRY_DIR, { recursive: true });
+    fs.mkdirSync(REGISTRY_DIR, { recursive: true, mode: 0o700 });
+  } else {
+    fs.chmodSync(REGISTRY_DIR, 0o700);
   }
 }
 
@@ -42,8 +44,9 @@ function invalidateCache() {
 function saveRegistry(registry: ServerRegistry) {
   ensureRegistryDir();
   const tmpFile = REGISTRY_FILE + `.tmp.${process.pid}.${Date.now()}`;
-  fs.writeFileSync(tmpFile, JSON.stringify(registry, null, 2), "utf-8");
+  fs.writeFileSync(tmpFile, JSON.stringify(registry, null, 2), { encoding: "utf-8" as const, mode: 0o600 });
   fs.renameSync(tmpFile, REGISTRY_FILE);
+  fs.chmodSync(REGISTRY_FILE, 0o600);
   invalidateCache();
 }
 
@@ -115,7 +118,16 @@ export function resolveCredentials(alias: string, host: HostConfig): { key?: Buf
   const password = process.env[envKey];
 
   if (host.authMethod === "key" && host.keyPath) {
-    const keyContent = fs.readFileSync(host.keyPath);
+    let keyContent: Buffer;
+    try {
+      keyContent = fs.readFileSync(host.keyPath);
+    } catch (e: unknown) {
+      const err = e as Error;
+      throw new Error(
+        `Cannot read key file for host '${alias}': ${err.message}. ` +
+        `Verify keyPath '${host.keyPath}' exists and is readable.`
+      );
+    }
     return { key: keyContent };
   }
 

@@ -1,5 +1,5 @@
 import { GIT_READ_ONLY, GIT_STASH_READ_ONLY } from '../../data/readonly-rules.js';
-import { getFirstToken } from '../resolution/command-resolver.js';
+import { getFirstToken } from './base-handler.js';
 
 export function gitHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(4).trimStart();

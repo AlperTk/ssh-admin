@@ -5,6 +5,7 @@ export interface HostConfig {
   username: string;
   authMethod: "key" | "password";
   keyPath?: string;
+  forceIPv4?: boolean;
   // Never store passwords in the registry — use env vars
 }
 

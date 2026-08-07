@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "MCP server for SSH remote server management",
   "bin": {
-    "mcp-ssh": "./dist/bundle.js"
+    "mcp-ssh": "./dist/bundle.cjs"
   },
   "scripts": {
     "build": "tsc && node build.mjs",
     "bundle": "node build.mjs",
-    "start": "node dist/bundle.js",
+    "start": "node dist/bundle.cjs",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest"

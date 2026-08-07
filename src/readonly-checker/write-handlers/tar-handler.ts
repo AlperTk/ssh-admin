@@ -23,9 +23,20 @@ export function tarHasWriteArg(cmd: string): boolean {
     if (flags.includes('c')) return true;
     // -x veya --extract → yazma
     if (flags.includes('x')) return true;
+    // -r veya --append → yazma
+    if (flags.includes('r')) return true;
+    // -u veya --update → yazma
+    if (flags.includes('u')) return true;
     // -t veya --list → okuma
-    if (flags.includes('t')) return false;
+    if (flags.includes('t') && !flags.includes('x') && !flags.includes('c') && !flags.includes('r') && !flags.includes('u')) return false;
     return true;
+  }
+
+  // --warning flag ile archive bomb uyarıları bastırılabilir
+  for (let i = 1; i < tokens.length; i++) {
+    if (tokens[i].startsWith('--warning=')) {
+      return true;
+    }
   }
 
   // Whitelist: sadece safe flags izinli

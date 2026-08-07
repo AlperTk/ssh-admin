@@ -24,7 +24,7 @@ await esbuild.build({
   bundle: true,
   platform: "node",
   format: "cjs",
-  outfile: "dist/bundle.js",
+  outfile: "dist/bundle.cjs",
   external: [],
   sourcemap: true,
   banner: {
@@ -32,4 +32,4 @@ await esbuild.build({
   },
 });
 
-console.log("Bundle created: dist/bundle.js");
+console.log("Bundle created: dist/bundle.cjs");

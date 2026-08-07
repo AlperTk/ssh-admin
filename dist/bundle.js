@@ -27077,9 +27077,9 @@ var util;
     }
     return keys;
   };
-  util2.find = (arr, checker3) => {
+  util2.find = (arr, checker2) => {
     for (const item of arr) {
-      if (checker3(item))
+      if (checker2(item))
         return item;
     }
     return void 0;
@@ -51122,27 +51122,47 @@ var StdioServerTransport = class {
 };
 
 // src/registry.ts
-var fs = __toESM(require("fs"));
-var os = __toESM(require("os"));
-var path = __toESM(require("path"));
+var fs = __toESM(require("fs"), 1);
+var os = __toESM(require("os"), 1);
+var path = __toESM(require("path"), 1);
 var REGISTRY_DIR = process.env.MCP_SSH_REGISTRY_PATH ? path.dirname(process.env.MCP_SSH_REGISTRY_PATH) : path.join(os.homedir(), ".mcp-ssh");
 var REGISTRY_FILE = process.env.MCP_SSH_REGISTRY_PATH || path.join(REGISTRY_DIR, "hosts.json");
 function ensureRegistryDir() {
   if (!fs.existsSync(REGISTRY_DIR)) {
-    fs.mkdirSync(REGISTRY_DIR, { recursive: true });
+    fs.mkdirSync(REGISTRY_DIR, { recursive: true, mode: 448 });
+  } else {
+    fs.chmodSync(REGISTRY_DIR, 448);
   }
 }
+var registryCache = null;
+var registryCacheMtime = 0;
 function loadRegistry() {
   ensureRegistryDir();
   if (!fs.existsSync(REGISTRY_FILE)) {
-    return { hosts: [] };
+    registryCache = { hosts: [] };
+    registryCacheMtime = 0;
+    return registryCache;
+  }
+  const stats = fs.statSync(REGISTRY_FILE);
+  if (registryCache && registryCacheMtime === stats.mtimeMs) {
+    return registryCache;
   }
   const content = fs.readFileSync(REGISTRY_FILE, "utf-8");
-  return JSON.parse(content);
+  registryCache = JSON.parse(content);
+  registryCacheMtime = stats.mtimeMs;
+  return registryCache;
+}
+function invalidateCache() {
+  registryCache = null;
+  registryCacheMtime = 0;
 }
 function saveRegistry(registry2) {
   ensureRegistryDir();
-  fs.writeFileSync(REGISTRY_FILE, JSON.stringify(registry2, null, 2), "utf-8");
+  const tmpFile = REGISTRY_FILE + `.tmp.${process.pid}.${Date.now()}`;
+  fs.writeFileSync(tmpFile, JSON.stringify(registry2, null, 2), { encoding: "utf-8", mode: 384 });
+  fs.renameSync(tmpFile, REGISTRY_FILE);
+  fs.chmodSync(REGISTRY_FILE, 384);
+  invalidateCache();
 }
 function findHost(alias) {
   const registry2 = loadRegistry();
@@ -51196,7 +51216,15 @@ function resolveCredentials(alias, host) {
   const envKey = `SSH_PASSWORD_${alias.toUpperCase()}`;
   const password = process.env[envKey];
   if (host.authMethod === "key" && host.keyPath) {
-    const keyContent = fs.readFileSync(host.keyPath);
+    let keyContent;
+    try {
+      keyContent = fs.readFileSync(host.keyPath);
+    } catch (e) {
+      const err = e;
+      throw new Error(
+        `Cannot read key file for host '${alias}': ${err.message}. Verify keyPath '${host.keyPath}' exists and is readable.`
+      );
+    }
     return { key: keyContent };
   }
   if (host.authMethod === "password" && !password) {
@@ -51207,211 +51235,214 @@ function resolveCredentials(alias, host) {
   return { password };
 }
 
-// src/pool.ts
-var crypto = __toESM(require("crypto"));
-var import_ssh2 = __toESM(require_lib2());
-var ConnectionPool = class {
-  sessions = /* @__PURE__ */ new Map();
-  hostToSession = /* @__PURE__ */ new Map();
-  // host → sessionId (max 1 per host)
-  async open(alias, timeout = 5e3) {
-    const hostConfig = getServer(alias);
-    const credentials = resolveCredentials(alias, hostConfig);
-    const existingSessionId = this.hostToSession.get(hostConfig.host);
-    if (existingSessionId) {
-      const existing = this.sessions.get(existingSessionId);
-      if (existing?.connected) {
-        return { sessionId: existingSessionId, status: "already_connected", verified: true };
-      }
-      this.sessions.delete(existingSessionId);
-      this.hostToSession.delete(hostConfig.host);
-    }
-    const sessionId = crypto.randomUUID();
-    const client = new import_ssh2.Client();
-    const connectOpts = {
-      host: hostConfig.host,
-      port: hostConfig.port,
-      username: hostConfig.username,
-      readyTimeout: timeout,
-      keepaliveInterval: Math.max(1e4, timeout / 3),
-      keepaliveCountMax: 10,
-      GSSAPIAuthentication: false,
-      addressFamily: 4
-    };
-    if (hostConfig.authMethod === "key" && credentials.key) {
-      console.error("[DEBUG] Using privateKey from file");
-      connectOpts.privateKey = credentials.key;
-    }
-    if (credentials.password) {
-      connectOpts.password = credentials.password;
-    }
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        client.end();
-        reject(new Error(`Connection to '${alias}' timed out after ${timeout / 1e3}s`));
-      }, timeout);
-      let session = null;
-      client.on("ready", () => {
-        clearTimeout(timer);
-        const verifyTimer = setTimeout(() => {
-          client.end();
-          reject(new Error(`Connection verification timed out after ${Math.max(30, timeout / 1e3)}s for '${alias}'`));
-        }, Math.max(3e4, timeout));
-        console.error("[DEBUG] SSH ready for alias:", alias);
-        client.exec("echo ping", (err, stream) => {
-          if (err) {
-            clearTimeout(verifyTimer);
-            client.end();
-            reject(new Error(`Connection verification failed for '${alias}': ${err.message}`));
-            return;
-          }
-          let output = "";
-          stream.on("data", (data) => {
-            output += data.toString();
-          });
-          stream.on("close", () => {
-            clearTimeout(verifyTimer);
-            if (output.trim() === "ping") {
-              console.error("[DEBUG] Connection verified for alias:", alias);
-              session = {
-                sessionId,
-                alias,
-                host: hostConfig.host,
-                port: hostConfig.port,
-                username: hostConfig.username,
-                client,
-                connected: true,
-                connectedAt: /* @__PURE__ */ new Date(),
-                lastUsed: /* @__PURE__ */ new Date(),
-                authConfig: credentials
-              };
-              this.sessions.set(sessionId, session);
-              this.hostToSession.set(hostConfig.host, sessionId);
-              resolve({ sessionId, status: "connected", verified: true });
-            } else {
-              client.end();
-              reject(new Error(`Connection verification failed for '${alias}': unexpected response '${output.trim()}'`));
-            }
-          });
-          stream.on("error", (err2) => {
-            clearTimeout(verifyTimer);
-            client.end();
-            reject(new Error(`Connection verification stream error for '${alias}': ${err2.message}`));
-          });
-        });
-      });
-      client.on("error", (err) => {
-        clearTimeout(timer);
-        if (session) {
-          session.connected = false;
-          this.sessions.delete(sessionId);
-        }
-        this.hostToSession.delete(hostConfig.host);
-        reject(new Error(`SSH connection failed for '${alias}': ${err.message}`));
-      });
-      client.on("close", (...args) => {
-        console.error("[DEBUG] SSH close event args:", JSON.stringify(args));
-        if (session) {
-          session.connected = false;
-        }
-        this.sessions.delete(sessionId);
-        this.hostToSession.delete(hostConfig.host);
-      });
-      try {
-        client.connect(connectOpts);
-      } catch (e) {
-        clearTimeout(timer);
-        reject(e);
-      }
-    });
+// src/errors.ts
+var AppError = class extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+    this.name = this.constructor.name;
+    Object.setPrototypeOf(this, new.target.prototype);
   }
-  close(sessionId) {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      return { success: false, message: `Session '${sessionId}' not found` };
-    }
-    session.client.end();
-    this.sessions.delete(sessionId);
-    this.hostToSession.delete(session.host);
-    return { success: true, message: `Session '${sessionId}' closed` };
-  }
-  list() {
-    const now = /* @__PURE__ */ new Date();
-    return Array.from(this.sessions.values()).map((s) => ({
-      sessionId: s.sessionId,
-      alias: s.alias,
-      host: s.host,
-      username: s.username,
-      connectedAt: s.connectedAt,
-      lastUsed: s.lastUsed
-    }));
-  }
-  async executeCommand(sessionId, command, timeout = 6e4) {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session '${sessionId}' not found or closed. Try calling pool.open() again to establish a new connection.`);
-    }
-    session.lastUsed = /* @__PURE__ */ new Date();
-    return new Promise((resolve, reject) => {
-      const start = Date.now();
-      try {
-        console.error("[DEBUG] executing:", command);
-        session.client.exec(command, { env: { TERM: "xterm" } }, (err, stream) => {
-          if (err) {
-            console.error("[DEBUG] exec callback error:", err.message);
-            reject(new Error(`Command execution failed: ${err.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
-            return;
-          }
-          let stdout = "";
-          let stderr = "";
-          let exitCode = null;
-          const timer = setTimeout(() => {
-            stream.close();
-            reject(new Error(`Command timed out after ${timeout}ms`));
-          }, timeout);
-          stream.on("data", (data) => {
-            stdout += data.toString();
-          });
-          stream.stderr.on("data", (data) => {
-            stderr += data.toString();
-          });
-          stream.on("exit", (code) => {
-            exitCode = code;
-            clearTimeout(timer);
-            resolve({
-              stdout: stdout.trimEnd(),
-              stderr: stderr.trimEnd(),
-              exitCode: code ?? -1,
-              durationMs: Date.now() - start
-            });
-          });
-          stream.on("close", () => {
-            if (exitCode === null) {
-              clearTimeout(timer);
-              resolve({
-                stdout: stdout.trimEnd(),
-                stderr: stderr.trimEnd(),
-                exitCode: 1,
-                durationMs: Date.now() - start
-              });
-            }
-          });
-          stream.on("error", (err2) => {
-            clearTimeout(timer);
-            reject(new Error(`Stream error: ${err2.message}`));
-          });
-        });
-      } catch (e) {
-        console.error("[DEBUG] exec sync error:", e.message);
-        reject(new Error(`Command execution failed: ${e.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
-      }
-    });
-  }
-  getSessionCount() {
-    return this.sessions.size;
-  }
+  code;
 };
-var pool = new ConnectionPool();
+
+// src/response.ts
+function successResponse(data) {
+  return {
+    content: [{ type: "text", text: JSON.stringify({ success: true, data }, null, 2) }]
+  };
+}
+function errorResponse(message) {
+  return {
+    content: [{ type: "text", text: JSON.stringify({ success: false, error: message }) }],
+    isError: true
+  };
+}
+function formatError2(err) {
+  if (err instanceof AppError) {
+    return { message: err.message, code: err.code };
+  }
+  if (err instanceof Error) {
+    return { message: err.message, code: "UNKNOWN_ERROR" };
+  }
+  return { message: String(err), code: "UNKNOWN_ERROR" };
+}
+
+// src/readonly-guard.ts
+var _readonlyModeOverride = null;
+function getReadonlyMode() {
+  if (_readonlyModeOverride !== null) return _readonlyModeOverride;
+  return process.env.MCP_SSH_READONLY === "true";
+}
+function requireWrite(override) {
+  const readonly2 = override ?? getReadonlyMode();
+  if (readonly2) {
+    return errorResponse("Readonly mode is enabled. Write operations are not allowed.");
+  }
+  return null;
+}
+function isReadonlyMode(override) {
+  return override ?? getReadonlyMode();
+}
+
+// src/tools/registry-tools.ts
+function registerRegistryTools(server2, pool2) {
+  server2.registerTool(
+    "registry_add_server",
+    {
+      title: "Add Server",
+      description: "Add a new SSH server to the registry",
+      inputSchema: {
+        alias: external_exports.string().min(1, "Alias cannot be empty").max(64, "Alias must be 64 characters or less").regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "Alias must start with alphanumeric and contain only letters, numbers, dots, hyphens, or underscores").describe("Unique alias for this server (e.g., 'prod-web')"),
+        host: external_exports.string().describe("Hostname or IP address"),
+        port: external_exports.number().default(22).describe("SSH port (default: 22)"),
+        username: external_exports.string().describe("SSH username"),
+        authMethod: external_exports.enum(["key", "password"]).describe("Authentication method"),
+        keyPath: external_exports.string().optional().describe("Path to SSH private key file (for key auth)")
+      }
+    },
+    async (args) => {
+      const blocked = requireWrite();
+      if (blocked) return blocked;
+      try {
+        const result = addServer(args);
+        return successResponse(result);
+      } catch (err) {
+        const { message } = formatError2(err);
+        return errorResponse(message);
+      }
+    }
+  );
+  server2.tool(
+    "registry_list_servers",
+    "List all registered SSH servers (credentials hidden)",
+    async () => {
+      const hosts = listServers();
+      return {
+        content: [{ type: "text", text: JSON.stringify({ servers: hosts }, null, 2) }]
+      };
+    }
+  );
+  server2.registerTool(
+    "registry_get_server",
+    {
+      title: "Get Server",
+      description: "Get details of a specific registered server",
+      inputSchema: {
+        alias: external_exports.string().describe("Server alias")
+      }
+    },
+    async (args) => {
+      try {
+        const host = getServer(args.alias);
+        return successResponse(host);
+      } catch (err) {
+        const { message } = formatError2(err);
+        return errorResponse(message);
+      }
+    }
+  );
+  server2.registerTool(
+    "registry_update_server",
+    {
+      title: "Update Server",
+      description: "Update a registered server's properties (cannot change host/port)",
+      inputSchema: {
+        alias: external_exports.string().describe("Server alias to update"),
+        username: external_exports.string().optional().describe("New username"),
+        authMethod: external_exports.enum(["key", "password"]).optional().describe("New auth method"),
+        keyPath: external_exports.string().optional().describe("New key path")
+      }
+    },
+    async (args) => {
+      const blocked = requireWrite();
+      if (blocked) return blocked;
+      try {
+        const updates = {};
+        if (args.username !== void 0) updates.username = args.username;
+        if (args.authMethod !== void 0) updates.authMethod = args.authMethod;
+        if (args.keyPath !== void 0) updates.keyPath = args.keyPath;
+        const result = updateServer(args.alias, updates);
+        return successResponse(result);
+      } catch (err) {
+        const { message } = formatError2(err);
+        return errorResponse(message);
+      }
+    }
+  );
+  server2.registerTool(
+    "registry_delete_server",
+    {
+      title: "Delete Server",
+      description: "Remove a server from the registry",
+      inputSchema: {
+        alias: external_exports.string().describe("Server alias to delete")
+      }
+    },
+    async (args) => {
+      const blocked = requireWrite();
+      if (blocked) return blocked;
+      try {
+        deleteServer(args.alias);
+        return successResponse({ message: `Server '${args.alias}' deleted` });
+      } catch (err) {
+        const { message } = formatError2(err);
+        return errorResponse(message);
+      }
+    }
+  );
+}
+
+// src/tools/connection-tools.ts
+function registerConnectionTools(server2, pool2) {
+  server2.registerTool(
+    "connection_open",
+    {
+      title: "Open Connection",
+      description: "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
+      inputSchema: {
+        alias: external_exports.string().describe("Server alias from registry"),
+        timeout: external_exports.number().optional().describe("Connection timeout in milliseconds (default: 5000)")
+      }
+    },
+    async (args) => {
+      try {
+        const result = await pool2.open(args.alias, args.timeout);
+        return successResponse(result);
+      } catch (err) {
+        const { message } = formatError2(err);
+        return errorResponse(message);
+      }
+    }
+  );
+  server2.registerTool(
+    "connection_close",
+    {
+      title: "Close Session",
+      description: "Close an open SSH session",
+      inputSchema: {
+        sessionId: external_exports.string().describe("Session ID to close")
+      }
+    },
+    async (args) => {
+      const result = pool2.close(args.sessionId);
+      if (!result.success) {
+        return errorResponse(result.message);
+      }
+      return successResponse(result);
+    }
+  );
+  server2.tool(
+    "connection_list",
+    "List all active SSH sessions",
+    async () => {
+      const sessions = pool2.list();
+      return {
+        content: [{ type: "text", text: JSON.stringify({ sessions, count: sessions.length }, null, 2) }]
+      };
+    }
+  );
+}
 
 // src/readonly-checker/command-checker.ts
 var import_fs = require("fs");
@@ -51651,10 +51682,7 @@ var APT_READ_ONLY = /* @__PURE__ */ new Set([
   "rdepends",
   "madison",
   "edit-sources",
-  "full-upgrade",
-  "dist-upgrade",
   "update",
-  "upgrade",
   "check",
   "simulator",
   "autoremove"
@@ -51671,19 +51699,18 @@ var DOCKER_READ_ONLY = /* @__PURE__ */ new Set([
   "diff",
   "port",
   "events",
-  "pull",
+  "task",
+  "container",
+  "image",
+  "system",
   "config",
   "node",
   "service",
-  "task",
   "volume",
   "network",
   "plugin",
   "secret",
-  "swarm",
-  "container",
-  "image",
-  "system"
+  "swarm"
 ]);
 var DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
   ["system", ["prune"]],
@@ -51749,8 +51776,134 @@ var AWK_SAFE_PATTERNS = [
   /\bsort\s*\(/
 ];
 
+// src/readonly-checker/write-handlers/base-handler.ts
+function getFirstToken(str) {
+  let token = "";
+  let inSQ = false;
+  let inDQ = false;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === "'" && !inDQ) {
+      inSQ = !inSQ;
+    } else if (ch === '"' && !inSQ) {
+      inDQ = !inDQ;
+    } else if (!inSQ && !inDQ) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+      token += ch;
+    } else {
+      token += ch;
+    }
+  }
+  return token;
+}
+function skipShortFlags(rest) {
+  while (rest.startsWith("-") && !rest.startsWith("--")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) return "";
+    rest = rest.substring(spaceIdx).trimStart();
+  }
+  return rest;
+}
+function skipLongFlags(rest) {
+  while (rest.startsWith("--")) {
+    const spaceIdx = rest.indexOf(" ");
+    const eqIdx = rest.indexOf("=");
+    const endIdx = eqIdx !== -1 ? eqIdx : spaceIdx;
+    if (endIdx === -1) return "";
+    rest = rest.substring(endIdx).trimStart();
+  }
+  return rest;
+}
+function skipFlags(rest) {
+  while (rest.startsWith("-")) {
+    if (rest.startsWith("--")) {
+      rest = skipLongFlags(rest);
+    } else {
+      rest = skipShortFlags(rest);
+    }
+  }
+  return rest;
+}
+
+// src/readonly-checker/write-handlers/git-handler.ts
+function gitHasWriteArg(cmd) {
+  const rest = cmd.substring(4).trimStart();
+  const token = getFirstToken(rest);
+  if (token === "stash") {
+    let rest2 = rest.substring(token.length).trimStart();
+    const thirdToken = getFirstToken(rest2);
+    if (thirdToken && !GIT_STASH_READ_ONLY.includes(thirdToken)) return true;
+    return false;
+  }
+  return !GIT_READ_ONLY.includes(token);
+}
+
+// src/readonly-checker/write-handlers/docker-exec-checker.ts
+var WRITE_PATTERNS = [
+  />>/,
+  />\s*\//,
+  />\s*\.\./,
+  />\s*\.\.$/,
+  /\brm\b/,
+  /\btouch\b/,
+  /\bmkdir\b/,
+  /\bcp\b/,
+  /\bmv\b/,
+  /\bdd\b/,
+  /\btruncate\b/
+];
+var SHELL_SPAWN_PATTERNS = [
+  /\bbash\b/,
+  /\bsh\b/,
+  /\bzsh\b/,
+  /\bcsh\b/,
+  /\bksh\b/,
+  /\bfish\b/,
+  /\/bin\/(ba)?sh\b/,
+  /\/usr\/(s)?bin\/(ba)?sh\b/
+];
+function dockerExecHasWriteArg(cmd) {
+  if (SHELL_SPAWN_PATTERNS.some((p) => p.test(cmd))) return true;
+  return WRITE_PATTERNS.some((p) => p.test(cmd));
+}
+
+// src/readonly-checker/write-handlers/docker-handler.ts
+function dockerHasWriteArg(cmd) {
+  const rest = cmd.substring(6).trimStart();
+  const subCmd = getFirstToken(skipFlags(rest));
+  if (!subCmd) return false;
+  if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
+    let nsRest = skipFlags(rest.substring(subCmd.length).trimStart());
+    const action = getFirstToken(nsRest);
+    if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) return true;
+  }
+  if (DOCKER_READ_ONLY.has(subCmd)) return false;
+  if (subCmd === "exec") {
+    let execRest = skipFlags(rest.substring(subCmd.length).trimStart());
+    if (execRest.startsWith("--container")) {
+      const eqIdx = execRest.indexOf("=");
+      if (eqIdx !== -1) execRest = execRest.substring(eqIdx + 1).trimStart();
+      else {
+        const spaceIdx = execRest.indexOf(" ");
+        if (spaceIdx === -1) return false;
+        execRest = execRest.substring(spaceIdx).trimStart();
+      }
+    } else {
+      const spaceIdx = execRest.indexOf(" ");
+      if (spaceIdx === -1) return false;
+      execRest = execRest.substring(spaceIdx).trimStart();
+    }
+    if (execRest) {
+      const execCmd = getFirstToken(execRest);
+      if (execRest && dockerExecHasWriteArg(execRest)) return true;
+    }
+    return false;
+  }
+  return true;
+}
+
 // src/readonly-checker/resolution/command-resolver.ts
-function getFirstToken(cmd) {
+function getFirstToken2(cmd) {
   let token = "";
   let inSingleQuote = false;
   let inDoubleQuote = false;
@@ -51769,7 +51922,7 @@ function getFirstToken(cmd) {
   }
   return token;
 }
-function skipShortFlags(rest) {
+function skipShortFlags2(rest) {
   while (rest.startsWith("-") && !rest.startsWith("--")) {
     const spaceIdx = rest.indexOf(" ");
     if (spaceIdx === -1) return "";
@@ -51778,7 +51931,7 @@ function skipShortFlags(rest) {
   return rest;
 }
 function resolveCommand(cmd) {
-  const firstToken = getFirstToken(cmd);
+  const firstToken = getFirstToken2(cmd);
   if (firstToken === "sudo") {
     let rest = cmd.substring(firstToken.length).trimStart();
     while (rest.startsWith("-") && !rest.match(/^[a-zA-Z]/)) {
@@ -51821,78 +51974,13 @@ function resolveCommand(cmd) {
   return firstToken;
 }
 
-// src/readonly-checker/write-handlers/git-handler.ts
-function gitHasWriteArg(cmd) {
-  const rest = cmd.substring(4).trimStart();
-  const token = getFirstToken(rest);
-  if (token === "stash") {
-    let rest2 = rest.substring(token.length).trimStart();
-    const thirdToken = getFirstToken(rest2);
-    if (thirdToken && !GIT_STASH_READ_ONLY.includes(thirdToken)) return true;
-    return false;
-  }
-  return !GIT_READ_ONLY.includes(token);
-}
-
-// src/readonly-checker/write-handlers/docker-handler.ts
-function dockerHasWriteArg(cmd) {
-  const rest = cmd.substring(6).trimStart();
-  const subCmd = getFirstToken(skipDockerFlags(rest));
-  if (!subCmd) return false;
-  if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
-    let nsRest = skipDockerFlags(rest.substring(subCmd.length).trimStart());
-    const action = getFirstToken(nsRest);
-    if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) return true;
-  }
-  if (DOCKER_READ_ONLY.has(subCmd)) return false;
-  if (subCmd === "exec") {
-    let execRest = skipDockerFlags(rest.substring(subCmd.length).trimStart());
-    if (execRest.startsWith("--container")) {
-      const eqIdx = execRest.indexOf("=");
-      if (eqIdx !== -1) execRest = execRest.substring(eqIdx + 1).trimStart();
-      else {
-        const spaceIdx = execRest.indexOf(" ");
-        if (spaceIdx === -1) return false;
-        execRest = execRest.substring(spaceIdx).trimStart();
-      }
-    } else {
-      const spaceIdx = execRest.indexOf(" ");
-      if (spaceIdx === -1) return false;
-      execRest = execRest.substring(spaceIdx).trimStart();
-    }
-    if (execRest) {
-      const execCmd = getFirstToken(execRest);
-      if (execRest.includes(">")) return true;
-      if (/\b(rm|touch|mkdir|cp|mv|dd|truncate)\b/.test(execRest)) return true;
-    }
-    return false;
-  }
-  return true;
-}
-function skipDockerFlags(rest) {
-  while (rest.startsWith("-")) {
-    const spaceIdx = rest.indexOf(" ");
-    if (spaceIdx === -1) return "";
-    const afterFlag = rest.substring(spaceIdx).trimStart();
-    if (afterFlag.startsWith("-")) {
-      const nextSpace = afterFlag.indexOf(" ");
-      if (nextSpace === -1) break;
-      rest = afterFlag.substring(nextSpace).trimStart();
-    } else {
-      rest = afterFlag;
-      break;
-    }
-  }
-  return rest;
-}
-
 // src/readonly-checker/write-handlers/systemctl-handler.ts
 function systemctlHasWriteArg(cmd) {
   const idx = cmd.toLowerCase().indexOf("systemctl");
   if (idx === -1) return false;
   let rest = cmd.substring(idx + 9).trimStart();
-  rest = skipShortFlags(rest);
-  const subCmd = getFirstToken(rest);
+  rest = skipShortFlags2(rest);
+  const subCmd = getFirstToken2(rest);
   if (!subCmd) return false;
   return !SYSTEMCTL_READ_ONLY.has(subCmd);
 }
@@ -51953,7 +52041,11 @@ function curlWgetHasWriteArg(cmd) {
       continue;
     }
     if (token.startsWith("-") && !token.startsWith("--")) {
-      const flags = token.substring(1).split("");
+      const flags = token.substring(1);
+      if (flags.includes("o") || flags.includes("O")) {
+        hasUnknownFlag = true;
+        continue;
+      }
       for (const f of flags) {
         const flagKey = "-" + f;
         if (!CURL_SAFE_FLAGS.has(flagKey)) {
@@ -51971,13 +52063,13 @@ function ipHasWriteArg(cmd) {
   const idx = cmd.toLowerCase().indexOf("ip");
   if (idx === -1) return false;
   let rest = cmd.substring(idx + 2).trimStart();
-  rest = skipShortFlags(rest);
-  const subCmd = getFirstToken(rest);
+  rest = skipShortFlags2(rest);
+  const subCmd = getFirstToken2(rest);
   if (!subCmd) return false;
   const subCmdLower = subCmd.toLowerCase();
   if (IP_READ_ONLY.has(subCmdLower)) {
-    let nsRest = skipShortFlags(rest.substring(subCmd.length).trimStart());
-    const action = getFirstToken(nsRest);
+    let nsRest = skipShortFlags2(rest.substring(subCmd.length).trimStart());
+    const action = getFirstToken2(nsRest);
     const allowedActions = IP_READ_ONLY_SUBCOMMANDS.get(subCmdLower);
     if (allowedActions && action && allowedActions.includes(action)) return false;
     if (!allowedActions) return false;
@@ -51988,17 +52080,18 @@ function ipHasWriteArg(cmd) {
 
 // src/readonly-checker/write-handlers/apt-handler.ts
 function aptHasWriteArg(cmd) {
-  const idx = cmd.toLowerCase().indexOf("apt");
-  if (idx === -1) return false;
+  const match = cmd.toLowerCase().match(/\bapt\b/);
+  if (!match) return false;
+  const idx = match.index;
   let rest = cmd.substring(idx + 3).trimStart();
-  rest = skipShortFlags(rest);
-  const subCmd = getFirstToken(rest);
+  rest = skipShortFlags2(rest);
+  const subCmd = getFirstToken2(rest);
   if (!subCmd) return false;
   return !APT_READ_ONLY.has(subCmd);
 }
 
 // src/readonly-checker/write-handlers/crontab-handler.ts
-function skipFlags(rest) {
+function skipFlags2(rest) {
   while (rest.startsWith("-") && !rest.startsWith("--")) {
     const spaceIdx = rest.indexOf(" ");
     if (spaceIdx === -1) return "";
@@ -52011,7 +52104,7 @@ function crontabHasWriteArg(cmd) {
   if (idx === -1) return false;
   let rest = cmd.substring(idx + 7).trimStart();
   if (rest.startsWith("-e") && (rest.length === 2 || !/\w/.test(rest[2]))) return true;
-  rest = skipFlags(rest);
+  rest = skipFlags2(rest);
   if (rest.startsWith("-u") || rest.startsWith("-U")) {
     const spaceIdx = rest.indexOf(" ");
     if (spaceIdx !== -1) rest = rest.substring(spaceIdx).trimStart();
@@ -52111,9 +52204,23 @@ function awkHasWriteArg(cmd) {
 
 // src/readonly-checker/write-handlers/scp-handler.ts
 function scpHasWriteArg(cmd) {
-  if (/@\S+:[~\/]/.test(cmd)) return true;
-  const parts = cmd.split(/\s+/);
-  if (parts.length >= 3 && !/@/.test(parts[1])) {
+  let rest = cmd.trimStart();
+  while (rest.startsWith("-")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) return false;
+    rest = rest.substring(spaceIdx).trimStart();
+  }
+  if (rest.startsWith("-i")) {
+    const flagEnd = rest.indexOf(" ");
+    if (flagEnd === -1) return true;
+    rest = rest.substring(flagEnd).trimStart();
+  }
+  const hasRemoteSource = /@\S+:[~\/]/.test(rest);
+  const hasRemoteDest = /@[^\s:]+:[~\/]/.test(rest);
+  if (hasRemoteSource && !hasRemoteDest) return false;
+  if (hasRemoteDest) return true;
+  const parts = rest.split(/\s+/);
+  if (parts.length >= 2) {
     return true;
   }
   return false;
@@ -52132,8 +52239,9 @@ var TAR_SAFE_FLAGS = /* @__PURE__ */ new Set([
   "-t"
 ]);
 function tarHasWriteArg(cmd) {
-  const idx = cmd.toLowerCase().indexOf("tar");
-  if (idx === -1) return false;
+  const match = cmd.toLowerCase().match(/\btar\b/);
+  if (!match) return false;
+  const idx = match.index;
   let rest = cmd.substring(idx + 3).trimStart();
   const tokens = rest.split(/\s+/);
   if (!tokens[0]) return false;
@@ -52142,8 +52250,15 @@ function tarHasWriteArg(cmd) {
     const flags = firstToken.substring(1);
     if (flags.includes("c")) return true;
     if (flags.includes("x")) return true;
-    if (flags.includes("t")) return false;
+    if (flags.includes("r")) return true;
+    if (flags.includes("u")) return true;
+    if (flags.includes("t") && !flags.includes("x") && !flags.includes("c") && !flags.includes("r") && !flags.includes("u")) return false;
     return true;
+  }
+  for (let i = 1; i < tokens.length; i++) {
+    if (tokens[i].startsWith("--warning=")) {
+      return true;
+    }
   }
   return !TAR_SAFE_FLAGS.has(firstToken);
 }
@@ -52219,8 +52334,6 @@ var WritePatternDetector = class {
         "socat",
         "nmap",
         "masscan",
-        "curl",
-        "wget",
         "ping",
         "traceroute",
         "mtr",
@@ -52278,7 +52391,11 @@ var WritePatternDetector = class {
         "lastb"
       ]);
       const xargsMatch = unquoted.match(/\bxargs\b\s+(\S+)/);
-      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return { ok: false };
+      if (xargsMatch) {
+        const cmdAfterXargs = xargsMatch[1];
+        if (cmdAfterXargs === "curl" || cmdAfterXargs === "wget") return { ok: false };
+        if (XARGS_READ_ONLY_CMDS.has(cmdAfterXargs)) return { ok: false };
+      }
       return { ok: true, debug: { rule: "XARGS_RE", text: "xargs" } };
     }
     if (HERE_STRING_RE.test(segment)) return { ok: true, debug: { rule: "HERE_STRING_RE", text: "<<<" } };
@@ -52458,7 +52575,7 @@ var CommandChecker = class {
         const psResult = this.checkProcessSubstitution(pTrimmed);
         if (!psResult.allowed) return psResult;
         const resolved = resolveCommand(pTrimmed);
-        const cmd = getFirstToken(resolved);
+        const cmd = getFirstToken2(resolved);
         if (!this.whitelist.has(cmd)) {
           return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist`, blockedCommand: cmd, segmentIndex: segIdx };
         }
@@ -52518,7 +52635,7 @@ var CommandChecker = class {
   validateExecArgs(cmd) {
     const rest = cmd.substring(4).trimStart();
     if (!rest) return null;
-    const target = getFirstToken(rest);
+    const target = getFirstToken2(rest);
     if (SHELL_PATTERNS.includes(target)) return { allowed: false, reason: "Shell replacement detected", blockedCommand: target };
     if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: "Shell path detected", blockedCommand: target };
     return null;
@@ -52526,33 +52643,261 @@ var CommandChecker = class {
 };
 var checker = new CommandChecker();
 
-// src/response.ts
-function successResponse(data) {
-  return {
-    content: [{ type: "text", text: JSON.stringify({ success: true, data }, null, 2) }]
-  };
-}
-function errorResponse(message) {
-  return {
-    content: [{ type: "text", text: JSON.stringify({ success: false, error: message }) }],
-    isError: true
-  };
+// src/tools/command-tools.ts
+function registerCommandTool(server2, pool2) {
+  server2.registerTool(
+    "command_execute",
+    {
+      title: "Execute Command",
+      description: "Execute a command on an open SSH session. Can be called multiple times on the same session.",
+      inputSchema: {
+        sessionId: external_exports.string().describe("Session ID from connection_open"),
+        command: external_exports.string().describe("Shell command to execute"),
+        timeout: external_exports.number().optional().default(6e4).describe("Timeout in milliseconds (default: 60000)")
+      }
+    },
+    async (args) => {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
+        return errorResponse("Invalid sessionId format");
+      }
+      if (isReadonlyMode()) {
+        const result = checker.check(args.command);
+        if (!result.allowed) {
+          const parts = [`Write operation detected: ${result.reason}`];
+          if (result.blockedCommand) parts.push(`[blocked_command=${result.blockedCommand}]`);
+          if (result.matchedRule) parts.push(`[matched_rule=${result.matchedRule}]`);
+          if (result.matchedText) parts.push(`[matched_text=${result.matchedText}]`);
+          if (result.segmentIndex !== void 0) parts.push(`[segment=${result.segmentIndex}]`);
+          return errorResponse(parts.join(" "));
+        }
+      }
+      try {
+        const result = await pool2.executeCommand(args.sessionId, args.command, args.timeout ?? 6e4);
+        return successResponse(result);
+      } catch (err) {
+        const { message } = formatError2(err);
+        return errorResponse(message);
+      }
+    }
+  );
 }
 
-// src/readonly-guard.ts
-var READONLY_MODE = process.env.MCP_SSH_READONLY === "true";
-function requireWrite() {
-  if (READONLY_MODE) {
-    return errorResponse("Readonly mode is enabled. Write operations are not allowed.");
+// src/pool.ts
+var crypto = __toESM(require("crypto"), 1);
+var import_ssh2 = __toESM(require_lib2(), 1);
+var ConnectionPool = class {
+  sessions = /* @__PURE__ */ new Map();
+  hostToSession = /* @__PURE__ */ new Map();
+  // host → sessionId (max 1 per host)
+  async open(alias, timeout = 5e3) {
+    const hostConfig = getServer(alias);
+    const credentials = resolveCredentials(alias, hostConfig);
+    const existingSessionId = this.hostToSession.get(hostConfig.host);
+    if (existingSessionId) {
+      const existing = this.sessions.get(existingSessionId);
+      if (existing?.connected) {
+        return { sessionId: existingSessionId, status: "already_connected", verified: true };
+      }
+      this.sessions.delete(existingSessionId);
+      this.hostToSession.delete(hostConfig.host);
+    }
+    const sessionId = crypto.randomUUID();
+    const client = new import_ssh2.Client();
+    const connectOpts = {
+      host: hostConfig.host,
+      port: hostConfig.port,
+      username: hostConfig.username,
+      readyTimeout: timeout,
+      keepaliveInterval: Math.max(1e4, timeout / 3),
+      keepaliveCountMax: 10,
+      ...hostConfig.forceIPv4 && { forceIPv4: true }
+    };
+    if (hostConfig.authMethod === "key" && credentials.key) {
+      connectOpts.privateKey = credentials.key;
+    }
+    const hasPassword = !!credentials.password;
+    if (credentials.password) {
+      connectOpts.password = credentials.password;
+      credentials.password = void 0;
+    }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        client.end();
+        reject(new Error(`Connection to '${alias}' timed out after ${timeout / 1e3}s`));
+      }, timeout);
+      let session = null;
+      client.on("ready", () => {
+        clearTimeout(timer);
+        const verifyTimer = setTimeout(() => {
+          client.end();
+          reject(new Error(`Connection verification timed out after ${Math.max(30, timeout / 1e3)}s for '${alias}'`));
+        }, Math.max(3e4, timeout));
+        client.exec("echo ping", (err, stream) => {
+          if (err) {
+            clearTimeout(verifyTimer);
+            client.end();
+            reject(new Error(`Connection verification failed for '${alias}': ${err.message}`));
+            return;
+          }
+          let output = "";
+          stream.on("data", (data) => {
+            output += data.toString();
+          });
+          stream.on("close", () => {
+            clearTimeout(verifyTimer);
+            if (output.trim() === "ping") {
+              session = {
+                sessionId,
+                alias,
+                host: hostConfig.host,
+                port: hostConfig.port,
+                username: hostConfig.username,
+                client,
+                connected: true,
+                connectedAt: /* @__PURE__ */ new Date(),
+                lastUsed: /* @__PURE__ */ new Date(),
+                authConfig: { keyPath: hostConfig.keyPath, hasPassword }
+              };
+              this.sessions.set(sessionId, session);
+              this.hostToSession.set(hostConfig.host, sessionId);
+              resolve({ sessionId, status: "connected", verified: true });
+            } else {
+              client.end();
+              reject(new Error(`Connection verification failed for '${alias}': unexpected response '${output.trim()}'`));
+            }
+          });
+          stream.on("error", (err2) => {
+            clearTimeout(verifyTimer);
+            client.end();
+            reject(new Error(`Connection verification stream error for '${alias}': ${err2.message}`));
+          });
+        });
+      });
+      client.on("error", (err) => {
+        clearTimeout(timer);
+        if (session) {
+          session.connected = false;
+          this.sessions.delete(sessionId);
+        }
+        this.hostToSession.delete(hostConfig.host);
+        reject(new Error(`SSH connection failed for '${alias}': ${err.message}`));
+      });
+      client.on("close", () => {
+        if (session) {
+          session.connected = false;
+        }
+        this.sessions.delete(sessionId);
+        this.hostToSession.delete(hostConfig.host);
+      });
+      try {
+        client.connect(connectOpts);
+      } catch (e) {
+        clearTimeout(timer);
+        const message = e instanceof Error ? e.message : String(e);
+        reject(new Error(`Connection failed: ${message}`));
+      }
+    });
   }
-  return null;
-}
-function isReadonlyMode() {
-  return READONLY_MODE;
-}
+  close(sessionId) {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return { success: false, message: `Session '${sessionId}' not found` };
+    }
+    const host = session.host;
+    this.hostToSession.delete(host);
+    this.sessions.delete(sessionId);
+    session.client.end();
+    return { success: true, message: `Session '${sessionId}' closed` };
+  }
+  list() {
+    const now = /* @__PURE__ */ new Date();
+    return Array.from(this.sessions.values()).map((s) => ({
+      sessionId: s.sessionId,
+      alias: s.alias,
+      host: s.host,
+      username: s.username,
+      connectedAt: s.connectedAt,
+      lastUsed: s.lastUsed
+    }));
+  }
+  async executeCommand(sessionId, command, timeout = 6e4) {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session '${sessionId}' not found or closed. Try calling pool.open() again to establish a new connection.`);
+    }
+    session.lastUsed = /* @__PURE__ */ new Date();
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      try {
+        session.client.exec(command, { env: { TERM: "xterm" } }, (err, stream) => {
+          if (err) {
+            reject(new Error(`Command execution failed: ${err.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+            return;
+          }
+          let stdout = "";
+          let stderr = "";
+          let exitCode = null;
+          const timer = setTimeout(() => {
+            stream.close();
+            reject(new Error(`Command timed out after ${timeout}ms`));
+          }, timeout);
+          stream.on("data", (data) => {
+            stdout += data.toString();
+          });
+          if (stream.stderr) {
+            stream.stderr.on("data", (data) => {
+              stderr += data.toString();
+            });
+          }
+          stream.on("exit", (code) => {
+            exitCode = code;
+            clearTimeout(timer);
+            resolve({
+              stdout: stdout.trimEnd(),
+              stderr: stderr.trimEnd(),
+              exitCode: code ?? -1,
+              durationMs: Date.now() - start
+            });
+          });
+          stream.on("close", () => {
+            if (exitCode === null) {
+              clearTimeout(timer);
+              resolve({
+                stdout: stdout.trimEnd(),
+                stderr: stderr.trimEnd(),
+                exitCode: 1,
+                durationMs: Date.now() - start
+              });
+            }
+          });
+          stream.on("error", (err2) => {
+            clearTimeout(timer);
+            reject(new Error(`Stream error: ${err2.message}`));
+          });
+        });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        reject(new Error(`Command execution failed: ${message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+      }
+    });
+  }
+  getSessionCount() {
+    return this.sessions.size;
+  }
+  closeAll() {
+    for (const session of this.sessions.values()) {
+      try {
+        session.client.end();
+      } catch {
+      }
+    }
+    this.sessions.clear();
+    this.hostToSession.clear();
+  }
+};
+var pool = new ConnectionPool();
 
 // src/index.ts
-var checker2 = new CommandChecker();
 if (isReadonlyMode()) {
   console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
 } else {
@@ -52562,189 +52907,9 @@ var server = new McpServer({
   name: "mcp-ssh",
   version: "1.0.0"
 });
-server.registerTool(
-  "registry_add_server",
-  {
-    title: "Add Server",
-    description: "Add a new SSH server to the registry",
-    inputSchema: {
-      alias: external_exports.string().describe("Unique alias for this server (e.g., 'prod-web')"),
-      host: external_exports.string().describe("Hostname or IP address"),
-      port: external_exports.number().default(22).describe("SSH port (default: 22)"),
-      username: external_exports.string().describe("SSH username"),
-      authMethod: external_exports.enum(["key", "password"]).describe("Authentication method"),
-      keyPath: external_exports.string().optional().describe("Path to SSH private key file (for key auth)")
-    }
-  },
-  async (args) => {
-    const blocked = requireWrite();
-    if (blocked) return blocked;
-    try {
-      const result = addServer(args);
-      return successResponse(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return errorResponse(message);
-    }
-  }
-);
-server.tool(
-  "registry_list_servers",
-  "List all registered SSH servers (credentials hidden)",
-  async () => {
-    const hosts = listServers();
-    return {
-      content: [{ type: "text", text: JSON.stringify({ servers: hosts }, null, 2) }]
-    };
-  }
-);
-server.registerTool(
-  "registry_get_server",
-  {
-    title: "Get Server",
-    description: "Get details of a specific registered server",
-    inputSchema: {
-      alias: external_exports.string().describe("Server alias")
-    }
-  },
-  async (args) => {
-    try {
-      const host = getServer(args.alias);
-      return successResponse(host);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return errorResponse(message);
-    }
-  }
-);
-server.registerTool(
-  "registry_update_server",
-  {
-    title: "Update Server",
-    description: "Update a registered server's properties (cannot change host/port)",
-    inputSchema: {
-      alias: external_exports.string().describe("Server alias to update"),
-      username: external_exports.string().optional().describe("New username"),
-      authMethod: external_exports.enum(["key", "password"]).optional().describe("New auth method"),
-      keyPath: external_exports.string().optional().describe("New key path")
-    }
-  },
-  async (args) => {
-    const blocked = requireWrite();
-    if (blocked) return blocked;
-    try {
-      const updates = {};
-      if (args.username !== void 0) updates.username = args.username;
-      if (args.authMethod !== void 0) updates.authMethod = args.authMethod;
-      if (args.keyPath !== void 0) updates.keyPath = args.keyPath;
-      const result = updateServer(args.alias, updates);
-      return successResponse(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return errorResponse(message);
-    }
-  }
-);
-server.registerTool(
-  "registry_delete_server",
-  {
-    title: "Delete Server",
-    description: "Remove a server from the registry",
-    inputSchema: {
-      alias: external_exports.string().describe("Server alias to delete")
-    }
-  },
-  async (args) => {
-    const blocked = requireWrite();
-    if (blocked) return blocked;
-    try {
-      deleteServer(args.alias);
-      return successResponse({ message: `Server '${args.alias}' deleted` });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return errorResponse(message);
-    }
-  }
-);
-server.registerTool(
-  "connection_open",
-  {
-    title: "Open Connection",
-    description: "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
-    inputSchema: {
-      alias: external_exports.string().describe("Server alias from registry"),
-      timeout: external_exports.number().optional().describe("Connection timeout in milliseconds (default: 5000)")
-    }
-  },
-  async (args) => {
-    try {
-      const result = await pool.open(args.alias, args.timeout);
-      return successResponse(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return errorResponse(message);
-    }
-  }
-);
-server.registerTool(
-  "connection_close",
-  {
-    title: "Close Session",
-    description: "Close an open SSH session",
-    inputSchema: {
-      sessionId: external_exports.string().describe("Session ID to close")
-    }
-  },
-  async (args) => {
-    const result = pool.close(args.sessionId);
-    if (!result.success) {
-      return errorResponse(result.message);
-    }
-    return successResponse(result);
-  }
-);
-server.tool(
-  "connection_list",
-  "List all active SSH sessions",
-  async () => {
-    const sessions = pool.list();
-    return {
-      content: [{ type: "text", text: JSON.stringify({ sessions, count: sessions.length }, null, 2) }]
-    };
-  }
-);
-server.registerTool(
-  "command_execute",
-  {
-    title: "Execute Command",
-    description: "Execute a command on an open SSH session. Can be called multiple times on the same session.",
-    inputSchema: {
-      sessionId: external_exports.string().describe("Session ID from connection_open"),
-      command: external_exports.string().describe("Shell command to execute"),
-      timeout: external_exports.number().optional().default(6e4).describe("Timeout in milliseconds (default: 60000)")
-    }
-  },
-  async (args) => {
-    if (isReadonlyMode()) {
-      const result = checker2.check(args.command);
-      if (!result.allowed) {
-        const parts = [`Write operation detected: ${result.reason}`];
-        if (result.blockedCommand) parts.push(`[blocked_command=${result.blockedCommand}]`);
-        if (result.matchedRule) parts.push(`[matched_rule=${result.matchedRule}]`);
-        if (result.matchedText) parts.push(`[matched_text=${result.matchedText}]`);
-        if (result.segmentIndex !== void 0) parts.push(`[segment=${result.segmentIndex}]`);
-        return errorResponse(parts.join(" "));
-      }
-    }
-    try {
-      const result = await pool.executeCommand(args.sessionId, args.command, args.timeout ?? 6e4);
-      return successResponse(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return errorResponse(message);
-    }
-  }
-);
+registerRegistryTools(server, pool);
+registerConnectionTools(server, pool);
+registerCommandTool(server, pool);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -52753,5 +52918,15 @@ async function main() {
 main().catch((err) => {
   console.error("Failed to start mcp-ssh server:", err);
   process.exit(1);
+});
+process.on("SIGTERM", () => {
+  console.error("[MCP-SSH] Received SIGTERM, closing sessions...");
+  pool.closeAll();
+  process.exit(0);
+});
+process.on("SIGINT", () => {
+  console.error("[MCP-SSH] Received SIGINT, closing sessions...");
+  pool.closeAll();
+  process.exit(0);
 });
 //# sourceMappingURL=bundle.js.map

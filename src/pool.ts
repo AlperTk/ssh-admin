@@ -13,7 +13,7 @@ interface InternalSession {
   connected: boolean;
   connectedAt: Date;
   lastUsed: Date;
-  authConfig: { keyPath?: string; password?: string };
+  authConfig: { keyPath?: string; hasPassword: boolean };
 }
 
 export class ConnectionPool {
@@ -46,14 +46,16 @@ export class ConnectionPool {
       readyTimeout: timeout,
       keepaliveInterval: Math.max(10000, timeout / 3),
       keepaliveCountMax: 10,
-      forceIPv4: true,
+      ...(hostConfig.forceIPv4 && { forceIPv4: true }),
     };
 
     if (hostConfig.authMethod === "key" && credentials.key) {
       connectOpts.privateKey = credentials.key;
     }
+    const hasPassword = !!credentials.password;
     if (credentials.password) {
       connectOpts.password = credentials.password;
+      credentials.password = undefined;
     }
 
     return new Promise((resolve, reject) => {
@@ -97,7 +99,7 @@ export class ConnectionPool {
                 connected: true,
                 connectedAt: new Date(),
                 lastUsed: new Date(),
-                authConfig: credentials,
+                authConfig: { keyPath: hostConfig.keyPath, hasPassword },
               };
 
               this.sessions.set(sessionId, session);
@@ -151,9 +153,10 @@ export class ConnectionPool {
       return { success: false, message: `Session '${sessionId}' not found` };
     }
 
-    session.client.end();
+    const host = session.host;
+    this.hostToSession.delete(host);
     this.sessions.delete(sessionId);
-    this.hostToSession.delete(session.host);
+    session.client.end();
     return { success: true, message: `Session '${sessionId}' closed` };
   }
 
@@ -205,9 +208,11 @@ export class ConnectionPool {
           stdout += data.toString();
         });
 
-        stream.stderr.on("data", (data: Buffer) => {
-          stderr += data.toString();
-        });
+        if (stream.stderr) {
+          stream.stderr.on("data", (data: Buffer) => {
+            stderr += data.toString();
+          });
+        }
 
         stream.on("exit", (code: number) => {
           exitCode = code;

@@ -18,6 +18,9 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       },
     },
     async (args: { sessionId: string; command: string; timeout?: number }) => {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
+        return errorResponse("Invalid sessionId format");
+      }
       if (isReadonlyMode()) {
         const result = checker.check(args.command);
         if (!result.allowed) {

@@ -5,6 +5,14 @@ export interface HostConfig {
     username: string;
     authMethod: "key" | "password";
     keyPath?: string;
+    forceIPv4?: boolean;
+}
+export interface ServerInfo {
+    alias: string;
+    host: string;
+    port: number;
+    username: string;
+    authMethod: "key" | "password";
 }
 export interface SessionInfo {
     sessionId: string;

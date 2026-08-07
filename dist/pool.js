@@ -1,48 +1,12 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.pool = void 0;
-const crypto = __importStar(require("crypto"));
-const ssh2_1 = require("ssh2");
-const registry_js_1 = require("./registry.js");
-class ConnectionPool {
+import * as crypto from "crypto";
+import { Client } from "ssh2";
+import { getServer, resolveCredentials } from "./registry.js";
+export class ConnectionPool {
     sessions = new Map();
     hostToSession = new Map(); // host → sessionId (max 1 per host)
     async open(alias, timeout = 5000) {
-        const hostConfig = (0, registry_js_1.getServer)(alias);
-        const credentials = (0, registry_js_1.resolveCredentials)(alias, hostConfig);
+        const hostConfig = getServer(alias);
+        const credentials = resolveCredentials(alias, hostConfig);
         // Check if there's already a session for this host
         const existingSessionId = this.hostToSession.get(hostConfig.host);
         if (existingSessionId) {
@@ -55,7 +19,7 @@ class ConnectionPool {
             this.hostToSession.delete(hostConfig.host);
         }
         const sessionId = crypto.randomUUID();
-        const client = new ssh2_1.Client();
+        const client = new Client();
         const connectOpts = {
             host: hostConfig.host,
             port: hostConfig.port,
@@ -63,15 +27,15 @@ class ConnectionPool {
             readyTimeout: timeout,
             keepaliveInterval: Math.max(10000, timeout / 3),
             keepaliveCountMax: 10,
-            GSSAPIAuthentication: false,
-            addressFamily: 4,
+            ...(hostConfig.forceIPv4 && { forceIPv4: true }),
         };
         if (hostConfig.authMethod === "key" && credentials.key) {
-            console.error("[DEBUG] Using privateKey from file");
             connectOpts.privateKey = credentials.key;
         }
+        const hasPassword = !!credentials.password;
         if (credentials.password) {
             connectOpts.password = credentials.password;
+            credentials.password = undefined;
         }
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -85,7 +49,6 @@ class ConnectionPool {
                     client.end();
                     reject(new Error(`Connection verification timed out after ${Math.max(30, timeout / 1000)}s for '${alias}'`));
                 }, Math.max(30000, timeout));
-                console.error("[DEBUG] SSH ready for alias:", alias);
                 client.exec("echo ping", (err, stream) => {
                     if (err) {
                         clearTimeout(verifyTimer);
@@ -100,7 +63,6 @@ class ConnectionPool {
                     stream.on("close", () => {
                         clearTimeout(verifyTimer);
                         if (output.trim() === "ping") {
-                            console.error("[DEBUG] Connection verified for alias:", alias);
                             session = {
                                 sessionId,
                                 alias,
@@ -111,7 +73,7 @@ class ConnectionPool {
                                 connected: true,
                                 connectedAt: new Date(),
                                 lastUsed: new Date(),
-                                authConfig: credentials,
+                                authConfig: { keyPath: hostConfig.keyPath, hasPassword },
                             };
                             this.sessions.set(sessionId, session);
                             this.hostToSession.set(hostConfig.host, sessionId);
@@ -138,8 +100,7 @@ class ConnectionPool {
                 this.hostToSession.delete(hostConfig.host);
                 reject(new Error(`SSH connection failed for '${alias}': ${err.message}`));
             });
-            client.on("close", (...args) => {
-                console.error("[DEBUG] SSH close event args:", JSON.stringify(args));
+            client.on("close", () => {
                 if (session) {
                     session.connected = false;
                 }
@@ -151,7 +112,8 @@ class ConnectionPool {
             }
             catch (e) {
                 clearTimeout(timer);
-                reject(e);
+                const message = e instanceof Error ? e.message : String(e);
+                reject(new Error(`Connection failed: ${message}`));
             }
         });
     }
@@ -160,9 +122,10 @@ class ConnectionPool {
         if (!session) {
             return { success: false, message: `Session '${sessionId}' not found` };
         }
-        session.client.end();
+        const host = session.host;
+        this.hostToSession.delete(host);
         this.sessions.delete(sessionId);
-        this.hostToSession.delete(session.host);
+        session.client.end();
         return { success: true, message: `Session '${sessionId}' closed` };
     }
     list() {
@@ -186,10 +149,8 @@ class ConnectionPool {
         return new Promise((resolve, reject) => {
             const start = Date.now();
             try {
-                console.error("[DEBUG] executing:", command);
                 session.client.exec(command, { env: { TERM: "xterm" } }, (err, stream) => {
                     if (err) {
-                        console.error("[DEBUG] exec callback error:", err.message);
                         reject(new Error(`Command execution failed: ${err.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
                         return;
                     }
@@ -203,9 +164,11 @@ class ConnectionPool {
                     stream.on("data", (data) => {
                         stdout += data.toString();
                     });
-                    stream.stderr.on("data", (data) => {
-                        stderr += data.toString();
-                    });
+                    if (stream.stderr) {
+                        stream.stderr.on("data", (data) => {
+                            stderr += data.toString();
+                        });
+                    }
                     stream.on("exit", (code) => {
                         exitCode = code;
                         clearTimeout(timer);
@@ -234,14 +197,26 @@ class ConnectionPool {
                 });
             }
             catch (e) {
-                console.error("[DEBUG] exec sync error:", e.message);
-                reject(new Error(`Command execution failed: ${e.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+                const message = e instanceof Error ? e.message : String(e);
+                reject(new Error(`Command execution failed: ${message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
             }
         });
     }
     getSessionCount() {
         return this.sessions.size;
     }
+    closeAll() {
+        for (const session of this.sessions.values()) {
+            try {
+                session.client.end();
+            }
+            catch {
+                // ignore errors during shutdown
+            }
+        }
+        this.sessions.clear();
+        this.hostToSession.clear();
+    }
 }
-exports.pool = new ConnectionPool();
+export const pool = new ConnectionPool();
 //# sourceMappingURL=pool.js.map

@@ -1,5 +1,5 @@
 import { SessionInfo, CommandResult } from "./types.js";
-declare class ConnectionPool {
+export declare class ConnectionPool {
     private sessions;
     private hostToSession;
     open(alias: string, timeout?: number): Promise<{
@@ -14,7 +14,7 @@ declare class ConnectionPool {
     list(): SessionInfo[];
     executeCommand(sessionId: string, command: string, timeout?: number): Promise<CommandResult>;
     getSessionCount(): number;
+    closeAll(): void;
 }
 export declare const pool: ConnectionPool;
-export {};
 //# sourceMappingURL=pool.d.ts.map

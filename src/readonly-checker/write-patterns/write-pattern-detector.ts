@@ -52,7 +52,7 @@ export class WritePatternDetector {
         "pkill", "lsof", "strace", "tcpdump", "tshark", "hexdump",
         "xxd", "od", "diff", "rpm", "dpkg", "apt", "yum",
         "pip", "npm", "docker", "nc", "socat", "nmap", "masscan",
-        "curl", "wget", "ping", "traceroute", "mtr", "dig", "nslookup",
+        "ping", "traceroute", "mtr", "dig", "nslookup",
         "host", "whois", "ssh", "arp", "ip", "ethtool", "mii-tool",
         "iwconfig", "ifconfig", "netstat", "ss", "route", "iptables",
         "ip6tables", "nft", "firewall-cmd", "ufw", "sestatus",
@@ -65,7 +65,12 @@ export class WritePatternDetector {
       ]);
       // xargs'tan sonraki ilk kelimeyi al (pipeline içindeki doğru konum)
       const xargsMatch = unquoted.match(/\bxargs\b\s+(\S+)/);
-      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return { ok: false };
+      if (xargsMatch) {
+        const cmdAfterXargs = xargsMatch[1];
+        // curl/wget/xargs sonrası handler dispatch'e bırak (flag-level kontrol handler'da yapılacak)
+        if (cmdAfterXargs === 'curl' || cmdAfterXargs === 'wget') return { ok: false };
+        if (XARGS_READ_ONLY_CMDS.has(cmdAfterXargs)) return { ok: false };
+      }
       return { ok: true, debug: { rule: 'XARGS_RE', text: 'xargs' } };
     }
 

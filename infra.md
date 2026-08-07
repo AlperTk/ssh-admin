@@ -7,7 +7,7 @@ MCP server for managing SSH servers. Provides host registry, session pool, and c
 npm install
 npm run dev    # watch mode via tsx
 npm test       # vitest
-npm run build  # bundle → dist/bundle.js
+npm run build  # bundle → dist/bundle.cjs
 ```
 
 ## Architecture
@@ -22,11 +22,14 @@ index.ts (entry point)
 ├── readonly-guard.ts → Readonly mode flag (inject edilebilir)
 ├── response.ts    → successResponse, errorResponse, formatError
 ├── errors.ts      → AppError + domain error sınıfları
-└── readonly-checker.ts → Command whitelist + write pattern detection
+├── readonly-checker.ts → Command whitelist + write pattern detection
+├── readonly-checker/write-handlers/base-handler.ts ← shared parser utilities
 ```
 
 ## Pool API
 - `pool.open(alias, timeout?)` → `{ sessionId, status, verified }` (async)
+  - Password memory wipe: credentials.password immediate null yapılır
+  - HostConfig.forceIPv4 desteklenir (default: false)
 - `pool.close(sessionId)` → `{ success, message }`
 - `pool.list()` → `SessionInfo[]`
 - `pool.executeCommand(sessionId, command, timeout?)` → `{ stdout, stderr, exitCode, durationMs }` (async)
@@ -41,7 +44,8 @@ index.ts (entry point)
 - `getServer(alias)` → `HostConfig`
 - `updateServer(alias, { username?, authMethod?, keyPath? })` → `HostConfig`
 - `deleteServer(alias)` → void
-- `resolveCredentials(alias, host)` → `{ keyPath?, password? }` (throws if password missing)
+- `resolveCredentials(alias, host)` → `{ key?: Buffer; password?: string }` (throws if password missing)
+  - Key dosya okuma hatası try-catch ile yakalanır, anlamlı hata fırlatılır
 
 > `ServerInfo` tipi `alias`, `host`, `port`, `username`, `authMethod` alanlarını içerir — `keyPath` gizlidir.
 
@@ -77,7 +81,7 @@ src/readonly-checker/
 ├── write-handlers/                  ← her komut tipi için whitelist kontrolü
 │   ├── git-handler.ts               ← git READ_ONLY whitelist (log, diff, status...)
 │   ├── docker-handler.ts            ← docker DOCKER_READ_ONLY whitelist
-│   ├── docker-exec-checker.ts       ← docker exec içi write pattern detection
+│   ├── docker-exec-checker.ts       ← docker exec içi write pattern + shell spawn detection
 │   ├── systemctl-handler.ts         ← systemctl SYSTEMCTL_READ_ONLY whitelist
 │   ├── curl-wget-handler.ts         ← curl safe flag whitelist, wget tüm HTTP/FTP engelle
 │   ├── ip-handler.ts                ← ip IP_READ_ONLY + IP_READ_ONLY_SUBCOMMANDS whitelist
@@ -89,7 +93,7 @@ src/readonly-checker/
 │   ├── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
 │   ├── journalctl-handler.ts        ← JOURNALCTL_SAFE_FLAGS whitelist
 │   ├── awk-handler.ts               ← AWK_SAFE_PATTERNS whitelist
-│   └── tar-handler.ts               ← tar create/extract/write detection (whitelist)
+│   └── tar-handler.ts               ← tar create/extract/write/r/u detection + --warning= bypass tespiti (whitelist)
 ├── write-patterns/
 │   └── write-pattern-detector.ts    ← redirection, interpreter writes, reverse shell, xargs read-only detection
 ├── resolution/
@@ -171,6 +175,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 2. **Whitelist yaklaşımı**: sadece bilinen safe flag/subcommand'ları izin ver
 3. Export: `export function hasWriteArg(cmd: string): boolean`
 4. `command-checker.ts` Map'e kaydet
+5. Gerekirse `base-handler.ts`'den `getFirstToken`, `skipFlags` utility'lerini import et
 
 #### Yeni Whitelist Sabiti Ekleme
 1. `src/data/readonly-rules.ts` → yeni whitelist Set/Array ekle
@@ -218,7 +223,8 @@ test/
     │   ├── mktemp-handler.test.ts       ← her zaman write (true döner)
 │   ├── fail2ban-handler.test.ts     ← FAIL2BAN_READ_ONLY whitelist
 │   ├── journalctl-handler.test.ts   ← JOURNALCTL_SAFE_FLAGS whitelist
-│   └── tar-handler.test.ts          ← tar create/extract/write detection
+│   └── tar-handler.test.ts          ← tar create/extract/write/r/u detection + --warning= bypass tespiti
+│   ├── base-handler.test.ts         ← shared parser utilities (getFirstToken, skipFlags)
     ├── write-patterns/
     │   └── write-pattern-detector.test.ts ← redirection, interpreter writes, reverse shell
     ├── parsing/
@@ -245,11 +251,31 @@ npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git hand
 - **Unit testleri**: Her handler kendi test dosyasında — `hasWriteArg(cmd)` fonksiyonunun doğru token'ı parse edip read/write kararını verdiğini doğrular
 - **Alt modül testleri**: `write-pattern-detector`, `loop-extractor`, `substitution-detector`, `command-resolver` — bağımsız fonksiyonların doğru çalıştığını test eder
 
+## Security Hardening (Güvenlik Güncellemeleri)
+
+### Password Memory Wipe
+`pool.open()` sırasında credentials.password immediate null yapılır — memory'de kalıcı kalmaz.
+`InternalSession.authConfig` artık `{ keyPath?: string; hasPassword: boolean }` formatında.
+
+### File Permissions
+- Registry directory: `0700` (sadece owner)
+- Registry file (`hosts.json`): `0600` (sadece owner okuyabilir/yazabilir)
+
+### Command Validation
+- `command_execute` tool'unda sessionId UUID format validation mevcut
+- Docker exec: shell spawn detection (`bash/sh/zsh/csh/ksh/fish`)
+- Tar: `-r/-u` flag detection + `--warning=` bypass tespiti
+- xargs curl/wget: handler dispatch'e yönlendirilir (flag-level kontrol)
+- SCP: remote source/dest ayrımı güçlendirildi, `-i` flag atlatma
+
+### IPv6 Desteği
+`HostConfig.forceIPv4` optional field — default false. IPv6-only sunucular desteklenir.
+
 ## Readonly Mode
 ```bash
 MCP_SSH_READONLY=true npm run dev
 # veya
-MCP_SSH_READONLY=true node dist/bundle.js
+MCP_SSH_READONLY=true node dist/bundle.cjs
 ```
 
 - Registry yazma tool'ları tamamen engellenir (`registry_add_server`, `registry_update_server`, `registry_delete_server`)
@@ -291,4 +317,7 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - Keepalive: interval = max(10s, timeout/3), count = 10
 - Verification timeout: max(30s, timeout)
 - Default command timeout: 60000ms
-- Registry dir auto-created at `~/.mcp-ssh/`
+- Registry dir auto-created at `~/.mcp-ssh/` (mode 0700)
+- Registry file mode 0600 (sadece owner okuyabilir)
+- `HostConfig.forceIPv4` optional — default false (IPv6 destekli)
+- `command_execute` tool'unda sessionId UUID validation mevcut

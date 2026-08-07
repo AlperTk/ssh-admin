@@ -1,1 +1,1 @@
-{"version":3,"file":"readonly-checker.js","sourceRoot":"","sources":["../src/readonly-checker.ts"],"names":[],"mappings":";AAAA;;;;;;;;GAQG;;;AAEH,4EAA6F;AAApF,oHAAA,cAAc,OAAA;AAAE,6GAAA,OAAO,OAAA"}
+{"version":3,"file":"readonly-checker.js","sourceRoot":"","sources":["../src/readonly-checker.ts"],"names":[],"mappings":"AAAA;;;;;;;;GAQG;AAEH,OAAO,EAAE,cAAc,EAAE,OAAO,EAAe,MAAM,uCAAuC,CAAC"}

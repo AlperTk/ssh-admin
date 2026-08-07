@@ -1,67 +1,47 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.addServer = addServer;
-exports.listServers = listServers;
-exports.getServer = getServer;
-exports.updateServer = updateServer;
-exports.deleteServer = deleteServer;
-exports.resolveCredentials = resolveCredentials;
-const fs = __importStar(require("fs"));
-const os = __importStar(require("os"));
-const path = __importStar(require("path"));
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 const REGISTRY_DIR = process.env.MCP_SSH_REGISTRY_PATH
     ? path.dirname(process.env.MCP_SSH_REGISTRY_PATH)
     : path.join(os.homedir(), ".mcp-ssh");
 const REGISTRY_FILE = process.env.MCP_SSH_REGISTRY_PATH || path.join(REGISTRY_DIR, "hosts.json");
 function ensureRegistryDir() {
     if (!fs.existsSync(REGISTRY_DIR)) {
-        fs.mkdirSync(REGISTRY_DIR, { recursive: true });
+        fs.mkdirSync(REGISTRY_DIR, { recursive: true, mode: 0o700 });
+    }
+    else {
+        fs.chmodSync(REGISTRY_DIR, 0o700);
     }
 }
+let registryCache = null;
+let registryCacheMtime = 0;
 function loadRegistry() {
     ensureRegistryDir();
     if (!fs.existsSync(REGISTRY_FILE)) {
-        return { hosts: [] };
+        registryCache = { hosts: [] };
+        registryCacheMtime = 0;
+        return registryCache;
+    }
+    const stats = fs.statSync(REGISTRY_FILE);
+    if (registryCache && registryCacheMtime === stats.mtimeMs) {
+        return registryCache;
     }
     const content = fs.readFileSync(REGISTRY_FILE, "utf-8");
-    return JSON.parse(content);
+    registryCache = JSON.parse(content);
+    registryCacheMtime = stats.mtimeMs;
+    return registryCache;
+}
+function invalidateCache() {
+    registryCache = null;
+    registryCacheMtime = 0;
 }
 function saveRegistry(registry) {
     ensureRegistryDir();
-    fs.writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2), "utf-8");
+    const tmpFile = REGISTRY_FILE + `.tmp.${process.pid}.${Date.now()}`;
+    fs.writeFileSync(tmpFile, JSON.stringify(registry, null, 2), { encoding: "utf-8", mode: 0o600 });
+    fs.renameSync(tmpFile, REGISTRY_FILE);
+    fs.chmodSync(REGISTRY_FILE, 0o600);
+    invalidateCache();
 }
 function findHost(alias) {
     const registry = loadRegistry();
@@ -70,7 +50,7 @@ function findHost(alias) {
         return null;
     return { index, host: registry.hosts[index] };
 }
-function addServer(host) {
+export function addServer(host) {
     const registry = loadRegistry();
     // Check duplicate alias
     if (registry.hosts.some((h) => h.alias === host.alias)) {
@@ -80,19 +60,18 @@ function addServer(host) {
     saveRegistry(registry);
     return { ...host };
 }
-function listServers() {
+export function listServers() {
     const registry = loadRegistry();
-    // Never expose credentials in list output
     return registry.hosts.map(({ keyPath: _kp, ...h }) => h);
 }
-function getServer(alias) {
+export function getServer(alias) {
     const result = findHost(alias);
     if (!result) {
         throw new Error(`Host '${alias}' not found in registry`);
     }
     return { ...result.host };
 }
-function updateServer(alias, updates) {
+export function updateServer(alias, updates) {
     const registry = loadRegistry();
     const index = registry.hosts.findIndex((h) => h.alias === alias);
     if (index === -1) {
@@ -106,7 +85,7 @@ function updateServer(alias, updates) {
     saveRegistry(registry);
     return { ...registry.hosts[index] };
 }
-function deleteServer(alias) {
+export function deleteServer(alias) {
     const registry = loadRegistry();
     const index = registry.hosts.findIndex((h) => h.alias === alias);
     if (index === -1) {
@@ -115,11 +94,19 @@ function deleteServer(alias) {
     registry.hosts.splice(index, 1);
     saveRegistry(registry);
 }
-function resolveCredentials(alias, host) {
+export function resolveCredentials(alias, host) {
     const envKey = `SSH_PASSWORD_${alias.toUpperCase()}`;
     const password = process.env[envKey];
     if (host.authMethod === "key" && host.keyPath) {
-        const keyContent = fs.readFileSync(host.keyPath);
+        let keyContent;
+        try {
+            keyContent = fs.readFileSync(host.keyPath);
+        }
+        catch (e) {
+            const err = e;
+            throw new Error(`Cannot read key file for host '${alias}': ${err.message}. ` +
+                `Verify keyPath '${host.keyPath}' exists and is readable.`);
+        }
         return { key: keyContent };
     }
     if (host.authMethod === "password" && !password) {
