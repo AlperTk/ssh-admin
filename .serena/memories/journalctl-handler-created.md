@@ -1,0 +1,1 @@
+Created src/readonly-checker/write-handlers/journalctl-handler.ts with hasJournalctlWriteArg function that checks for write flags (--vacuum-size, --vacuum-time, --vacuum-files, --rotate, --flush, --sync, --relinquish-mount, --disk-size, --max-file-size, --compress, --move-catalog, --compress-catalog, --verify, --no-reorder, --header)

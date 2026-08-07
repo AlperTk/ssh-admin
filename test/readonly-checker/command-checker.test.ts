@@ -109,7 +109,6 @@ describe("CommandChecker", () => {
       expect(checker.check("apropos keyword")).toEqual({ allowed: true });
       expect(checker.check("whatis ls")).toEqual({ allowed: true });
       expect(checker.check("locate file.txt")).toEqual({ allowed: true });
-      expect(checker.check("updatedb")).toEqual({ allowed: true });
       expect(checker.check("ldd /usr/bin/ls")).toEqual({ allowed: true });
       expect(checker.check("objdump -t /usr/bin/ls")).toEqual({ allowed: true });
       expect(checker.check("nm /usr/lib/libfoo.so")).toEqual({ allowed: true });
@@ -140,8 +139,6 @@ describe("CommandChecker", () => {
       expect(checker.check("parted -l")).toEqual({ allowed: true });
       expect(checker.check("blkid")).toEqual({ allowed: true });
       expect(checker.check("findmnt")).toEqual({ allowed: true });
-      expect(checker.check("mount")).toEqual({ allowed: true });
-      expect(checker.check("umount /mnt")).toEqual({ allowed: true });
       expect(checker.check("dmesg")).toEqual({ allowed: true });
       expect(checker.check("journalctl -xe")).toEqual({ allowed: true });
       expect(checker.check("systemctl status sshd")).toEqual({ allowed: true });
@@ -1459,9 +1456,9 @@ describe("CommandChecker", () => {
       expect(checker.check("sftp user@host")).toEqual({ allowed: true });
     });
 
-    it("should allow more mount and unmount commands", () => {
-      expect(checker.check("mount")).toEqual({ allowed: true });
-      expect(checker.check("umount /mnt")).toEqual({ allowed: true });
+    it("should block mount and umount commands", () => {
+      expect(checker.check("mount")).toMatchObject({ allowed: false });
+      expect(checker.check("umount /mnt")).toMatchObject({ allowed: false });
     });
 
     it("should allow more chroot and script commands", () => {

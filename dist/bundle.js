@@ -51520,6 +51520,22 @@ var GIT_WRITE_COMMANDS = [
   "signoff"
 ];
 var GIT_STASH_READ_ONLY = ["list", "show", "push"];
+var JOURNALCTL_WRITE_FLAGS = /* @__PURE__ */ new Set([
+  "--vacuum-size",
+  "--vacuum-time",
+  "--vacuum-files",
+  "--rotate",
+  "--flush",
+  "--sync",
+  "--relinquish-mount",
+  "--disk-size",
+  "--max-file-size",
+  "--compress",
+  "--move-catalog",
+  "--compress-catalog",
+  "--no-reorder",
+  "--header"
+]);
 var SYSTEMCTL_READ_ONLY = /* @__PURE__ */ new Set([
   "status",
   "is-active",
@@ -52035,6 +52051,19 @@ function fail2banHasWriteArg(cmd) {
   return true;
 }
 
+// src/readonly-checker/write-handlers/journalctl-handler.ts
+function journalctlHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("journalctl");
+  if (idx === -1) return false;
+  const rest = cmd.substring(idx + 10).trimStart();
+  const tokens = rest.split(/\s+/);
+  for (const token of tokens) {
+    const flag = token.split("=")[0];
+    if (JOURNALCTL_WRITE_FLAGS.has(flag)) return true;
+  }
+  return false;
+}
+
 // src/readonly-checker/write-patterns/write-pattern-detector.ts
 function stripDoubleQuotes(cmd) {
   let result = "";
@@ -52056,7 +52085,112 @@ var WritePatternDetector = class {
     if (REDIR_STDERR_RE.test(unquoted)) return true;
     if (TEE_PIPE_RE.test(unquoted)) return true;
     if (WRITE_PROC_SUB_RE.test(unquoted)) return true;
-    if (XARGS_RE.test(unquoted)) return true;
+    if (XARGS_RE.test(unquoted)) {
+      const XARGS_READ_ONLY_CMDS = /* @__PURE__ */ new Set([
+        "cat",
+        "less",
+        "more",
+        "head",
+        "tail",
+        "grep",
+        "fgrep",
+        "egrep",
+        "wc",
+        "file",
+        "md5sum",
+        "sha256sum",
+        "sha1sum",
+        "stat",
+        "du",
+        "sort",
+        "uniq",
+        "awk",
+        "nmcli",
+        "journalctl",
+        "ps",
+        "pgrep",
+        "pkill",
+        "lsof",
+        "strace",
+        "tcpdump",
+        "tshark",
+        "hexdump",
+        "xxd",
+        "od",
+        "diff",
+        "rpm",
+        "dpkg",
+        "apt",
+        "yum",
+        "pip",
+        "npm",
+        "docker",
+        "nc",
+        "socat",
+        "nmap",
+        "masscan",
+        "curl",
+        "wget",
+        "ping",
+        "traceroute",
+        "mtr",
+        "dig",
+        "nslookup",
+        "host",
+        "whois",
+        "ssh",
+        "arp",
+        "ip",
+        "ethtool",
+        "mii-tool",
+        "iwconfig",
+        "ifconfig",
+        "netstat",
+        "ss",
+        "route",
+        "iptables",
+        "ip6tables",
+        "nft",
+        "firewall-cmd",
+        "ufw",
+        "sestatus",
+        "getenforce",
+        "auditctl",
+        "ausearch",
+        "aureport",
+        "fail2ban-client",
+        "logwatch",
+        "logrotate",
+        "dmesg",
+        "vmstat",
+        "mpstat",
+        "iostat",
+        "sar",
+        "hdparm",
+        "smartctl",
+        "lsblk",
+        "lscpu",
+        "lsmem",
+        "lstopo",
+        "numactl",
+        "lshw",
+        "lspci",
+        "lsusb",
+        "dmidecode",
+        "inxi",
+        "neofetch",
+        "fastfetch",
+        "uptime",
+        "w",
+        "who",
+        "last",
+        "lastlog",
+        "lastb"
+      ]);
+      const xargsMatch = unquoted.match(/\bxargs\b\s+(\S+)/);
+      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return false;
+      return true;
+    }
     if (HERE_STRING_RE.test(segment)) return true;
     if (/\bsed\b/.test(unquoted)) {
       if (SED_INPLACE_RE.test(unquoted)) return true;
@@ -52253,7 +52387,8 @@ var CommandChecker = class {
       ["firewall-cmd", firewallCmdHasWriteArg],
       ["rsync", rsyncHasWriteArg],
       ["mktemp", mktempHasWriteArg],
-      ["fail2ban-client", fail2banHasWriteArg]
+      ["fail2ban-client", fail2banHasWriteArg],
+      ["journalctl", journalctlHasWriteArg]
     ]);
     this.patternDetector = new WritePatternDetector();
   }

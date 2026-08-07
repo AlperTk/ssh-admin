@@ -10,6 +10,15 @@ export const GIT_WRITE_COMMANDS = [
 
 export const GIT_STASH_READ_ONLY = ['list', 'show', 'push'] as const;
 
+// journalctl: write flag'ler engellenir, okuma flag'leri izinli
+export const JOURNALCTL_WRITE_FLAGS = new Set([
+  '--vacuum-size', '--vacuum-time', '--vacuum-files',
+  '--rotate', '--flush', '--sync',
+  '--relinquish-mount', '--disk-size', '--max-file-size', '--compress',
+  '--move-catalog', '--compress-catalog',
+  '--no-reorder', '--header',
+]);
+
 // systemctl: sadece read-only alt komutlar izinli
 export const SYSTEMCTL_READ_ONLY = new Set([
   'status', 'is-active', 'is-enabled', 'is-failed', 'list-units',

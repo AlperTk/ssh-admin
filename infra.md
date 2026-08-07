@@ -67,16 +67,17 @@ src/readonly-checker/
 │   ├── firewall-cmd-handler.ts      ← --list-* / --get-* hariç hepsi yazma
 │   ├── rsync-handler.ts             ← her zaman yazma
 │   ├── mktemp-handler.ts            ← her zaman yazma
-│   └── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
+│   ├── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
+│   └── journalctl-handler.ts        ← --vacuum-size/--rotate/--flush vb. write flag tespiti
 ├── write-patterns/
-│   └── write-pattern-detector.ts    ← redirection, interpreter writes, reverse shell
+│   └── write-pattern-detector.ts    ← redirection, interpreter writes, reverse shell, xargs read-only detection
 ├── resolution/
 │   └── command-resolver.ts          ← sudo/su/ssh peel-through
 └── parsing/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (492 komut)
+├── readonly-whitelist.json          ← whitelist komut listesi (489 komut)
 └── readonly-rules.ts                ← GIT_WRITE_COMMANDS, DOCKER_READ_ONLY vb. sabitler
 ```
 
@@ -116,7 +117,7 @@ check(command)
 
 ### Testler
 ```bash
-npm test              # 341 test
+npm test              # 358 test
 ```
 
 #### Test Yapısı
@@ -137,7 +138,8 @@ test/
     │   ├── firewall-cmd-handler.test.ts ← firewallCmdHasWriteArg (--list-* / --get-* hariç)
     │   ├── rsync-handler.test.ts        ← her zaman write (true döner)
     │   ├── mktemp-handler.test.ts       ← her zaman write (true döner)
-│   └── fail2ban-handler.test.ts     ← status/gettag read-only, diğerleri write
+│   ├── fail2ban-handler.test.ts     ← status/gettag read-only, diğerleri write
+│   └── journalctl-handler.test.ts   ← --vacuum-size/--rotate/--flush vb. write flag tespiti
     ├── write-patterns/
     │   └── write-pattern-detector.test.ts ← redirection, interpreter writes, reverse shell
     ├── parsing/

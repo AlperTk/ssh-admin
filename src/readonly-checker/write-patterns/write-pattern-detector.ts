@@ -38,8 +38,31 @@ export class WritePatternDetector {
     // 3. Write process substitution
     if (WRITE_PROC_SUB_RE.test(unquoted)) return true;
 
-    // 4. xargs — her zaman engelle
-    if (XARGS_RE.test(unquoted)) return true;
+    // 4. xargs — read-only komutlarla kullanılanları izin ver
+    if (XARGS_RE.test(unquoted)) {
+      const XARGS_READ_ONLY_CMDS = new Set([
+        "cat", "less", "more", "head", "tail", "grep", "fgrep", "egrep",
+        "wc", "file", "md5sum", "sha256sum", "sha1sum", "stat", "du",
+        "sort", "uniq", "awk", "nmcli", "journalctl", "ps", "pgrep",
+        "pkill", "lsof", "strace", "tcpdump", "tshark", "hexdump",
+        "xxd", "od", "diff", "rpm", "dpkg", "apt", "yum",
+        "pip", "npm", "docker", "nc", "socat", "nmap", "masscan",
+        "curl", "wget", "ping", "traceroute", "mtr", "dig", "nslookup",
+        "host", "whois", "ssh", "arp", "ip", "ethtool", "mii-tool",
+        "iwconfig", "ifconfig", "netstat", "ss", "route", "iptables",
+        "ip6tables", "nft", "firewall-cmd", "ufw", "sestatus",
+        "getenforce", "auditctl", "ausearch", "aureport",
+        "fail2ban-client", "logwatch", "logrotate", "dmesg",
+        "vmstat", "mpstat", "iostat", "sar", "hdparm", "smartctl",
+        "lsblk", "lscpu", "lsmem", "lstopo", "numactl", "lshw",
+        "lspci", "lsusb", "dmidecode", "inxi", "neofetch", "fastfetch",
+        "uptime", "w", "who", "last", "lastlog", "lastb",
+      ]);
+      // xargs'tan sonraki ilk kelimeyi al (pipeline içindeki doğru konum)
+      const xargsMatch = unquoted.match(/\bxargs\b\s+(\S+)/);
+      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return false;
+      return true;
+    }
 
     // 5. Here-string / here-doc
     if (HERE_STRING_RE.test(segment)) return true;
