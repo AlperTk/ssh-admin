@@ -50,6 +50,7 @@
     "shopt",
     "ulimit",
     "umask",
+    "ufw",
     "trap",
     "jobs",
     "history",
