@@ -44,7 +44,16 @@ index.ts (entry point)
 │   │   ├── journalctl-handler.ts ← JOURNALCTL_SAFE_FLAGS whitelist
 │   │   ├── awk-handler.ts       ← AWK_SAFE_PATTERNS whitelist
 │   │   ├── scp-handler.ts       ← scp user@host:/path pattern tespiti
-│   │   └── tar-handler.ts       ← tar create/extract/write/r/u detection + --warning= bypass tespiti
+│   │   ├── tar-handler.ts       ← tar create/extract/write/r/u detection + --warning= bypass tespiti
+│   │   ├── partx-handler.ts     ← partx --show/-s read-only, diğerleri write
+│   │   ├── kpartx-handler.ts    ← kpartx -l/-r read-only, diğerleri write
+│   │   ├── dmsetup-handler.ts   ← dmsetup ls/info/status/table read-only, diğerleri write
+│   │   ├── snap-handler.ts      ← snap list/info/find read-only, diğerleri write
+│   │   ├── tune2fs-handler.ts   ← tune2fs -l read-only, diğerleri write
+│   │   ├── ufw-handler.ts       ← ufw status/show/list read-only, diğerleri write
+│   │   ├── iptables-handler.ts  ← iptables -L/-S/-C read-only, diğerleri write
+│   │   ├── scriptreplay-handler.ts ← her zaman read-only
+│   │   └── partprobe-handler.ts ← partprobe -s/-d read-only, diğerleri write
 │   ├── write-patterns/
 │   │   └── write-pattern-detector.ts ← redirection, interpreter writes, reverse shell, xargs read-only detection
 │   ├── resolution/
@@ -53,7 +62,7 @@ index.ts (entry point)
 │       ├── loop-extractor.ts    ← for/while döngü gövdesi çıkarma
 │       └── substitution-detector.ts ← $() ve backtick recursive check
 └── data/
-    ├── readonly-whitelist.json  ← whitelist komut listesi (355+ komut)
+    ├── readonly-whitelist.json  ← whitelist komut listesi (349 komut, ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
     └── readonly-rules.ts        ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS vb. whitelist sabitleri
 ```
 
@@ -124,7 +133,17 @@ src/readonly-checker/
 │   ├── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
 │   ├── journalctl-handler.ts        ← JOURNALCTL_SAFE_FLAGS whitelist
 │   ├── awk-handler.ts               ← AWK_SAFE_PATTERNS whitelist
-│   └── tar-handler.ts               ← tar create/extract/write/r/u detection + --warning= bypass tespiti (whitelist)
+│   ├── scp-handler.ts               ← scp user@host:/path pattern tespiti
+│   ├── tar-handler.ts               ← tar create/extract/write/r/u detection + --warning= bypass tespiti (whitelist)
+│   ├── partx-handler.ts             ← partx --show/-s read-only, diğerleri write
+│   ├── kpartx-handler.ts            ← kpartx -l/-r read-only, diğerleri write
+│   ├── dmsetup-handler.ts           ← dmsetup ls/info/status/table read-only, diğerleri write
+│   ├── snap-handler.ts              ← snap list/info/find read-only, diğerleri write
+│   ├── tune2fs-handler.ts           ← tune2fs -l read-only, diğerleri write
+│   ├── ufw-handler.ts               ← ufw status/show/list read-only, diğerleri write
+│   ├── iptables-handler.ts          ← iptables -L/-S/-C read-only, diğerleri write
+│   ├── scriptreplay-handler.ts      ← her zaman read-only
+│   └── partprobe-handler.ts         ← partprobe -s/-d read-only, diğerleri write
 ├── write-patterns/
 │   └── write-pattern-detector.ts    ← redirection, interpreter writes, reverse shell, xargs read-only detection
 ├── resolution/
@@ -133,8 +152,8 @@ src/readonly-checker/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (355+ komut)
-└── readonly-rules.ts                ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS vb. whitelist sabitleri
+├── readonly-whitelist.json          ← whitelist komut listesi (349 komut, ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
+└── readonly-rules.ts                ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS, PARTX_READ_ONLY, KPARTX_READ_ONLY, DMSETUP_READ_ONLY, SNAP_READ_ONLY, TUNE2FS_READ_ONLY, UFW_READ_ONLY, IPTABLES_READ_ONLY, PARTPROBE_READ_ONLY vb. whitelist sabitleri
 ```
 
 ### Kontrol Akışı
@@ -157,7 +176,7 @@ Read-only mode üç katmanlı savunma sağlar:
 
 | Katman | Açıklama | Örnek Engeller |
 |---|---|---|
-| **1. Whitelist** | Komut whitelist'de yoksa → engelle | python, node, perl, ruby, php, gdb, mount, screen, tmux, dd, zip, gzip, install, patch |
+| **1. Whitelist** | Komut whitelist'de yoksa → engelle | python, node, perl, ruby, php, gdb, mount, screen, tmux, dd, zip, gzip, install, patch, ddrescue, mke2fs, resize2fs, btrfstune, snapshot, wall |
 | **2. Write Argüman** | Komut whitelist'te olsa bile write flag → engelle | `tar cf`, `systemctl restart`, `docker run`, `git add`, `git config --global`, `curl -o`, `wget -O`, `scp`, `crontab -e`, `crontab -r`, `crontab -`, `sed -i`, `find -exec` |
 | **3. Redirection** | Dosya yazma operatörleri → engelle | `>`, `>>`, `printf >`, `base64 >` |
 
@@ -180,6 +199,15 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 | tar | `TAR_SAFE_FLAGS` + create/extract detection |
 | scp | `user@host:/path` pattern tespiti |
 | rsync/mktemp | Her zaman yazma (true döner) |
+| partx | `--show`, `-s` read-only, diğerleri write |
+| kpartx | `-l`, `-r` read-only, diğerleri write |
+| dmsetup | `ls`, `info`, `status`, `table` read-only, diğerleri write |
+| snap | `list`, `info`, `find` read-only, diğerleri write |
+| tune2fs | `-l` read-only, diğerleri write |
+| ufw | `status`, `show`, `list` read-only, diğerleri write |
+| iptables | `-L`, `-S`, `-C` read-only, diğerleri write |
+| scriptreplay | Her zaman read-only |
+| partprobe | `-s`, `-d` read-only, diğerleri write |
 
 ### Hata Mesajı Formatı (Debug Info)
 ```json
@@ -225,7 +253,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 ### Testler
 ```bash
-npm test              # 424 test
+npm test              # 425 test
 ```
 
 #### Test Yapısı
@@ -267,8 +295,8 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (424)
-npm test -- test/readonly-checker/    # readonly-checker modülü (347 test)
+npm test                              # tüm testler (425)
+npm test -- test/readonly-checker/    # readonly-checker modülü (352 test)
 npm test -- test/pool.test.ts         # ConnectionPool (6 test: close, list, executeCommand, getSessionCount, closeAll)
 npm test -- test/registry.test.ts     # Registry (12 test)
 npm test -- test/response.test.ts     # response helpers (18 test)

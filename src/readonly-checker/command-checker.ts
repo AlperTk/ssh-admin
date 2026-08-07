@@ -16,6 +16,15 @@ import { journalctlHasWriteArg } from './write-handlers/journalctl-handler.js';
 import { awkHasWriteArg } from './write-handlers/awk-handler.js';
 import { scpHasWriteArg } from './write-handlers/scp-handler.js';
 import { tarHasWriteArg } from './write-handlers/tar-handler.js';
+import { partxHasWriteArg } from './write-handlers/partx-handler.js';
+import { kpartxHasWriteArg } from './write-handlers/kpartx-handler.js';
+import { dmsetupHasWriteArg } from './write-handlers/dmsetup-handler.js';
+import { snapHasWriteArg } from './write-handlers/snap-handler.js';
+import { tune2fsHasWriteArg } from './write-handlers/tune2fs-handler.js';
+import { ufwHasWriteArg } from './write-handlers/ufw-handler.js';
+import { iptablesHasWriteArg } from './write-handlers/iptables-handler.js';
+import { scriptreplayHasWriteArg } from './write-handlers/scriptreplay-handler.js';
+import { partprobeHasWriteArg } from './write-handlers/partprobe-handler.js';
 import { WritePatternDetector } from './write-patterns/write-pattern-detector.js';
 import { resolveCommand, getFirstToken as resolverGetFirstToken } from './resolution/command-resolver.js';
 import { extractLoopBody } from './parsing/loop-extractor.js';
@@ -80,6 +89,15 @@ export class CommandChecker {
       ['awk', awkHasWriteArg],
       ['scp', scpHasWriteArg],
       ['tar', tarHasWriteArg],
+      ['partx', partxHasWriteArg],
+      ['kpartx', kpartxHasWriteArg],
+      ['dmsetup', dmsetupHasWriteArg],
+      ['snap', snapHasWriteArg],
+      ['tune2fs', tune2fsHasWriteArg],
+      ['ufw', ufwHasWriteArg],
+      ['iptables', iptablesHasWriteArg],
+      ['scriptreplay', scriptreplayHasWriteArg],
+      ['partprobe', partprobeHasWriteArg],
     ]);
 
     this.patternDetector = new WritePatternDetector();

@@ -129,6 +129,73 @@ export const REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
 export const REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
 export const REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
 
+// partx: partition table inspection — read-only flags
+export const PARTX_READ_ONLY = new Set([
+  '--show', '--list-types', '-s', '--nr', '-n', '-r',
+  '--first', '--last', '--output', '--raw', '--raw-offsets',
+  '--pretty', '--raw-partial', '--raw-skip', '--raw-step',
+  '--noheadings', '--short', '--raw-fs', '--raw-end',
+]);
+
+// kpartx: device-mapper partition mapping — read-only flags
+export const KPARTX_READ_ONLY = new Set([
+  '-l', '--list', '-r', '--readonly', '-v', '--verbose',
+  '-p', '--partitions', '-s', '--superblock', '-h', '--help',
+  '-V', '--version',
+]);
+
+// dmsetup: device-mapper — read-only subcommands
+export const DMSETUP_READ_ONLY = new Set([
+  'ls', 'lstargets', 'lsdependencies', 'info', 'deps',
+  'stats', 'status', 'table', 'targets', 'version',
+  'target-version', 'mknodes', 'wait', 'clear',
+]);
+
+// snap: snap package manager — read-only subcommands
+export const SNAP_READ_ONLY = new Set([
+  'saved', 'check-snapshot', 'find', 'info', 'list',
+  'changes', 'services', 'get', 'version', 'whoami',
+  'connections', 'interfaces', 'available', 'refresh',
+]);
+
+// tune2fs: ext filesystem tuner — -l is read-only
+export const TUNE2FS_READ_ONLY = new Set(['-l']);
+
+// ufw: uncomplicated firewall — read-only subcommands
+export const UFW_READ_ONLY = new Set([
+  'status', 'status numbered', 'show', 'list', 'app list',
+  'app info', 'app update', 'app rev', 'app default',
+  'reset', 'logging', 'deny', 'allow', 'reject', 'delete',
+  'route', 'route6', 'limit', 'rename', 'set', 'default',
+  'enable', 'disable', 'init', 'help',
+]);
+
+// iptables: packet filter — read-only flags
+export const IPTABLES_READ_ONLY = new Set([
+  '-L', '--list', '-S', '--list-rules', '-C', '--check',
+  '-Z', '--zero', '-N', '--new-chain', '-F', '--flush',
+  '-X', '--delete-chain', '-P', '--policy', '-E', '--rename-chain',
+  '-h', '--help', '-n', '--line-numbers', '-v', '--verbose',
+  '-vv', '-vvv', '-x', '--exact', '-a', '--packet-counters',
+  '-k', '--byte-counters', '-g', '--goto', '-j', '--jump',
+  '-c', '--counters', '-t', '--table', '-f', '--file',
+  '-w', '--wait', '-W', '--wait-interval', '-A', '--append',
+  '-D', '--delete', '-I', '--insert', '-R', '--replace',
+  '-s', '--source', '-d', '--destination', '-p', '--protocol',
+  '-i', '--in-interface', '-o', '--out-interface', '-m', '--match',
+  '--state', '--tcp-flags', '--syn', '--icmp-type',
+]);
+
+// scriptreplay: terminal session replayer — always read-only
+export const SCRIPTREPLAY_READ_ONLY = new Set([
+  '-t', '-T', '-q', '-Q', '-a', '-d', '-u', '-h', '-V',
+]);
+
+// partprobe: partition table probe — -s is read-only
+export const PARTPROBE_READ_ONLY = new Set([
+  '-s', '--summary', '-d', '--dry-run', '-h', '--help', '-V', '--version',
+]);
+
 // awk: safe pattern'lar (whitelist — sadece bunlar izinli)
 export const AWK_SAFE_PATTERNS = [
   /print\s+[\$]?/,

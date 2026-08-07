@@ -188,7 +188,7 @@
     "dirname",
     "tty",
     "mesg",
-    "wall",
+
     "write",
     "mail",
     "mailx",
@@ -225,7 +225,7 @@
     "scalpel",
     "photorec",
     "testdisk",
-    "ddrescue",
+
     "scp",
     "sftp",
     "ssh",
@@ -317,13 +317,13 @@
     "warm",
     "xfsdump",
     "btrfs",
-    "btrfstune",
+
     "btrfsck",
-    "mke2fs",
+
     "e2fsck",
     "e2label",
     "tune2fs",
-    "resize2fs",
+
     "dump2fs",
     "logsave",
     "fsck.ext4",
@@ -339,7 +339,7 @@
     "kpartx",
     "dmsetup",
     "snap",
-    "snapshot",
+
     "docker",
     "fail2ban-client",
     "firewall-cmd",

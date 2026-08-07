@@ -177,7 +177,7 @@ describe("CommandChecker", () => {
       expect(checker.check("mktemp")).toMatchObject({ allowed: false });
       expect(checker.check("tty")).toEqual({ allowed: true });
       expect(checker.check("mesg y")).toEqual({ allowed: true });
-      expect(checker.check("wall 'hello'")).toEqual({ allowed: true });
+      expect(checker.check("wall 'hello'")).toMatchObject({ allowed: false });
       expect(checker.check("write user tty")).toEqual({ allowed: true });
       expect(checker.check("mail")).toEqual({ allowed: true });
       expect(checker.check("nano file.txt")).toMatchObject({ allowed: false });
@@ -204,7 +204,7 @@ describe("CommandChecker", () => {
       expect(checker.check("binwalk file.bin")).toEqual({ allowed: true });
       expect(checker.check("foremost -i file.img")).toEqual({ allowed: true });
       expect(checker.check("testdisk /dev/sda")).toEqual({ allowed: true });
-      expect(checker.check("ddrescue /dev/sda /dev/sdb log")).toEqual({ allowed: true });
+      expect(checker.check("ddrescue /dev/sda /dev/sdb log")).toMatchObject({ allowed: false });
       expect(checker.check("rsync -avz src/ dest/")).toMatchObject({ allowed: false });
       expect(checker.check("scp file user@host:/tmp/")).toMatchObject({ allowed: false, blockedCommand: "scp" });
       expect(checker.check("sftp user@host")).toEqual({ allowed: true });
@@ -301,8 +301,8 @@ describe("CommandChecker", () => {
       expect(checker.check("findfs LABEL=root")).toEqual({ allowed: true });
       expect(checker.check("lsblk")).toEqual({ allowed: true });
       expect(checker.check("partprobe")).toEqual({ allowed: true });
-      expect(checker.check("partx --add /dev/sda")).toEqual({ allowed: true });
-      expect(checker.check("kpartx -av /tmp/image.img")).toEqual({ allowed: true });
+      expect(checker.check("partx --add /dev/sda")).toMatchObject({ allowed: false });
+      expect(checker.check("kpartx -av /tmp/image.img")).toMatchObject({ allowed: false });
       expect(checker.check("dmsetup ls")).toEqual({ allowed: true });
       expect(checker.check("lvm pvs")).toMatchObject({ allowed: false });
       expect(checker.check("vgscan")).toMatchObject({ allowed: false });
@@ -884,8 +884,8 @@ describe("CommandChecker", () => {
       expect(checker.check("findmnt")).toEqual({ allowed: true });
       expect(checker.check("lsblk")).toEqual({ allowed: true });
       expect(checker.check("partprobe")).toEqual({ allowed: true });
-      expect(checker.check("partx --add /dev/sda")).toEqual({ allowed: true });
-      expect(checker.check("kpartx -av /tmp/image.img")).toEqual({ allowed: true });
+      expect(checker.check("partx --add /dev/sda")).toMatchObject({ allowed: false });
+      expect(checker.check("kpartx -av /tmp/image.img")).toMatchObject({ allowed: false });
       expect(checker.check("dmsetup ls")).toEqual({ allowed: true });
     });
 
@@ -908,7 +908,7 @@ describe("CommandChecker", () => {
       expect(checker.check("binwalk file.bin")).toEqual({ allowed: true });
       expect(checker.check("foremost -i file.img")).toEqual({ allowed: true });
       expect(checker.check("testdisk /dev/sda")).toEqual({ allowed: true });
-      expect(checker.check("ddrescue /dev/sda /dev/sdb log")).toEqual({ allowed: true });
+      expect(checker.check("ddrescue /dev/sda /dev/sdb log")).toMatchObject({ allowed: false });
       expect(checker.check("xxd file.bin")).toEqual({ allowed: true });
       expect(checker.check("hexdump -C file.bin")).toEqual({ allowed: true });
       expect(checker.check("od -A x -t x1z file.bin")).toEqual({ allowed: true });
@@ -1086,12 +1086,12 @@ describe("CommandChecker", () => {
       expect(checker.check("lvsplit vg1/lv1")).toMatchObject({ allowed: false });
       expect(checker.check("lvmerge vg1/lv1")).toMatchObject({ allowed: false });
       expect(checker.check("lvconvert vg1/lv1")).toMatchObject({ allowed: false });
-      expect(checker.check("snap vg1/lv1")).toEqual({ allowed: true });
-      expect(checker.check("snapshot vg1/lv1")).toEqual({ allowed: true });
+      expect(checker.check("snap vg1/lv1")).toMatchObject({ allowed: false });
+      expect(checker.check("snapshot vg1/lv1")).toMatchObject({ allowed: false });
     });
 
     it("should allow more system utility commands", () => {
-      expect(checker.check("wall 'hello'")).toEqual({ allowed: true });
+      expect(checker.check("wall 'hello'")).toMatchObject({ allowed: false });
       expect(checker.check("write user tty")).toEqual({ allowed: true });
       expect(checker.check("mail")).toEqual({ allowed: true });
       expect(checker.check("mutt")).toEqual({ allowed: true });
@@ -1395,7 +1395,7 @@ describe("CommandChecker", () => {
       expect(checker.check("e2fsck -n /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("e2label /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("tune2fs -l /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("resize2fs /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("resize2fs /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("dump2fs /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("debugfs -R 'ls -l /' /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("e2image /dev/sda1 /tmp/img")).toMatchObject({ allowed: false });
