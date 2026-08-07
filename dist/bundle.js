@@ -27077,9 +27077,9 @@ var util;
     }
     return keys;
   };
-  util2.find = (arr, checker) => {
+  util2.find = (arr, checker2) => {
     for (const item of arr) {
-      if (checker(item))
+      if (checker2(item))
         return item;
     }
     return void 0;
@@ -51413,7 +51413,360 @@ var ConnectionPool = class {
 };
 var pool = new ConnectionPool();
 
+// src/readonly-checker.ts
+var import_fs = require("fs");
+var import_path = require("path");
+var CommandChecker = class {
+  allowedCommands;
+  constructor() {
+    const whitelist = JSON.parse(
+      (0, import_fs.readFileSync)((0, import_path.join)(__dirname, "data", "readonly-whitelist.json"), "utf-8")
+    );
+    this.allowedCommands = new Set(whitelist.commands);
+  }
+  check(command) {
+    if (!command.trim()) {
+      return { allowed: true };
+    }
+    console.error(`[READONLY-CHECKER] Checking command: ${command}`);
+    const segments = this.parseSegments(command);
+    console.error(`[READONLY-CHECKER] Parsed segments: ${JSON.stringify(segments)}`);
+    for (const segment of segments) {
+      const result = this.checkSegment(segment.trim());
+      console.error(`[READONLY-CHECKER] Segment "${segment.trim()}": allowed=${result.allowed}${result.reason ? `, reason=${result.reason}` : ""}`);
+      if (!result.allowed) {
+        return result;
+      }
+    }
+    console.error(`[READONLY-CHECKER] Command ALLOWED`);
+    return { allowed: true };
+  }
+  parseSegments(cmd) {
+    const segments = [];
+    let current = "";
+    let depth = 0;
+    let braceDepth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    for (let i = 0; i < cmd.length; i++) {
+      const char = cmd[i];
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+        current += char;
+      } else if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+        current += char;
+      } else if (!inSingleQuote && !inDoubleQuote) {
+        if (char === "(") {
+          depth++;
+          current += char;
+        } else if (char === ")") {
+          depth--;
+          current += char;
+        } else if (char === "{" && depth === 0) {
+          braceDepth++;
+          current += char;
+        } else if (char === "}" && braceDepth > 0) {
+          braceDepth--;
+          current += char;
+        } else if (depth === 0 && braceDepth === 0 && (cmd.startsWith("&&", i) || cmd.startsWith("||", i))) {
+          if (current.trim()) {
+            segments.push(current.trim());
+          }
+          current = "";
+          i += 1;
+        } else if (depth === 0 && braceDepth === 0 && char === ";") {
+          if (current.trim()) {
+            segments.push(current.trim());
+          }
+          current = "";
+        } else {
+          current += char;
+        }
+      } else {
+        current += char;
+      }
+    }
+    if (current.trim()) {
+      segments.push(current.trim());
+    }
+    return segments;
+  }
+  checkSegment(segment) {
+    const subshellContent = this.extractSubshellContent(segment);
+    if (subshellContent !== null) {
+      return this.check(subshellContent);
+    }
+    const braceContent = this.extractBraceContent(segment);
+    if (braceContent !== null) {
+      return this.check(braceContent);
+    }
+    const pipeSegments = this.parsePipeSegments(segment);
+    for (const pipeSeg of pipeSegments) {
+      const trimmed = pipeSeg.trim();
+      if (!trimmed) continue;
+      const processSubResult = this.checkProcessSubstitution(trimmed);
+      if (!processSubResult.allowed) {
+        return processSubResult;
+      }
+      const firstToken = this.getActualCommand(trimmed);
+      if (!this.allowedCommands.has(firstToken)) {
+        return { allowed: false, reason: `Command '${firstToken}' is not in the read-only whitelist` };
+      }
+      if (this.hasWriteArg(trimmed, firstToken)) {
+        return { allowed: false, reason: `Write argument detected in command` };
+      }
+      if (this.hasWritePattern(pipeSeg)) {
+        return { allowed: false, reason: `Write pattern detected in command` };
+      }
+    }
+    return { allowed: true };
+  }
+  parsePipeSegments(segment) {
+    const segments = [];
+    let current = "";
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    for (let i = 0; i < segment.length; i++) {
+      const char = segment[i];
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+        current += char;
+      } else if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+        current += char;
+      } else if (!inSingleQuote && !inDoubleQuote) {
+        if (char === "(") {
+          depth++;
+          current += char;
+        } else if (char === ")") {
+          depth--;
+          current += char;
+        } else if (depth === 0 && char === "|") {
+          if (i + 1 < segment.length && segment[i + 1] === "|") {
+            current += char;
+          } else {
+            if (current.trim()) {
+              segments.push(current.trim());
+            }
+            current = "";
+          }
+        } else {
+          current += char;
+        }
+      } else {
+        current += char;
+      }
+    }
+    if (current.trim()) {
+      segments.push(current.trim());
+    }
+    return segments;
+  }
+  extractSubshellContent(segment) {
+    const match = segment.match(/^\(\s*(.+)\s*\)$/);
+    if (match) {
+      return match[1];
+    }
+    return null;
+  }
+  extractBraceContent(segment) {
+    const match = segment.match(/^\{\s*(.+)\s*\}\s*$/);
+    if (match) {
+      return match[1];
+    }
+    return null;
+  }
+  checkProcessSubstitution(segment) {
+    const processSubRegex = />\(([^)]+)\)/g;
+    let match;
+    while ((match = processSubRegex.exec(segment)) !== null) {
+      const content = match[1];
+      const result = this.check(content);
+      if (!result.allowed) {
+        return result;
+      }
+    }
+    return { allowed: true };
+  }
+  getFirstToken(cmd) {
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+    let token = "";
+    for (let i = 0; i < cmd.length; i++) {
+      const char = cmd[i];
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+      } else if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+      } else if (!inSingleQuote && !inDoubleQuote) {
+        if (char === " " || char === "	" || char === ";") {
+          break;
+        }
+        token += char;
+      } else {
+        token += char;
+      }
+    }
+    return token;
+  }
+  getActualCommand(cmd) {
+    const firstToken = this.getFirstToken(cmd);
+    if (firstToken === "sudo") {
+      let rest = cmd.substring(firstToken.length).trimStart();
+      while (rest.startsWith("-") && !rest.match(/^[a-zA-Z]/)) {
+        const flagEnd = rest.search(/\s+/);
+        if (flagEnd === -1) break;
+        const afterFlag = rest.substring(flagEnd).trimStart();
+        if (afterFlag.startsWith("-")) {
+          const nextFlagEnd = afterFlag.search(/\s+/);
+          if (nextFlagEnd === -1) break;
+          rest = afterFlag.substring(nextFlagEnd).trimStart();
+        } else {
+          rest = afterFlag;
+          break;
+        }
+      }
+      return this.getActualCommand(rest);
+    }
+    if (firstToken === "su") {
+      const rest = cmd.substring(firstToken.length).trimStart();
+      const cMatch = rest.match(/-c\s+['"]?(.+?)['"]?$/);
+      if (cMatch) {
+        return this.getActualCommand(cMatch[1]);
+      }
+      const restToken = this.getFirstToken(rest);
+      if (restToken) {
+        return this.getActualCommand(rest);
+      }
+    }
+    if (firstToken === "ssh") {
+      const rest = cmd.substring(firstToken.length).trimStart();
+      const hostPattern = /[^'"\s]+@[^'"\s]+/;
+      const match = rest.match(hostPattern);
+      if (match) {
+        const afterHost = rest.substring(match[0].length).trimStart();
+        if (afterHost) {
+          return this.getActualCommand(afterHost);
+        }
+      }
+    }
+    return firstToken;
+  }
+  hasWriteArg(cmd, firstToken) {
+    if ((firstToken === "curl" || firstToken === "wget") && (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd))) {
+      return true;
+    }
+    if (firstToken === "git") {
+      const writeCommands = ["commit", "push", "merge", "rebase", "reset", "clean", "am", "apply", "bisect", "cherry-pick", "force-push", "push"];
+      const rest = cmd.substring(firstToken.length).trimStart();
+      const secondToken = this.getFirstToken(rest);
+      if (writeCommands.includes(secondToken)) {
+        return true;
+      }
+    }
+    if (firstToken === "systemctl") {
+      const idx = cmd.toLowerCase().indexOf("systemctl");
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith("-")) {
+          const spaceIdx = rest.indexOf(" ");
+          if (spaceIdx === -1) {
+            rest = "";
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        const subCmd = this.getFirstToken(rest);
+        if (!subCmd) {
+          return false;
+        }
+        const allowedSubCommands = [
+          "status",
+          "is-active",
+          "is-enabled",
+          "is-failed",
+          "list-units",
+          "list-sockets",
+          "list-timers",
+          "list-dependencies",
+          "cat",
+          "show",
+          "get-default",
+          "help",
+          "dump",
+          "import-environment",
+          "tmpfiles",
+          "property",
+          "daemon-status",
+          "log",
+          "is-system-running"
+        ];
+        if (!allowedSubCommands.includes(subCmd)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  hasWritePattern(segment) {
+    const patterns = [
+      /(?<![-])>[^>]/,
+      />>/,
+      /2>/,
+      /&>/,
+      /\|.*tee\b/,
+      />\(/,
+      /\becho\b.*>/,
+      /\bcat\b.*>/,
+      /\bawk\b.*>/,
+      /\bsed\b.*-i[a-z]*\b/,
+      /\btr\b.*>/,
+      /\bsort\b.*>/,
+      /\buniq\b.*>/,
+      /\bgrep\b.*>/,
+      /\bfind\b.*-exec\b/,
+      /\bxargs\b/
+    ];
+    for (const pattern of patterns) {
+      if (pattern.test(segment)) {
+        return true;
+      }
+    }
+    if (/<<</.test(segment)) {
+      return true;
+    }
+    if (/\bsed\b/.test(segment) && /["']w\s+\/[^"']/.test(segment)) {
+      return true;
+    }
+    if (/\bcp\b/.test(segment) && (/\/dev\/stdin/.test(segment) || /-\s*$/.test(segment))) {
+      return true;
+    }
+    if (/\bdd\b/.test(segment) && /\bof\s*=\s*\//.test(segment)) {
+      return true;
+    }
+    if (/\btar\b/.test(segment) && /\bc[a-zA-Z]*f/.test(segment)) {
+      return true;
+    }
+    if (/\b(python3?|perl|ruby|node)\b/.test(segment) && /\bopen\s*\(/.test(segment)) {
+      return true;
+    }
+    if (/\bawk\b/.test(segment) && />\s*["'][^"']+["']/.test(segment)) {
+      return true;
+    }
+    return false;
+  }
+};
+
 // src/index.ts
+var READONLY_MODE = process.env.MCP_SSH_READONLY === "true";
+var checker = new CommandChecker();
+if (READONLY_MODE) {
+  console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
+} else {
+  console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
+}
 var server = new McpServer({
   name: "mcp-ssh",
   version: "1.0.0"
@@ -51430,6 +51783,12 @@ server.tool(
     keyPath: external_exports.string().optional().describe("Path to SSH private key file (for key auth)")
   },
   async ({ alias, host, port, username, authMethod, keyPath }) => {
+    if (READONLY_MODE) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+        isError: true
+      };
+    }
     try {
       const result = addServer({ alias, host, port, username, authMethod, keyPath });
       return {
@@ -51484,6 +51843,12 @@ server.tool(
     keyPath: external_exports.string().optional().describe("New key path")
   },
   async ({ alias, ...updates }) => {
+    if (READONLY_MODE) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+        isError: true
+      };
+    }
     try {
       const result = updateServer(alias, updates);
       return {
@@ -51504,6 +51869,12 @@ server.tool(
     alias: external_exports.string().describe("Server alias to delete")
   },
   async ({ alias }) => {
+    if (READONLY_MODE) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+        isError: true
+      };
+    }
     try {
       deleteServer(alias);
       return {
@@ -51577,6 +51948,15 @@ server.tool(
     timeout: external_exports.number().optional().default(6e4).describe("Timeout in milliseconds (default: 60000)")
   },
   async ({ sessionId, command, timeout }) => {
+    if (READONLY_MODE) {
+      const result = checker.check(command);
+      if (!result.allowed) {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, error: `Write operation detected: ${result.reason}` }) }],
+          isError: true
+        };
+      }
+    }
     try {
       const result = await pool.executeCommand(sessionId, command, timeout);
       return {

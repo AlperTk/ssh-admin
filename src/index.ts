@@ -3,6 +3,16 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { addServer, listServers, getServer, updateServer, deleteServer } from "./registry.js";
 import { pool } from "./pool.js";
+import { CommandChecker } from "./readonly-checker.js";
+
+const READONLY_MODE = process.env.MCP_SSH_READONLY === "true";
+const checker = new CommandChecker();
+
+if (READONLY_MODE) {
+  console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
+} else {
+  console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
+}
 
 // Create MCP server
 const server = new McpServer({
@@ -24,6 +34,12 @@ server.tool(
     keyPath: z.string().optional().describe("Path to SSH private key file (for key auth)"),
   },
   async ({ alias, host, port, username, authMethod, keyPath }) => {
+    if (READONLY_MODE) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+        isError: true,
+      };
+    }
     try {
       const result = addServer({ alias, host, port, username, authMethod, keyPath });
       return {
@@ -81,6 +97,12 @@ server.tool(
     keyPath: z.string().optional().describe("New key path"),
   },
   async ({ alias, ...updates }) => {
+    if (READONLY_MODE) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+        isError: true,
+      };
+    }
     try {
       const result = updateServer(alias, updates);
       return {
@@ -102,6 +124,12 @@ server.tool(
     alias: z.string().describe("Server alias to delete"),
   },
   async ({ alias }) => {
+    if (READONLY_MODE) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+        isError: true,
+      };
+    }
     try {
       deleteServer(alias);
       return {
@@ -183,6 +211,15 @@ server.tool(
     timeout: z.number().optional().default(60000).describe("Timeout in milliseconds (default: 60000)"),
   },
   async ({ sessionId, command, timeout }) => {
+    if (READONLY_MODE) {
+      const result = checker.check(command);
+      if (!result.allowed) {
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, error: `Write operation detected: ${result.reason}` }) }],
+          isError: true,
+        };
+      }
+    }
     try {
       const result = await pool.executeCommand(sessionId, command, timeout);
       return {

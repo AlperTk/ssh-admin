@@ -5,6 +5,15 @@ const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const zod_1 = require("zod");
 const registry_js_1 = require("./registry.js");
 const pool_js_1 = require("./pool.js");
+const readonly_checker_js_1 = require("./readonly-checker.js");
+const READONLY_MODE = process.env.MCP_SSH_READONLY === "true";
+const checker = new readonly_checker_js_1.CommandChecker();
+if (READONLY_MODE) {
+    console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
+}
+else {
+    console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
+}
 // Create MCP server
 const server = new mcp_js_1.McpServer({
     name: "mcp-ssh",
@@ -19,6 +28,12 @@ server.tool("registry_add_server", "Add a new SSH server to the registry", {
     authMethod: zod_1.z.enum(["key", "password"]).describe("Authentication method"),
     keyPath: zod_1.z.string().optional().describe("Path to SSH private key file (for key auth)"),
 }, async ({ alias, host, port, username, authMethod, keyPath }) => {
+    if (READONLY_MODE) {
+        return {
+            content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+            isError: true,
+        };
+    }
     try {
         const result = (0, registry_js_1.addServer)({ alias, host, port, username, authMethod, keyPath });
         return {
@@ -60,6 +75,12 @@ server.tool("registry_update_server", "Update a registered server's properties (
     authMethod: zod_1.z.enum(["key", "password"]).optional().describe("New auth method"),
     keyPath: zod_1.z.string().optional().describe("New key path"),
 }, async ({ alias, ...updates }) => {
+    if (READONLY_MODE) {
+        return {
+            content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+            isError: true,
+        };
+    }
     try {
         const result = (0, registry_js_1.updateServer)(alias, updates);
         return {
@@ -76,6 +97,12 @@ server.tool("registry_update_server", "Update a registered server's properties (
 server.tool("registry_delete_server", "Remove a server from the registry", {
     alias: zod_1.z.string().describe("Server alias to delete"),
 }, async ({ alias }) => {
+    if (READONLY_MODE) {
+        return {
+            content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
+            isError: true,
+        };
+    }
     try {
         (0, registry_js_1.deleteServer)(alias);
         return {
@@ -133,6 +160,15 @@ server.tool("command_execute", "Execute a command on an open SSH session. Can be
     command: zod_1.z.string().describe("Shell command to execute"),
     timeout: zod_1.z.number().optional().default(60000).describe("Timeout in milliseconds (default: 60000)"),
 }, async ({ sessionId, command, timeout }) => {
+    if (READONLY_MODE) {
+        const result = checker.check(command);
+        if (!result.allowed) {
+            return {
+                content: [{ type: "text", text: JSON.stringify({ success: false, error: `Write operation detected: ${result.reason}` }) }],
+                isError: true,
+            };
+        }
+    }
     try {
         const result = await pool_js_1.pool.executeCommand(sessionId, command, timeout);
         return {
