@@ -16,8 +16,10 @@ describe("aptHasWriteArg", () => {
       expect(aptHasWriteArg("apt rdepends git")).toBe(false);
       expect(aptHasWriteArg("apt madison vim")).toBe(false);
     });
+    it("should block apt update (writes package cache)", () => {
+      expect(aptHasWriteArg("apt update")).toBe(true);
+    });
     it("should block apt upgrade/full-upgrade/dist-upgrade (write operations)", () => {
-      expect(aptHasWriteArg("apt update")).toBe(false);
       expect(aptHasWriteArg("apt upgrade")).toBe(true);
       expect(aptHasWriteArg("apt full-upgrade")).toBe(true);
       expect(aptHasWriteArg("apt dist-upgrade")).toBe(true);

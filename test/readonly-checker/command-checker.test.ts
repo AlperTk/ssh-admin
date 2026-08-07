@@ -1489,7 +1489,7 @@ describe("CommandChecker", () => {
       expect(checker.check("apt depends git")).toEqual({ allowed: true });
       expect(checker.check("apt rdepends git")).toEqual({ allowed: true });
       expect(checker.check("apt madison vim")).toEqual({ allowed: true });
-      expect(checker.check("apt update")).toEqual({ allowed: true });
+      expect(checker.check("apt update").allowed).toBe(false);
       expect(checker.check("apt upgrade").allowed).toBe(false);
       expect(checker.check("apt full-upgrade").allowed).toBe(false);
       expect(checker.check("apt dist-upgrade").allowed).toBe(false);

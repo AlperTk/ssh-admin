@@ -174,7 +174,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 | curl | `CURL_SAFE_FLAGS` set — -s, -v, -I, -w, --compressed... |
 | wget | **Tüm HTTP/FTP çağrıları engellenir** (varsayılan dosya yazar) |
 | ip | `IP_READ_ONLY` + `IP_READ_ONLY_SUBCOMMANDS` map |
-| apt | `APT_READ_ONLY` set — list, show, search, update, check, autoremove... (upgrade/full-upgrade/dist-upgrade write işlem olduğu için engellenir) |
+| apt | `APT_READ_ONLY` set — list, show, search, check, autoremove... (update/upgrade/full-upgrade/dist-upgrade yazma için engellenir) |
 | journalctl | `JOURNALCTL_SAFE_FLAGS` set — --no-pager, --lines, -f... |
 | awk | `AWK_SAFE_PATTERNS[]` — print, printf, BEGIN, END... |
 | tar | `TAR_SAFE_FLAGS` + create/extract detection |
@@ -297,6 +297,7 @@ npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git hand
 - Docker exec: shell spawn detection (`bash/sh/zsh/csh/ksh/fish`)
 - Tar: `-r/-u` flag detection + `--warning=` bypass tespiti
 - Crontab: `-e`, `-r`, `-R`, `-` (stdin) + `-u root -` bypass write flag tespiti
+- Apt: `update` komutu paket listesini günceller → yazma olarak engellendi
 - Git config: `--global`, `--system`, `-f` flag tespiti → kalıcı yazma engellenir
 - xargs curl/wget: handler dispatch'e yönlendirilir (flag-level kontrol)
 - SCP: remote source/dest ayrımı güçlendirildi, `-i` flag atlatma

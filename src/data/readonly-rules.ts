@@ -65,7 +65,7 @@ export const IP_READ_ONLY_SUBCOMMANDS = new Map<string, string[]>([
 export const APT_READ_ONLY = new Set([
   'list', 'show', 'search', 'policy', 'info', 'cache', 'depends',
   'rdepends', 'madison', 'edit-sources',
-  'update', 'check', 'simulator', 'autoremove',
+  'check', 'simulator', 'autoremove',
 ]);
 
 
