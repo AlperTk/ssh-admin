@@ -37,9 +37,9 @@ index.ts (MCP tools)
 ### Ne Yapar?
 `command_execute` tool'unda gelen komutu filtreler:
 1. Komut whitelist'te yoksa → engelle
-2. Whitelist'te varsa ama handler whitelist'te yoksa → engelle
-3. Handler whitelist'te yoksa → engelle
-4. Her iki kontrol de geçerse → izin ver
+2. Handler whitelist'te yoksa → engelle
+3. Write pattern tespit edilirse → engelle
+4. Tüm kontroller geçerse → izin ver
 
 ### Tasarım Deseni: Singleton + Direct Dispatch + Early Exit + Whitelist-Only
 - **Whitelist**: `Set.has()` → O(1) lookup
@@ -179,10 +179,10 @@ test/
     │   ├── ip-handler.test.ts           ← ipHasWriteArg (addr/link/route eylemleri)
     │   ├── apt-handler.test.ts          ← aptHasWriteArg (read-only vs write komutlar)
     │   ├── crontab-handler.test.ts      ← crontabHasWriteArg (-e flag tespiti)
-    │   ├── firewall-cmd-handler.test.ts ← firewallCmdHasWriteArg (--list-* / --get-* hariç)
+    │   ├── firewall-cmd-handler.test.ts ← --list-* / --get-* whitelist
     │   ├── rsync-handler.test.ts        ← her zaman write (true döner)
     │   ├── mktemp-handler.test.ts       ← her zaman write (true döner)
-│   ├── fail2ban-handler.test.ts     ← status/gettag read-only, diğerleri write
+│   ├── fail2ban-handler.test.ts     ← FAIL2BAN_READ_ONLY whitelist
 │   ├── journalctl-handler.test.ts   ← JOURNALCTL_SAFE_FLAGS whitelist
 │   └── tar-handler.test.ts          ← tar create/extract/write detection
     ├── write-patterns/
