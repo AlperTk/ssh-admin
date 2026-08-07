@@ -120,3 +120,14 @@ return {
 
 ### Running Tests
 Run the project's test command (e.g., `npm test`, `pytest`).
+
+### Git Operations
+
+**Always ask for user approval before each commit and push.** Summarize the changes and ask the user for permission before proceeding.
+
+### Coding Guidelines
+
+- **Keep methods under 40 lines.**
+- **Write positive instructions in prompts.** Specify what to do rather than what not to do.
+- **Follow existing project style.** Match the codebase conventions before introducing new patterns.
+- **Optimize only after correctness.** Prioritize getting it right before making it fast.
