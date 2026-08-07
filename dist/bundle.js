@@ -51464,6 +51464,39 @@ var SYSTEMCTL_READ_ONLY = [
   "log",
   "is-system-running"
 ];
+var APT_READ_ONLY = [
+  "list",
+  "show",
+  "search",
+  "policy",
+  "info",
+  "cache",
+  "depends",
+  "rdepends",
+  "madison",
+  "edit-sources",
+  "full-upgrade",
+  "dist-upgrade",
+  "update",
+  "upgrade",
+  "check",
+  "simulator",
+  "autoremove"
+];
+var APT_WRITE_COMMANDS = [
+  "install",
+  "remove",
+  "purge",
+  "reinstall",
+  "hold",
+  "unhold",
+  "lock",
+  "unlock",
+  "clean",
+  "autoclean",
+  "fix-broken"
+];
+var CRONTAB_WRITE_FLAGS = ["-e"];
 var DOCKER_READ_ONLY = [
   "ps",
   "images",
@@ -51618,7 +51651,66 @@ var CommandChecker = class _CommandChecker {
     }
     return segments;
   }
+  extractLoopBody(segment) {
+    const trimmed = segment.trim();
+    const forMatch = trimmed.match(/^for\s+\S+(\s+in\s+.+?)?\s*;?\s*do\s+(.+)$/s);
+    if (forMatch) {
+      const body = forMatch[2];
+      const doneIdx = this.findMatchingDone(body);
+      if (doneIdx !== -1) {
+        return body.substring(0, doneIdx).trim();
+      }
+    }
+    const whileMatch = trimmed.match(/^while\s+.+?\s*;?\s*do\s+(.+)$/s);
+    if (whileMatch) {
+      const body = whileMatch[1];
+      const doneIdx = this.findMatchingDone(body);
+      if (doneIdx !== -1) {
+        return body.substring(0, doneIdx).trim();
+      }
+    }
+    return null;
+  }
+  findMatchingDone(content) {
+    let depth = 1;
+    let i = 0;
+    while (i < content.length) {
+      if (content[i] === "'") {
+        let j = i + 1;
+        while (j < content.length && content[j] !== "'") j++;
+        i = j + 1;
+        continue;
+      }
+      if (content[i] === '"') {
+        let j = i + 1;
+        while (j < content.length && content[j] !== '"') j++;
+        i = j + 1;
+        continue;
+      }
+      if (content[i] === "\\") {
+        i += 2;
+        continue;
+      }
+      if (content.substring(i, i + 5) === "done" && (i + 5 >= content.length || !/\w/.test(content[i + 5])) && (i === 0 || !/\w/.test(content[i - 1]))) {
+        depth--;
+        if (depth === 0) return i;
+        i += 5;
+        continue;
+      }
+      if (content.substring(i, i + 2) === "do" && (i + 2 >= content.length || !/\w/.test(content[i + 2])) && (i === 0 || !/\w/.test(content[i - 1]))) {
+        depth++;
+        i += 2;
+        continue;
+      }
+      i++;
+    }
+    return -1;
+  }
   checkSegment(segment) {
+    const loopBody = this.extractLoopBody(segment);
+    if (loopBody !== null) {
+      return this.check(loopBody);
+    }
     const subshellContent = this.extractSubshellContent(segment);
     if (subshellContent !== null) {
       return this.check(subshellContent);
@@ -51823,6 +51915,59 @@ var CommandChecker = class _CommandChecker {
         if (!SYSTEMCTL_READ_ONLY.includes(subCmd)) {
           return true;
         }
+      }
+    }
+    if (firstToken === "apt") {
+      const idx = cmd.toLowerCase().indexOf("apt");
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith("-")) {
+          const spaceIdx = rest.indexOf(" ");
+          if (spaceIdx === -1) {
+            rest = "";
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        const subCmd = this.getFirstToken(rest);
+        if (!subCmd) {
+          return false;
+        }
+        if (APT_READ_ONLY.includes(subCmd)) {
+          return false;
+        }
+        if (APT_WRITE_COMMANDS.includes(subCmd)) {
+          return true;
+        }
+        return false;
+      }
+    }
+    if (firstToken === "crontab") {
+      const idx = cmd.toLowerCase().indexOf("crontab");
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith("-")) {
+          const spaceIdx = rest.indexOf(" ");
+          if (spaceIdx === -1) {
+            rest = "";
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        if (rest.startsWith("-u") || rest.startsWith("-U")) {
+          const spaceIdx = rest.indexOf(" ");
+          if (spaceIdx !== -1) {
+            rest = rest.substring(spaceIdx).trimStart();
+          } else {
+            rest = "";
+          }
+        }
+        for (const flag of CRONTAB_WRITE_FLAGS) {
+          if (rest.startsWith(flag) && (rest.length === flag.length || !/\w/.test(rest[flag.length]))) {
+            return true;
+          }
+        }
+        return false;
       }
     }
     if (firstToken === "docker") {

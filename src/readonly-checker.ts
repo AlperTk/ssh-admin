@@ -18,6 +18,22 @@ const SYSTEMCTL_READ_ONLY = [
   'property', 'daemon-status', 'log', 'is-system-running',
 ];
 
+// apt: sadece read-only alt komutlar izinli
+const APT_READ_ONLY = [
+  'list', 'show', 'search', 'policy', 'info', 'cache', 'depends',
+  'rdepends', 'madison', 'edit-sources', 'full-upgrade', 'dist-upgrade',
+  'update', 'upgrade', 'check', 'simulator', 'autoremove',
+];
+
+const APT_WRITE_COMMANDS = [
+  'install', 'remove', 'purge', 'reinstall', 'hold', 'unhold',
+  'lock', 'unlock', 'clean', 'autoclean', 'fix-broken',
+];
+
+// crontab: -l okuma, -e yazma
+const CRONTAB_READ_ONLY_FLAGS = ['-l', '-r', '-i', '-v'];
+const CRONTAB_WRITE_FLAGS = ['-e'];
+
 // docker: sadece read-only alt komutlar izinli
 const DOCKER_READ_ONLY = [
   'ps', 'images', 'inspect', 'logs', 'top', 'stats', 'version', 'info',
@@ -152,7 +168,78 @@ class CommandChecker {
     return segments;
   }
 
+  private extractLoopBody(segment: string): string | null {
+    const trimmed = segment.trim();
+    
+    // for var in ... ; do ... ; done
+    const forMatch = trimmed.match(/^for\s+\S+(\s+in\s+.+?)?\s*;?\s*do\s+(.+)$/s);
+    if (forMatch) {
+      const body = forMatch[2];
+      const doneIdx = this.findMatchingDone(body);
+      if (doneIdx !== -1) {
+        return body.substring(0, doneIdx).trim();
+      }
+    }
+    
+    // while condition ; do ... ; done
+    const whileMatch = trimmed.match(/^while\s+.+?\s*;?\s*do\s+(.+)$/s);
+    if (whileMatch) {
+      const body = whileMatch[1];
+      const doneIdx = this.findMatchingDone(body);
+      if (doneIdx !== -1) {
+        return body.substring(0, doneIdx).trim();
+      }
+    }
+    
+    return null;
+  }
+
+  private findMatchingDone(content: string): number {
+    let depth = 1;
+    let i = 0;
+    while (i < content.length) {
+      if (content[i] === "'" ) {
+        let j = i + 1;
+        while (j < content.length && content[j] !== "'") j++;
+        i = j + 1;
+        continue;
+      }
+      if (content[i] === '"') {
+        let j = i + 1;
+        while (j < content.length && content[j] !== '"') j++;
+        i = j + 1;
+        continue;
+      }
+      if (content[i] === '\\') {
+        i += 2;
+        continue;
+      }
+      if (content.substring(i, i + 5) === 'done' && 
+          (i + 5 >= content.length || !/\w/.test(content[i + 5])) &&
+          (i === 0 || !/\w/.test(content[i - 1]))) {
+        depth--;
+        if (depth === 0) return i;
+        i += 5;
+        continue;
+      }
+      if (content.substring(i, i + 2) === 'do' && 
+          (i + 2 >= content.length || !/\w/.test(content[i + 2])) &&
+          (i === 0 || !/\w/.test(content[i - 1]))) {
+        depth++;
+        i += 2;
+        continue;
+      }
+      i++;
+    }
+    return -1;
+  }
+
   private checkSegment(segment: string): { allowed: boolean; reason?: string } {
+    const loopBody = this.extractLoopBody(segment);
+    if (loopBody !== null) {
+      return this.check(loopBody);
+    }
+
     const subshellContent = this.extractSubshellContent(segment);
     if (subshellContent !== null) {
       return this.check(subshellContent);
@@ -396,6 +483,64 @@ class CommandChecker {
         if (!SYSTEMCTL_READ_ONLY.includes(subCmd)) {
           return true;
         }
+      }
+    }
+
+    // apt: read-only vs write subkomut kontrolü
+    if (firstToken === 'apt') {
+      const idx = cmd.toLowerCase().indexOf('apt');
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith('-')) {
+          const spaceIdx = rest.indexOf(' ');
+          if (spaceIdx === -1) {
+            rest = '';
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        const subCmd = this.getFirstToken(rest);
+        if (!subCmd) {
+          return false;
+        }
+        if (APT_READ_ONLY.includes(subCmd)) {
+          return false;
+        }
+        if (APT_WRITE_COMMANDS.includes(subCmd)) {
+          return true;
+        }
+        return false;
+      }
+    }
+
+    // crontab: -l okuma, -e yazma
+    if (firstToken === 'crontab') {
+      const idx = cmd.toLowerCase().indexOf('crontab');
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith('-')) {
+          const spaceIdx = rest.indexOf(' ');
+          if (spaceIdx === -1) {
+            rest = '';
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        // -u user flag atla
+        if (rest.startsWith('-u') || rest.startsWith('-U')) {
+          const spaceIdx = rest.indexOf(' ');
+          if (spaceIdx !== -1) {
+            rest = rest.substring(spaceIdx).trimStart();
+          } else {
+            rest = '';
+          }
+        }
+        for (const flag of CRONTAB_WRITE_FLAGS) {
+          if (rest.startsWith(flag) && (rest.length === flag.length || !/\w/.test(rest[flag.length]))) {
+            return true;
+          }
+        }
+        return false;
       }
     }
 

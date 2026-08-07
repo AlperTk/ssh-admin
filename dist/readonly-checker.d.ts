@@ -6,6 +6,8 @@ declare class CommandChecker {
         reason?: string;
     };
     private parseSegments;
+    private extractLoopBody;
+    private findMatchingDone;
     private checkSegment;
     private parsePipeSegments;
     private extractSubshellContent;

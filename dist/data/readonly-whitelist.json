@@ -477,6 +477,18 @@
     "mdtest",
     "mdstat",
     "mdcheck",
-    "docker"
+    "docker",
+    "apt",
+    "getenforce",
+    "crontab",
+    "for",
+    "while",
+    "if",
+    "then",
+    "else",
+    "elif",
+    "fi",
+    "do",
+    "done"
   ]
 }
