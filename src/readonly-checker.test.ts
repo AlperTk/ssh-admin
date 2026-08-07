@@ -1485,4 +1485,140 @@ describe("CommandChecker", () => {
       expect(checker.check("grep 'pattern' file.txt")).toEqual({ allowed: true });
     });
   });
+
+  describe("apt commands", () => {
+    it("should allow apt read commands", () => {
+      expect(checker.check("apt list --upgradable")).toEqual({ allowed: true });
+      expect(checker.check("apt show vim")).toEqual({ allowed: true });
+      expect(checker.check("apt search nginx")).toEqual({ allowed: true });
+      expect(checker.check("apt policy sshd")).toEqual({ allowed: true });
+      expect(checker.check("apt info curl")).toEqual({ allowed: true });
+      expect(checker.check("apt cache show bash")).toEqual({ allowed: true });
+      expect(checker.check("apt depends git")).toEqual({ allowed: true });
+      expect(checker.check("apt rdepends git")).toEqual({ allowed: true });
+      expect(checker.check("apt madison vim")).toEqual({ allowed: true });
+      expect(checker.check("apt update")).toEqual({ allowed: true });
+      expect(checker.check("apt upgrade")).toEqual({ allowed: true });
+      expect(checker.check("apt full-upgrade")).toEqual({ allowed: true });
+      expect(checker.check("apt dist-upgrade")).toEqual({ allowed: true });
+      expect(checker.check("apt check")).toEqual({ allowed: true });
+      expect(checker.check("apt autoremove")).toEqual({ allowed: true });
+    });
+
+    it("should block apt write commands", () => {
+      expect(checker.check("apt install vim")).toMatchObject({ allowed: false });
+      expect(checker.check("apt remove vim")).toMatchObject({ allowed: false });
+      expect(checker.check("apt purge vim")).toMatchObject({ allowed: false });
+      expect(checker.check("apt reinstall vim")).toMatchObject({ allowed: false });
+      expect(checker.check("apt hold vim")).toMatchObject({ allowed: false });
+      expect(checker.check("apt unhold vim")).toMatchObject({ allowed: false });
+      expect(checker.check("apt clean")).toMatchObject({ allowed: false });
+      expect(checker.check("apt autoclean")).toMatchObject({ allowed: false });
+      expect(checker.check("apt fix-broken")).toMatchObject({ allowed: false });
+    });
+  });
+
+  describe("crontab commands", () => {
+    it("should allow crontab read commands", () => {
+      expect(checker.check("crontab -l")).toEqual({ allowed: true });
+      expect(checker.check("crontab -r")).toEqual({ allowed: true });
+      expect(checker.check("crontab -i")).toEqual({ allowed: true });
+      expect(checker.check("crontab -v")).toEqual({ allowed: true });
+      expect(checker.check("crontab -l -u www-data")).toEqual({ allowed: true });
+      expect(checker.check("crontab -l -U root")).toEqual({ allowed: true });
+    });
+
+    it("should block crontab write commands", () => {
+      expect(checker.check("crontab -e")).toMatchObject({ allowed: false });
+    });
+  });
+
+  describe("ip commands", () => {
+    it("should allow ip read commands", () => {
+      expect(checker.check("ip addr show")).toEqual({ allowed: true });
+      expect(checker.check("ip addr list")).toEqual({ allowed: true });
+      expect(checker.check("ip link show")).toEqual({ allowed: true });
+      expect(checker.check("ip route show")).toEqual({ allowed: true });
+      expect(checker.check("ip route list")).toEqual({ allowed: true });
+      expect(checker.check("ip neigh show")).toEqual({ allowed: true });
+      expect(checker.check("ip rule show")).toEqual({ allowed: true });
+      expect(checker.check("ip tunnel show")).toEqual({ allowed: true });
+      expect(checker.check("ip xfrm state show")).toEqual({ allowed: true });
+      expect(checker.check("ip maddr show")).toEqual({ allowed: true });
+      expect(checker.check("ip monitor link")).toEqual({ allowed: true });
+      expect(checker.check("ip check")).toEqual({ allowed: true });
+      expect(checker.check("ip session show")).toEqual({ allowed: true });
+    });
+
+    it("should block ip write commands", () => {
+      expect(checker.check("ip addr add 10.0.0.1/24 dev eth0")).toMatchObject({ allowed: false });
+      expect(checker.check("ip addr del 10.0.0.1/24 dev eth0")).toMatchObject({ allowed: false });
+      expect(checker.check("ip addr flush eth0")).toMatchObject({ allowed: false });
+      expect(checker.check("ip link set eth0 up")).toMatchObject({ allowed: false });
+      expect(checker.check("ip link add eth1 type vlan")).toMatchObject({ allowed: false });
+      expect(checker.check("ip link delete eth1")).toMatchObject({ allowed: false });
+      expect(checker.check("ip route add 10.0.0.0/8 via 192.168.1.1")).toMatchObject({ allowed: false });
+      expect(checker.check("ip route del 10.0.0.0/8")).toMatchObject({ allowed: false });
+      expect(checker.check("ip route replace 10.0.0.0/8 via 192.168.1.1")).toMatchObject({ allowed: false });
+      expect(checker.check("ip neigh add 10.0.0.1 lladdr aa:bb:cc:dd:ee:ff dev eth0")).toMatchObject({ allowed: false });
+      expect(checker.check("ip neigh del 10.0.0.1 dev eth0")).toMatchObject({ allowed: false });
+      expect(checker.check("ip rule add from 10.0.0.0/8 table 100")).toMatchObject({ allowed: false });
+      expect(checker.check("ip rule del 100")).toMatchObject({ allowed: false });
+    });
+  });
+
+  describe("firewall-cmd commands", () => {
+    it("should allow firewall-cmd read commands", () => {
+      expect(checker.check("firewall-cmd --list-all")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --list-ports")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --list-services")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --list-protocols")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --list-rich-rules")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --get-active-zones")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --get-default-zone")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --get-zones")).toEqual({ allowed: true });
+      expect(checker.check("firewall-cmd --list-all-zones")).toEqual({ allowed: true });
+    });
+
+    it("should block firewall-cmd write commands", () => {
+      expect(checker.check("firewall-cmd --add-port=80/tcp")).toMatchObject({ allowed: false });
+      expect(checker.check("firewall-cmd --remove-port=80/tcp")).toMatchObject({ allowed: false });
+      expect(checker.check("firewall-cmd --enable")).toMatchObject({ allowed: false });
+      expect(checker.check("firewall-cmd --disable")).toMatchObject({ allowed: false });
+      expect(checker.check("firewall-cmd --reload")).toMatchObject({ allowed: false });
+      expect(checker.check("firewall-cmd --runtime-to-conf")).toMatchObject({ allowed: false });
+    });
+  });
+
+  describe("getenforce command", () => {
+    it("should allow getenforce", () => {
+      expect(checker.check("getenforce")).toEqual({ allowed: true });
+    });
+  });
+
+  describe("for loop support", () => {
+    it("should allow for loop with read commands", () => {
+      expect(checker.check("for user in $(cut -f1 -d: /etc/passwd); do crontab -l -u \"$user\"; done")).toEqual({ allowed: true });
+      expect(checker.check("for f in /var/spool/cron/crontabs/*; do cat \"$f\"; done")).toEqual({ allowed: true });
+      expect(checker.check("for i in 1 2 3; do echo $i; done")).toEqual({ allowed: true });
+      expect(checker.check("for f in *.txt; do grep 'pattern' \"$f\"; done")).toEqual({ allowed: true });
+    });
+
+    it("should block for loop with write commands", () => {
+      expect(checker.check("for f in *.txt; do rm \"$f\"; done")).toMatchObject({ allowed: false });
+      expect(checker.check("for i in 1 2 3; do touch /tmp/$i; done")).toMatchObject({ allowed: false });
+      expect(checker.check("for f in /tmp/*; do cp \"$f\" /tmp/backup/; done")).toMatchObject({ allowed: false });
+    });
+  });
+
+  describe("while loop support", () => {
+    it("should allow while loop with read commands", () => {
+      expect(checker.check("while read line; do echo \"$line\"; done < /etc/passwd")).toEqual({ allowed: true });
+      expect(checker.check("while true; do uptime; sleep 1; done")).toEqual({ allowed: true });
+    });
+
+    it("should block while loop with write commands", () => {
+      expect(checker.check("while read line; do echo \"$line\" >> /tmp/output; done < /etc/passwd")).toMatchObject({ allowed: false });
+    });
+  });
 });

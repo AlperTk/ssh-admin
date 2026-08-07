@@ -18,6 +18,25 @@ const SYSTEMCTL_READ_ONLY = [
     'get-default', 'help', 'dump', 'import-environment', 'tmpfiles',
     'property', 'daemon-status', 'log', 'is-system-running',
 ];
+// ip: network interface inspection — read-only alt komutlar
+const IP_READ_ONLY = [
+    'addr', 'link', 'route', 'neigh', 'rule', 'tunnel', 'xfrm',
+    'maddr', 'monitor', 'check', 'session',
+];
+const IP_WRITE_COMMANDS = [
+    'add', 'del', 'change', 'chg', 'replace', 'flush', 'set',
+    'create', 'destroy', 'remove', 'save', 'restore',
+];
+// ip: read-only vs write subkomut kontrolü
+const IP_WRITE_SUBCOMMANDS = new Map([
+    ['addr', ['add', 'del', 'flush']],
+    ['link', ['set', 'add', 'del', 'delete', 'change', 'chg', 'replace']],
+    ['route', ['add', 'del', 'change', 'chg', 'replace', 'append']],
+    ['neigh', ['add', 'del', 'replace', 'chgr']],
+    ['rule', ['add', 'del', 'flush']],
+    ['tunnel', ['add', 'del', 'change', 'chg', 'replace']],
+    ['maddr', ['add', 'del', 'change', 'chg', 'replace']],
+]);
 // apt: sadece read-only alt komutlar izinli
 const APT_READ_ONLY = [
     'list', 'show', 'search', 'policy', 'info', 'cache', 'depends',
@@ -84,6 +103,12 @@ class CommandChecker {
             }
         }
         console.error(`[READONLY-CHECKER] Checking command: ${command}`);
+        // for/while döngüleri: gövdeyi çıkar ve recursive check
+        const loopBody = this.extractLoopBody(command);
+        if (loopBody !== null) {
+            console.error(`[READONLY-CHECKER] Extracted loop body: ${loopBody}`);
+            return this.check(loopBody);
+        }
         const segments = this.parseSegments(command);
         console.error(`[READONLY-CHECKER] Parsed segments: ${JSON.stringify(segments)}`);
         for (const segment of segments) {
@@ -455,6 +480,71 @@ class CommandChecker {
                 }
             }
         }
+        // firewall-cmd: --list-* ve --get-* okuma, diğerleri yazma
+        if (firstToken === 'firewall-cmd') {
+            const idx = cmd.toLowerCase().indexOf('firewall-cmd');
+            if (idx !== -1) {
+                let rest = cmd.substring(idx + firstToken.length).trimStart();
+                // --list-* veya --get-* ile başlayan okuma komutları (flag stripping öncesi kontrol)
+                if (rest.startsWith('--list-') || rest.startsWith('--get-')) {
+                    return false;
+                }
+                // Diğer - flag'leri atla
+                while (rest.startsWith('-') && !rest.startsWith('--')) {
+                    const spaceIdx = rest.indexOf(' ');
+                    if (spaceIdx === -1) {
+                        rest = '';
+                        break;
+                    }
+                    rest = rest.substring(spaceIdx).trimStart();
+                }
+                // Kalan --list-* veya --get-* kontrolü
+                if (rest.startsWith('--list-') || rest.startsWith('--get-')) {
+                    return false;
+                }
+                // Diğer tüm komutlar yazma olarak kabul
+                return true;
+            }
+        }
+        // ip: read-only vs write subkomut kontrolü
+        if (firstToken === 'ip') {
+            const idx = cmd.toLowerCase().indexOf('ip');
+            if (idx !== -1) {
+                let rest = cmd.substring(idx + firstToken.length).trimStart();
+                while (rest.startsWith('-')) {
+                    const spaceIdx = rest.indexOf(' ');
+                    if (spaceIdx === -1) {
+                        rest = '';
+                        break;
+                    }
+                    rest = rest.substring(spaceIdx).trimStart();
+                }
+                const subCmd = this.getFirstToken(rest);
+                if (!subCmd) {
+                    return false;
+                }
+                // ip {addr,link,route,...} {show,list} → okuma
+                if (IP_READ_ONLY.includes(subCmd)) {
+                    let nsRest = rest.substring(subCmd.length).trimStart();
+                    while (nsRest.startsWith('-')) {
+                        const spaceIdx = nsRest.indexOf(' ');
+                        if (spaceIdx === -1)
+                            break;
+                        nsRest = nsRest.substring(spaceIdx).trimStart();
+                    }
+                    const action = this.getFirstToken(nsRest);
+                    if (action && IP_WRITE_SUBCOMMANDS.get(subCmd)?.includes(action)) {
+                        return true;
+                    }
+                    return false;
+                }
+                // ip {addr,link,...} {add,del,...} → yazma
+                if (IP_WRITE_COMMANDS.includes(subCmd)) {
+                    return true;
+                }
+                return false;
+            }
+        }
         // apt: read-only vs write subkomut kontrolü
         if (firstToken === 'apt') {
             const idx = cmd.toLowerCase().indexOf('apt');
@@ -486,7 +576,12 @@ class CommandChecker {
             const idx = cmd.toLowerCase().indexOf('crontab');
             if (idx !== -1) {
                 let rest = cmd.substring(idx + firstToken.length).trimStart();
-                while (rest.startsWith('-')) {
+                // İlk flag'i kontrol et (yazma flag'i olabilir)
+                if (rest.startsWith('-e') && (rest.length === 2 || !/\w/.test(rest[2]))) {
+                    return true;
+                }
+                // Diğer - flag'leri atla
+                while (rest.startsWith('-') && !rest.startsWith('--')) {
                     const spaceIdx = rest.indexOf(' ');
                     if (spaceIdx === -1) {
                         rest = '';
@@ -502,11 +597,6 @@ class CommandChecker {
                     }
                     else {
                         rest = '';
-                    }
-                }
-                for (const flag of CRONTAB_WRITE_FLAGS) {
-                    if (rest.startsWith(flag) && (rest.length === flag.length || !/\w/.test(rest[flag.length]))) {
-                        return true;
                     }
                 }
                 return false;

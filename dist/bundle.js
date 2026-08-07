@@ -51464,6 +51464,42 @@ var SYSTEMCTL_READ_ONLY = [
   "log",
   "is-system-running"
 ];
+var IP_READ_ONLY = [
+  "addr",
+  "link",
+  "route",
+  "neigh",
+  "rule",
+  "tunnel",
+  "xfrm",
+  "maddr",
+  "monitor",
+  "check",
+  "session"
+];
+var IP_WRITE_COMMANDS = [
+  "add",
+  "del",
+  "change",
+  "chg",
+  "replace",
+  "flush",
+  "set",
+  "create",
+  "destroy",
+  "remove",
+  "save",
+  "restore"
+];
+var IP_WRITE_SUBCOMMANDS = /* @__PURE__ */ new Map([
+  ["addr", ["add", "del", "flush"]],
+  ["link", ["set", "add", "del", "delete", "change", "chg", "replace"]],
+  ["route", ["add", "del", "change", "chg", "replace", "append"]],
+  ["neigh", ["add", "del", "replace", "chgr"]],
+  ["rule", ["add", "del", "flush"]],
+  ["tunnel", ["add", "del", "change", "chg", "replace"]],
+  ["maddr", ["add", "del", "change", "chg", "replace"]]
+]);
 var APT_READ_ONLY = [
   "list",
   "show",
@@ -51496,7 +51532,6 @@ var APT_WRITE_COMMANDS = [
   "autoclean",
   "fix-broken"
 ];
-var CRONTAB_WRITE_FLAGS = ["-e"];
 var DOCKER_READ_ONLY = [
   "ps",
   "images",
@@ -51588,6 +51623,11 @@ var CommandChecker = class _CommandChecker {
       }
     }
     console.error(`[READONLY-CHECKER] Checking command: ${command}`);
+    const loopBody = this.extractLoopBody(command);
+    if (loopBody !== null) {
+      console.error(`[READONLY-CHECKER] Extracted loop body: ${loopBody}`);
+      return this.check(loopBody);
+    }
     const segments = this.parseSegments(command);
     console.error(`[READONLY-CHECKER] Parsed segments: ${JSON.stringify(segments)}`);
     for (const segment of segments) {
@@ -51917,6 +51957,62 @@ var CommandChecker = class _CommandChecker {
         }
       }
     }
+    if (firstToken === "firewall-cmd") {
+      const idx = cmd.toLowerCase().indexOf("firewall-cmd");
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        if (rest.startsWith("--list-") || rest.startsWith("--get-")) {
+          return false;
+        }
+        while (rest.startsWith("-") && !rest.startsWith("--")) {
+          const spaceIdx = rest.indexOf(" ");
+          if (spaceIdx === -1) {
+            rest = "";
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        if (rest.startsWith("--list-") || rest.startsWith("--get-")) {
+          return false;
+        }
+        return true;
+      }
+    }
+    if (firstToken === "ip") {
+      const idx = cmd.toLowerCase().indexOf("ip");
+      if (idx !== -1) {
+        let rest = cmd.substring(idx + firstToken.length).trimStart();
+        while (rest.startsWith("-")) {
+          const spaceIdx = rest.indexOf(" ");
+          if (spaceIdx === -1) {
+            rest = "";
+            break;
+          }
+          rest = rest.substring(spaceIdx).trimStart();
+        }
+        const subCmd = this.getFirstToken(rest);
+        if (!subCmd) {
+          return false;
+        }
+        if (IP_READ_ONLY.includes(subCmd)) {
+          let nsRest = rest.substring(subCmd.length).trimStart();
+          while (nsRest.startsWith("-")) {
+            const spaceIdx = nsRest.indexOf(" ");
+            if (spaceIdx === -1) break;
+            nsRest = nsRest.substring(spaceIdx).trimStart();
+          }
+          const action = this.getFirstToken(nsRest);
+          if (action && IP_WRITE_SUBCOMMANDS.get(subCmd)?.includes(action)) {
+            return true;
+          }
+          return false;
+        }
+        if (IP_WRITE_COMMANDS.includes(subCmd)) {
+          return true;
+        }
+        return false;
+      }
+    }
     if (firstToken === "apt") {
       const idx = cmd.toLowerCase().indexOf("apt");
       if (idx !== -1) {
@@ -51946,7 +52042,10 @@ var CommandChecker = class _CommandChecker {
       const idx = cmd.toLowerCase().indexOf("crontab");
       if (idx !== -1) {
         let rest = cmd.substring(idx + firstToken.length).trimStart();
-        while (rest.startsWith("-")) {
+        if (rest.startsWith("-e") && (rest.length === 2 || !/\w/.test(rest[2]))) {
+          return true;
+        }
+        while (rest.startsWith("-") && !rest.startsWith("--")) {
           const spaceIdx = rest.indexOf(" ");
           if (spaceIdx === -1) {
             rest = "";
@@ -51960,11 +52059,6 @@ var CommandChecker = class _CommandChecker {
             rest = rest.substring(spaceIdx).trimStart();
           } else {
             rest = "";
-          }
-        }
-        for (const flag of CRONTAB_WRITE_FLAGS) {
-          if (rest.startsWith(flag) && (rest.length === flag.length || !/\w/.test(rest[flag.length]))) {
-            return true;
           }
         }
         return false;
