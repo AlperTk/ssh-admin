@@ -27036,6 +27036,230 @@ var require_lib2 = __commonJS({
   }
 });
 
+// data/readonly-rules.js
+var require_readonly_rules = __commonJS({
+  "data/readonly-rules.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.REVERSE_SHELL_TCP_RE = exports2.REVERSE_SHELL_SOCAT_RE = exports2.REVERSE_SHELL_NC_RE = exports2.REVERSE_SHELL_NET_RE = exports2.NODE_FS_WRITE_RE = exports2.RUBY_IO_WRITE_RE = exports2.RUBY_FILE_WRITE_RE = exports2.PYTHON_SUBPROCESS_RE = exports2.PYTHON_OS_RE = exports2.PYTHON_OPEN_RE = exports2.INTERPRETER_RE = exports2.TAR_CF_RE = exports2.TAR_CREATE_LONG_RE = exports2.TAR_CREATE_SHORT_RE = exports2.DD_OF_RE = exports2.CP_DASH_RE = exports2.CP_STDIN_RE = exports2.FIND_EXEC_RE = exports2.SED_WRITE_RE = exports2.SED_INPLACE_LONG_RE = exports2.SED_INPLACE_RE = exports2.HERE_STRING_RE = exports2.XARGS_RE = exports2.WRITE_PROC_SUB_RE = exports2.TEE_PIPE_RE = exports2.REDIR_STDERR_RE = exports2.REDIR_STDOUT_RE = exports2.REDIR_COMBINED_RE = exports2.REDIR_APPEND_RE = exports2.SHELL_PATTERNS = exports2.CRONTAB_WRITE_FLAGS = exports2.DOCKER_NAMESPACE_WRITE = exports2.DOCKER_WRITE_COMMANDS = exports2.DOCKER_READ_ONLY = exports2.APT_WRITE_COMMANDS = exports2.APT_READ_ONLY = exports2.IP_WRITE_SUBCOMMANDS = exports2.IP_WRITE_COMMANDS = exports2.IP_READ_ONLY = exports2.SYSTEMCTL_READ_ONLY = exports2.GIT_STASH_READ_ONLY = exports2.GIT_WRITE_COMMANDS = void 0;
+    exports2.GIT_WRITE_COMMANDS = [
+      "commit",
+      "push",
+      "merge",
+      "rebase",
+      "reset",
+      "clean",
+      "am",
+      "apply",
+      "bisect",
+      "cherry-pick",
+      "force-push",
+      "clone",
+      "pull",
+      "fetch",
+      "checkout",
+      "restore",
+      "stash",
+      "revert",
+      "add",
+      "rm",
+      "mv",
+      "gc",
+      "prune",
+      "replace",
+      "filter-branch"
+    ];
+    exports2.GIT_STASH_READ_ONLY = ["list", "show", "push"];
+    exports2.SYSTEMCTL_READ_ONLY = /* @__PURE__ */ new Set([
+      "status",
+      "is-active",
+      "is-enabled",
+      "is-failed",
+      "list-units",
+      "list-sockets",
+      "list-timers",
+      "list-dependencies",
+      "cat",
+      "show",
+      "get-default",
+      "help",
+      "dump",
+      "import-environment",
+      "tmpfiles",
+      "property",
+      "daemon-status",
+      "log",
+      "is-system-running"
+    ]);
+    exports2.IP_READ_ONLY = /* @__PURE__ */ new Set([
+      "addr",
+      "link",
+      "route",
+      "neigh",
+      "rule",
+      "tunnel",
+      "xfrm",
+      "maddr",
+      "monitor",
+      "check",
+      "session"
+    ]);
+    exports2.IP_WRITE_COMMANDS = /* @__PURE__ */ new Set([
+      "add",
+      "del",
+      "change",
+      "chg",
+      "replace",
+      "flush",
+      "set",
+      "create",
+      "destroy",
+      "remove",
+      "save",
+      "restore"
+    ]);
+    exports2.IP_WRITE_SUBCOMMANDS = /* @__PURE__ */ new Map([
+      ["addr", ["add", "del", "flush"]],
+      ["link", ["set", "add", "del", "delete", "change", "chg", "replace"]],
+      ["route", ["add", "del", "change", "chg", "replace", "append"]],
+      ["neigh", ["add", "del", "replace", "chgr"]],
+      ["rule", ["add", "del", "flush"]],
+      ["tunnel", ["add", "del", "change", "chg", "replace"]],
+      ["maddr", ["add", "del", "change", "chg", "replace"]]
+    ]);
+    exports2.APT_READ_ONLY = /* @__PURE__ */ new Set([
+      "list",
+      "show",
+      "search",
+      "policy",
+      "info",
+      "cache",
+      "depends",
+      "rdepends",
+      "madison",
+      "edit-sources",
+      "full-upgrade",
+      "dist-upgrade",
+      "update",
+      "upgrade",
+      "check",
+      "simulator",
+      "autoremove"
+    ]);
+    exports2.APT_WRITE_COMMANDS = /* @__PURE__ */ new Set([
+      "install",
+      "remove",
+      "purge",
+      "reinstall",
+      "hold",
+      "unhold",
+      "lock",
+      "unlock",
+      "clean",
+      "autoclean",
+      "fix-broken"
+    ]);
+    exports2.DOCKER_READ_ONLY = /* @__PURE__ */ new Set([
+      "ps",
+      "images",
+      "inspect",
+      "logs",
+      "top",
+      "stats",
+      "version",
+      "info",
+      "diff",
+      "port",
+      "events",
+      "pull",
+      "config",
+      "node",
+      "service",
+      "task",
+      "volume",
+      "network",
+      "plugin",
+      "secret",
+      "swarm",
+      "container",
+      "image",
+      "system"
+    ]);
+    exports2.DOCKER_WRITE_COMMANDS = /* @__PURE__ */ new Set([
+      "rm",
+      "rmi",
+      "prune",
+      "stop",
+      "start",
+      "restart",
+      "kill",
+      "run",
+      "update",
+      "rename",
+      "tag",
+      "push",
+      "save",
+      "load",
+      "import",
+      "export",
+      "commit",
+      "cp",
+      "attach",
+      "wait",
+      "build",
+      "create",
+      "pause",
+      "unpause",
+      "resize",
+      "modify"
+    ]);
+    exports2.DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
+      ["system", ["prune"]],
+      ["image", ["rm", "push", "save", "load", "history", "tag"]],
+      ["container", ["rm", "start", "stop", "restart", "kill", "exec", "update", "rename", "cp", "attach", "wait", "pause", "unpause", "resize"]],
+      ["volume", ["rm", "create"]],
+      ["network", ["rm", "connect", "disconnect"]],
+      ["plugin", ["install", "remove", "disable", "enable"]],
+      ["secret", ["rm", "create", "update"]],
+      ["config", ["rm", "create", "update"]],
+      ["node", ["demote", "promote", "update", "rm"]],
+      ["service", ["rm", "create", "update", "scale", "rollback"]],
+      ["swarm", ["leave", "unlock", "lock", "init", "join", "ca"]]
+    ]);
+    exports2.CRONTAB_WRITE_FLAGS = ["-e"];
+    exports2.SHELL_PATTERNS = ["bash", "sh", "zsh", "csh", "ksh", "dash", "fish"];
+    exports2.REDIR_APPEND_RE = />>/;
+    exports2.REDIR_COMBINED_RE = /&>/;
+    exports2.REDIR_STDOUT_RE = /(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/g;
+    exports2.REDIR_STDERR_RE = /2>(?!\/dev\/(null|zero))(?!&\d)/;
+    exports2.TEE_PIPE_RE = /\|.*tee\b/;
+    exports2.WRITE_PROC_SUB_RE = />\(/;
+    exports2.XARGS_RE = /\bxargs\b/;
+    exports2.HERE_STRING_RE = /<<<\s/;
+    exports2.SED_INPLACE_RE = /\bsed\b.*-i[a-z]*\b/;
+    exports2.SED_INPLACE_LONG_RE = /\bsed\b.*--in-place/;
+    exports2.SED_WRITE_RE = /\bsed\b.*["']w\s+\/[^"']/;
+    exports2.FIND_EXEC_RE = /\bfind\b.*(-exec|-execdir)\b/;
+    exports2.CP_STDIN_RE = /\/dev\/stdin/;
+    exports2.CP_DASH_RE = /-\s*$/;
+    exports2.DD_OF_RE = /\bof\s*=\s*[^s]/;
+    exports2.TAR_CREATE_SHORT_RE = /\bc[a-zA-Z]*f/;
+    exports2.TAR_CREATE_LONG_RE = /--create/;
+    exports2.TAR_CF_RE = /-c\s+--file/;
+    exports2.INTERPRETER_RE = /\b(python3?|perl|ruby|node)\b/;
+    exports2.PYTHON_OPEN_RE = /\bopen\s*\(/;
+    exports2.PYTHON_OS_RE = /\bos\.(system|popen|write)\s*\(/;
+    exports2.PYTHON_SUBPROCESS_RE = /\bsubprocess\./;
+    exports2.RUBY_FILE_WRITE_RE = /\bFile\.write\s*\(/;
+    exports2.RUBY_IO_WRITE_RE = /\bIO\.write\s*\(/;
+    exports2.NODE_FS_WRITE_RE = /\bfs\.(writeFileSync|createWriteStream|write)\s*\(/;
+    exports2.REVERSE_SHELL_NET_RE = /\b(nc|ncat|netcat|socat)\b/;
+    exports2.REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
+    exports2.REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
+    exports2.REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
+  }
+});
+
 // node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
@@ -27077,9 +27301,9 @@ var util;
     }
     return keys;
   };
-  util2.find = (arr, checker2) => {
+  util2.find = (arr, checker3) => {
     for (const item of arr) {
-      if (checker2(item))
+      if (checker3(item))
         return item;
     }
     return void 0;
@@ -51413,9 +51637,82 @@ var ConnectionPool = class {
 };
 var pool = new ConnectionPool();
 
-// src/readonly-checker.ts
+// src/readonly-checker/command-checker.ts
 var import_fs = require("fs");
 var import_path = require("path");
+
+// src/tokenizer.ts
+function tokenize(input, options) {
+  const { separators, depthChar, secondaryDepthChar } = options;
+  const segments = [];
+  let current = "";
+  let depth = 0;
+  let braceDepth = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      current += char;
+    } else if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      current += char;
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      if (depthChar) {
+        if (char === depthChar.open) {
+          depth++;
+          current += char;
+          continue;
+        }
+        if (char === depthChar.close) {
+          depth--;
+          current += char;
+          continue;
+        }
+      }
+      if (secondaryDepthChar) {
+        if (char === secondaryDepthChar.open && depth === 0) {
+          braceDepth++;
+          current += char;
+          continue;
+        }
+        if (char === secondaryDepthChar.close && braceDepth > 0) {
+          braceDepth--;
+          current += char;
+          continue;
+        }
+      }
+      if (depth <= 0 && braceDepth <= 0) {
+        let matched = false;
+        for (const sep of separators) {
+          if (input.startsWith(sep, i)) {
+            if (current.trim()) {
+              segments.push(current.trim());
+            }
+            current = "";
+            i += sep.length - 1;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          current += char;
+        }
+      } else {
+        current += char;
+      }
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) {
+    segments.push(current.trim());
+  }
+  return segments;
+}
+
+// src/data/readonly-rules.ts
 var GIT_WRITE_COMMANDS = [
   "commit",
   "push",
@@ -51441,9 +51738,13 @@ var GIT_WRITE_COMMANDS = [
   "gc",
   "prune",
   "replace",
-  "filter-branch"
+  "filter-branch",
+  "init",
+  "bare",
+  "signoff"
 ];
-var SYSTEMCTL_READ_ONLY = [
+var GIT_STASH_READ_ONLY = ["list", "show", "push"];
+var SYSTEMCTL_READ_ONLY = /* @__PURE__ */ new Set([
   "status",
   "is-active",
   "is-enabled",
@@ -51463,8 +51764,8 @@ var SYSTEMCTL_READ_ONLY = [
   "daemon-status",
   "log",
   "is-system-running"
-];
-var IP_READ_ONLY = [
+]);
+var IP_READ_ONLY = /* @__PURE__ */ new Set([
   "addr",
   "link",
   "route",
@@ -51476,8 +51777,8 @@ var IP_READ_ONLY = [
   "monitor",
   "check",
   "session"
-];
-var IP_WRITE_COMMANDS = [
+]);
+var IP_WRITE_COMMANDS = /* @__PURE__ */ new Set([
   "add",
   "del",
   "change",
@@ -51490,7 +51791,7 @@ var IP_WRITE_COMMANDS = [
   "remove",
   "save",
   "restore"
-];
+]);
 var IP_WRITE_SUBCOMMANDS = /* @__PURE__ */ new Map([
   ["addr", ["add", "del", "flush"]],
   ["link", ["set", "add", "del", "delete", "change", "chg", "replace"]],
@@ -51500,7 +51801,7 @@ var IP_WRITE_SUBCOMMANDS = /* @__PURE__ */ new Map([
   ["tunnel", ["add", "del", "change", "chg", "replace"]],
   ["maddr", ["add", "del", "change", "chg", "replace"]]
 ]);
-var APT_READ_ONLY = [
+var APT_READ_ONLY = /* @__PURE__ */ new Set([
   "list",
   "show",
   "search",
@@ -51518,8 +51819,8 @@ var APT_READ_ONLY = [
   "check",
   "simulator",
   "autoremove"
-];
-var APT_WRITE_COMMANDS = [
+]);
+var APT_WRITE_COMMANDS = /* @__PURE__ */ new Set([
   "install",
   "remove",
   "purge",
@@ -51531,8 +51832,8 @@ var APT_WRITE_COMMANDS = [
   "clean",
   "autoclean",
   "fix-broken"
-];
-var DOCKER_READ_ONLY = [
+]);
+var DOCKER_READ_ONLY = /* @__PURE__ */ new Set([
   "ps",
   "images",
   "inspect",
@@ -51557,8 +51858,8 @@ var DOCKER_READ_ONLY = [
   "container",
   "image",
   "system"
-];
-var DOCKER_WRITE_COMMANDS = [
+]);
+var DOCKER_WRITE_COMMANDS = /* @__PURE__ */ new Set([
   "rm",
   "rmi",
   "prune",
@@ -51585,7 +51886,7 @@ var DOCKER_WRITE_COMMANDS = [
   "unpause",
   "resize",
   "modify"
-];
+]);
 var DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
   ["system", ["prune"]],
   ["image", ["rm", "push", "save", "load", "history", "tag"]],
@@ -51599,687 +51900,668 @@ var DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
   ["service", ["rm", "create", "update", "scale", "rollback"]],
   ["swarm", ["leave", "unlock", "lock", "init", "join", "ca"]]
 ]);
-var COMMAND_SUBSTITUTION_REGEX = /\$\(.*?\)|`[^`]+`/g;
-var CommandChecker = class _CommandChecker {
-  allowedCommands;
-  constructor() {
-    const whitelist = JSON.parse(
-      (0, import_fs.readFileSync)((0, import_path.join)(__dirname, "data", "readonly-whitelist.json"), "utf-8")
-    );
-    this.allowedCommands = new Set(whitelist.commands);
+var REDIR_APPEND_RE = />>/;
+var REDIR_COMBINED_RE = /&>/;
+var REDIR_STDOUT_RE = /(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/;
+var REDIR_STDERR_RE = /2>(?!\/dev\/(null|zero))(?!&\d)/;
+var TEE_PIPE_RE = /\|.*tee\b/;
+var WRITE_PROC_SUB_RE = />\(/;
+var XARGS_RE = /\bxargs\b/;
+var HERE_STRING_RE = /<<<\s/;
+var SED_INPLACE_RE = /\bsed\b.*-i[a-z]*\b/;
+var SED_INPLACE_LONG_RE = /\bsed\b.*--in-place/;
+var SED_WRITE_RE = /\bsed\b.*["']w\s+\/[^"']/;
+var FIND_EXEC_RE = /\bfind\b.*(-exec|-execdir)\b/;
+var CP_STDIN_RE = /\/dev\/stdin/;
+var CP_DASH_RE = /-\s*$/;
+var DD_OF_RE = /\bof\s*=\s*[^s]/;
+var TAR_CREATE_SHORT_RE = /\bc[a-zA-Z]*f/;
+var TAR_CREATE_LONG_RE = /--create/;
+var TAR_CF_RE = /-c\s+--file/;
+var INTERPRETER_RE = /\b(python3?|perl|ruby|node)\b/;
+var PYTHON_OPEN_RE = /\bopen\s*\(/;
+var PYTHON_OS_RE = /\bos\.(system|popen|write)\s*\(/;
+var PYTHON_SUBPROCESS_RE = /\bsubprocess\./;
+var RUBY_FILE_WRITE_RE = /\bFile\.write\s*\(/;
+var RUBY_IO_WRITE_RE = /\bIO\.write\s*\(/;
+var NODE_FS_WRITE_RE = /\bfs\.(writeFileSync|createWriteStream|write)\s*\(/;
+var REVERSE_SHELL_NET_RE = /\b(nc|ncat|netcat|socat)\b/;
+var REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
+var REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
+var REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
+
+// src/readonly-checker/write-handlers/git-handler.ts
+function gitHasWriteArg(cmd) {
+  const rest = cmd.substring(4).trimStart();
+  let token = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let i = 0; i < rest.length; i++) {
+    const ch = rest[i];
+    if (ch === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (ch === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+      token += ch;
+    } else {
+      token += ch;
+    }
   }
-  check(command) {
-    if (!command.trim()) {
-      return { allowed: true };
-    }
-    const subMatch = command.match(COMMAND_SUBSTITUTION_REGEX);
-    if (subMatch) {
-      for (const sub of subMatch) {
-        const inner = sub.startsWith("$(") ? sub.slice(2, -1) : sub.slice(1, -1);
-        const result = this.check(inner);
-        if (!result.allowed) {
-          return result;
-        }
-      }
-    }
-    console.error(`[READONLY-CHECKER] Checking command: ${command}`);
-    const loopBody = this.extractLoopBody(command);
-    if (loopBody !== null) {
-      console.error(`[READONLY-CHECKER] Extracted loop body: ${loopBody}`);
-      return this.check(loopBody);
-    }
-    const segments = this.parseSegments(command);
-    console.error(`[READONLY-CHECKER] Parsed segments: ${JSON.stringify(segments)}`);
-    for (const segment of segments) {
-      const result = this.checkSegment(segment.trim());
-      console.error(`[READONLY-CHECKER] Segment "${segment.trim()}": allowed=${result.allowed}${result.reason ? `, reason=${result.reason}` : ""}`);
-      if (!result.allowed) {
-        return result;
-      }
-    }
-    console.error(`[READONLY-CHECKER] Command ALLOWED`);
-    return { allowed: true };
-  }
-  parseSegments(cmd) {
-    const segments = [];
-    let current = "";
-    let depth = 0;
-    let braceDepth = 0;
-    let inSingleQuote = false;
-    let inDoubleQuote = false;
-    for (let i = 0; i < cmd.length; i++) {
-      const char = cmd[i];
-      if (char === "'" && !inDoubleQuote) {
-        inSingleQuote = !inSingleQuote;
-        current += char;
-      } else if (char === '"' && !inSingleQuote) {
-        inDoubleQuote = !inDoubleQuote;
-        current += char;
-      } else if (!inSingleQuote && !inDoubleQuote) {
-        if (char === "(") {
-          depth++;
-          current += char;
-        } else if (char === ")") {
-          depth--;
-          current += char;
-        } else if (char === "{" && depth === 0) {
-          braceDepth++;
-          current += char;
-        } else if (char === "}" && braceDepth > 0) {
-          braceDepth--;
-          current += char;
-        } else if (depth === 0 && braceDepth === 0 && (cmd.startsWith("&&", i) || cmd.startsWith("||", i))) {
-          if (current.trim()) {
-            segments.push(current.trim());
-          }
-          current = "";
-          i += 1;
-        } else if (depth === 0 && braceDepth === 0 && char === ";") {
-          if (current.trim()) {
-            segments.push(current.trim());
-          }
-          current = "";
-        } else {
-          current += char;
-        }
+  if (token === "stash") {
+    let rest2 = rest.substring(token.length).trimStart();
+    let thirdToken = "";
+    let sq = false, dq = false;
+    for (let i = 0; i < rest2.length; i++) {
+      const ch = rest2[i];
+      if (ch === "'" && !dq) {
+        sq = !sq;
+      } else if (ch === '"' && !sq) {
+        dq = !dq;
+      } else if (!sq && !dq) {
+        if (ch === " " || ch === "	" || ch === ";") break;
+        thirdToken += ch;
       } else {
-        current += char;
+        thirdToken += ch;
       }
     }
-    if (current.trim()) {
-      segments.push(current.trim());
-    }
-    return segments;
+    if (thirdToken && !GIT_STASH_READ_ONLY.includes(thirdToken)) return true;
+    return false;
   }
-  extractLoopBody(segment) {
-    const trimmed = segment.trim();
-    const forMatch = trimmed.match(/^for\s+\S+(\s+in\s+.+?)?\s*;?\s*do\s+(.+)$/s);
-    if (forMatch) {
-      const body = forMatch[2];
-      const doneIdx = this.findMatchingDone(body);
-      if (doneIdx !== -1) {
-        return body.substring(0, doneIdx).trim();
-      }
+  return GIT_WRITE_COMMANDS.includes(token);
+}
+
+// src/readonly-checker/write-handlers/docker-handler.ts
+function getFirstToken(cmd) {
+  let token = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (ch === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (ch === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+      token += ch;
+    } else {
+      token += ch;
     }
-    const whileMatch = trimmed.match(/^while\s+.+?\s*;?\s*do\s+(.+)$/s);
-    if (whileMatch) {
-      const body = whileMatch[1];
-      const doneIdx = this.findMatchingDone(body);
-      if (doneIdx !== -1) {
-        return body.substring(0, doneIdx).trim();
-      }
-    }
-    return null;
   }
-  findMatchingDone(content) {
-    let depth = 1;
-    let i = 0;
-    while (i < content.length) {
-      if (content[i] === "'") {
-        let j = i + 1;
-        while (j < content.length && content[j] !== "'") j++;
-        i = j + 1;
-        continue;
-      }
-      if (content[i] === '"') {
-        let j = i + 1;
-        while (j < content.length && content[j] !== '"') j++;
-        i = j + 1;
-        continue;
-      }
-      if (content[i] === "\\") {
-        i += 2;
-        continue;
-      }
-      if (content.substring(i, i + 5) === "done" && (i + 5 >= content.length || !/\w/.test(content[i + 5])) && (i === 0 || !/\w/.test(content[i - 1]))) {
-        depth--;
-        if (depth === 0) return i;
-        i += 5;
-        continue;
-      }
-      if (content.substring(i, i + 2) === "do" && (i + 2 >= content.length || !/\w/.test(content[i + 2])) && (i === 0 || !/\w/.test(content[i - 1]))) {
-        depth++;
-        i += 2;
-        continue;
-      }
-      i++;
+  return token;
+}
+function skipFlags(rest) {
+  while (rest.startsWith("-")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) return "";
+    const afterFlag = rest.substring(spaceIdx).trimStart();
+    if (afterFlag.startsWith("-")) {
+      const nextSpace = afterFlag.indexOf(" ");
+      if (nextSpace === -1) break;
+      rest = afterFlag.substring(nextSpace).trimStart();
+    } else {
+      rest = afterFlag;
+      break;
     }
-    return -1;
   }
-  checkSegment(segment) {
-    const loopBody = this.extractLoopBody(segment);
-    if (loopBody !== null) {
-      return this.check(loopBody);
-    }
-    const subshellContent = this.extractSubshellContent(segment);
-    if (subshellContent !== null) {
-      return this.check(subshellContent);
-    }
-    const braceContent = this.extractBraceContent(segment);
-    if (braceContent !== null) {
-      return this.check(braceContent);
-    }
-    const pipeSegments = this.parsePipeSegments(segment);
-    for (const pipeSeg of pipeSegments) {
-      const trimmed = pipeSeg.trim();
-      if (!trimmed) continue;
-      const processSubResult = this.checkProcessSubstitution(trimmed);
-      if (!processSubResult.allowed) {
-        return processSubResult;
-      }
-      const firstToken = this.getActualCommand(trimmed);
-      if (!this.allowedCommands.has(firstToken)) {
-        return { allowed: false, reason: `Command '${firstToken}' is not in the read-only whitelist` };
-      }
-      if (this.hasWriteArg(trimmed, firstToken)) {
-        return { allowed: false, reason: `Write argument detected in command` };
-      }
-      if (this.hasWritePattern(pipeSeg)) {
-        return { allowed: false, reason: `Write pattern detected in command` };
-      }
-    }
-    return { allowed: true };
+  return rest;
+}
+function dockerHasWriteArg(cmd) {
+  const rest = cmd.substring(6).trimStart();
+  const subCmd = getFirstToken(skipFlags(rest));
+  if (!subCmd) return false;
+  if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
+    let nsRest = skipFlags(rest.substring(subCmd.length).trimStart());
+    const action = getFirstToken(nsRest);
+    if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) return true;
   }
-  parsePipeSegments(segment) {
-    const segments = [];
-    let current = "";
-    let depth = 0;
-    let inSingleQuote = false;
-    let inDoubleQuote = false;
-    for (let i = 0; i < segment.length; i++) {
-      const char = segment[i];
-      if (char === "'" && !inDoubleQuote) {
-        inSingleQuote = !inSingleQuote;
-        current += char;
-      } else if (char === '"' && !inSingleQuote) {
-        inDoubleQuote = !inDoubleQuote;
-        current += char;
-      } else if (!inSingleQuote && !inDoubleQuote) {
-        if (char === "(") {
-          depth++;
-          current += char;
-        } else if (char === ")") {
-          depth--;
-          current += char;
-        } else if (depth === 0 && char === "|") {
-          if (i + 1 < segment.length && segment[i + 1] === "|") {
-            current += char;
-          } else {
-            if (current.trim()) {
-              segments.push(current.trim());
-            }
-            current = "";
-          }
-        } else {
-          current += char;
-        }
-      } else {
-        current += char;
+  if (DOCKER_READ_ONLY.has(subCmd)) return false;
+  if (DOCKER_WRITE_COMMANDS.has(subCmd)) return true;
+  if (subCmd === "exec") {
+    let execRest = skipFlags(rest.substring(subCmd.length).trimStart());
+    if (execRest.startsWith("--container")) {
+      const eqIdx = execRest.indexOf("=");
+      if (eqIdx !== -1) execRest = execRest.substring(eqIdx + 1).trimStart();
+      else {
+        const spaceIdx = execRest.indexOf(" ");
+        if (spaceIdx === -1) return false;
+        execRest = execRest.substring(spaceIdx).trimStart();
       }
+    } else {
+      const spaceIdx = execRest.indexOf(" ");
+      if (spaceIdx === -1) return false;
+      execRest = execRest.substring(spaceIdx).trimStart();
     }
-    if (current.trim()) {
-      segments.push(current.trim());
-    }
-    return segments;
-  }
-  extractSubshellContent(segment) {
-    const match = segment.match(/^\(\s*(.+)\s*\)$/);
-    if (match) {
-      return match[1];
-    }
-    return null;
-  }
-  extractBraceContent(segment) {
-    const match = segment.match(/^\{\s*(.+)\s*\}\s*$/);
-    if (match) {
-      return match[1];
-    }
-    return null;
-  }
-  checkProcessSubstitution(segment) {
-    const processSubRegex = />\(([^)]+)\)/g;
-    let match;
-    while ((match = processSubRegex.exec(segment)) !== null) {
-      const content = match[1];
-      const result = this.check(content);
-      if (!result.allowed) {
-        return result;
-      }
-    }
-    return { allowed: true };
-  }
-  getFirstToken(cmd) {
-    let inSingleQuote = false;
-    let inDoubleQuote = false;
-    let token = "";
-    for (let i = 0; i < cmd.length; i++) {
-      const char = cmd[i];
-      if (char === "'" && !inDoubleQuote) {
-        inSingleQuote = !inSingleQuote;
-      } else if (char === '"' && !inSingleQuote) {
-        inDoubleQuote = !inDoubleQuote;
-      } else if (!inSingleQuote && !inDoubleQuote) {
-        if (char === " " || char === "	" || char === ";") {
-          break;
-        }
-        token += char;
-      } else {
-        token += char;
-      }
-    }
-    return token;
-  }
-  getActualCommand(cmd) {
-    const firstToken = this.getFirstToken(cmd);
-    if (firstToken === "sudo") {
-      let rest = cmd.substring(firstToken.length).trimStart();
-      while (rest.startsWith("-") && !rest.match(/^[a-zA-Z]/)) {
-        const flagEnd = rest.search(/\s+/);
-        if (flagEnd === -1) break;
-        const afterFlag = rest.substring(flagEnd).trimStart();
-        if (afterFlag.startsWith("-")) {
-          const nextFlagEnd = afterFlag.search(/\s+/);
-          if (nextFlagEnd === -1) break;
-          rest = afterFlag.substring(nextFlagEnd).trimStart();
-        } else {
-          rest = afterFlag;
-          break;
-        }
-      }
-      return this.getActualCommand(rest);
-    }
-    if (firstToken === "su") {
-      const rest = cmd.substring(firstToken.length).trimStart();
-      const cMatch = rest.match(/-c\s+['"]?(.+?)['"]?$/);
-      if (cMatch) {
-        return this.getActualCommand(cMatch[1]);
-      }
-      return firstToken;
-    }
-    if (firstToken === "ssh") {
-      const rest = cmd.substring(firstToken.length).trimStart();
-      const quotedMatch = rest.match(/^['"]?([^'"\s]+@[^'"\s]+)['"]?\s*(.*)$/);
-      if (quotedMatch) {
-        const afterHost = quotedMatch[2].trimStart();
-        if (afterHost) {
-          return this.getActualCommand(afterHost);
-        }
-        return firstToken;
-      }
-      const hostPattern = /[^'"\s]+@[^'"\s]+/;
-      const match = rest.match(hostPattern);
-      if (match && match.index !== void 0) {
-        const afterHost = rest.substring(match.index + match[0].length).trimStart();
-        if (afterHost) {
-          return this.getActualCommand(afterHost);
-        }
-      }
-    }
-    return firstToken;
-  }
-  hasWriteArg(cmd, firstToken) {
-    if ((firstToken === "curl" || firstToken === "wget") && (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd) || /\s-[dD]\s/.test(cmd) || /\s-[dD]$/.test(cmd) || /--data\s*=/.test(cmd) || /--post-data\s*=/.test(cmd))) {
-      return true;
-    }
-    if (firstToken === "git") {
-      const rest = cmd.substring(firstToken.length).trimStart();
-      const secondToken = this.getFirstToken(rest);
-      if (secondToken === "stash") {
-        const thirdToken = this.getFirstToken(rest.substring(secondToken.length).trimStart());
-        const stashReadOnly = ["list", "show", "push"];
-        if (thirdToken && !stashReadOnly.includes(thirdToken)) {
-          return true;
-        }
-        return false;
-      }
-      if (GIT_WRITE_COMMANDS.includes(secondToken)) {
-        return true;
-      }
-    }
-    if (firstToken === "systemctl") {
-      const idx = cmd.toLowerCase().indexOf("systemctl");
-      if (idx !== -1) {
-        let rest = cmd.substring(idx + firstToken.length).trimStart();
-        while (rest.startsWith("-")) {
-          const spaceIdx = rest.indexOf(" ");
-          if (spaceIdx === -1) {
-            rest = "";
-            break;
-          }
-          rest = rest.substring(spaceIdx).trimStart();
-        }
-        const subCmd = this.getFirstToken(rest);
-        if (!subCmd) {
-          return false;
-        }
-        if (!SYSTEMCTL_READ_ONLY.includes(subCmd)) {
-          return true;
-        }
-      }
-    }
-    if (firstToken === "firewall-cmd") {
-      const idx = cmd.toLowerCase().indexOf("firewall-cmd");
-      if (idx !== -1) {
-        let rest = cmd.substring(idx + firstToken.length).trimStart();
-        if (rest.startsWith("--list-") || rest.startsWith("--get-")) {
-          return false;
-        }
-        while (rest.startsWith("-") && !rest.startsWith("--")) {
-          const spaceIdx = rest.indexOf(" ");
-          if (spaceIdx === -1) {
-            rest = "";
-            break;
-          }
-          rest = rest.substring(spaceIdx).trimStart();
-        }
-        if (rest.startsWith("--list-") || rest.startsWith("--get-")) {
-          return false;
-        }
-        return true;
-      }
-    }
-    if (firstToken === "ip") {
-      const idx = cmd.toLowerCase().indexOf("ip");
-      if (idx !== -1) {
-        let rest = cmd.substring(idx + firstToken.length).trimStart();
-        while (rest.startsWith("-")) {
-          const spaceIdx = rest.indexOf(" ");
-          if (spaceIdx === -1) {
-            rest = "";
-            break;
-          }
-          rest = rest.substring(spaceIdx).trimStart();
-        }
-        const subCmd = this.getFirstToken(rest);
-        if (!subCmd) {
-          return false;
-        }
-        if (IP_READ_ONLY.includes(subCmd)) {
-          let nsRest = rest.substring(subCmd.length).trimStart();
-          while (nsRest.startsWith("-")) {
-            const spaceIdx = nsRest.indexOf(" ");
-            if (spaceIdx === -1) break;
-            nsRest = nsRest.substring(spaceIdx).trimStart();
-          }
-          const action = this.getFirstToken(nsRest);
-          if (action && IP_WRITE_SUBCOMMANDS.get(subCmd)?.includes(action)) {
-            return true;
-          }
-          return false;
-        }
-        if (IP_WRITE_COMMANDS.includes(subCmd)) {
-          return true;
-        }
-        return false;
-      }
-    }
-    if (firstToken === "apt") {
-      const idx = cmd.toLowerCase().indexOf("apt");
-      if (idx !== -1) {
-        let rest = cmd.substring(idx + firstToken.length).trimStart();
-        while (rest.startsWith("-")) {
-          const spaceIdx = rest.indexOf(" ");
-          if (spaceIdx === -1) {
-            rest = "";
-            break;
-          }
-          rest = rest.substring(spaceIdx).trimStart();
-        }
-        const subCmd = this.getFirstToken(rest);
-        if (!subCmd) {
-          return false;
-        }
-        if (APT_READ_ONLY.includes(subCmd)) {
-          return false;
-        }
-        if (APT_WRITE_COMMANDS.includes(subCmd)) {
-          return true;
-        }
-        return false;
-      }
-    }
-    if (firstToken === "crontab") {
-      const idx = cmd.toLowerCase().indexOf("crontab");
-      if (idx !== -1) {
-        let rest = cmd.substring(idx + firstToken.length).trimStart();
-        if (rest.startsWith("-e") && (rest.length === 2 || !/\w/.test(rest[2]))) {
-          return true;
-        }
-        while (rest.startsWith("-") && !rest.startsWith("--")) {
-          const spaceIdx = rest.indexOf(" ");
-          if (spaceIdx === -1) {
-            rest = "";
-            break;
-          }
-          rest = rest.substring(spaceIdx).trimStart();
-        }
-        if (rest.startsWith("-u") || rest.startsWith("-U")) {
-          const spaceIdx = rest.indexOf(" ");
-          if (spaceIdx !== -1) {
-            rest = rest.substring(spaceIdx).trimStart();
-          } else {
-            rest = "";
-          }
-        }
-        return false;
-      }
-    }
-    if (firstToken === "docker") {
-      const idx = cmd.toLowerCase().indexOf("docker");
-      if (idx !== -1) {
-        let rest = cmd.substring(idx + firstToken.length).trimStart();
-        while (rest.startsWith("-")) {
-          const spaceIdx = rest.indexOf(" ");
-          if (spaceIdx === -1) {
-            rest = "";
-            break;
-          }
-          rest = rest.substring(spaceIdx).trimStart();
-        }
-        const subCmd = this.getFirstToken(rest);
-        if (!subCmd) {
-          return false;
-        }
-        if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
-          let nsRest = rest.substring(subCmd.length).trimStart();
-          while (nsRest.startsWith("-")) {
-            const spaceIdx = nsRest.indexOf(" ");
-            if (spaceIdx === -1) break;
-            nsRest = nsRest.substring(spaceIdx).trimStart();
-          }
-          const action = this.getFirstToken(nsRest);
-          if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) {
-            return true;
-          }
-        }
-        if (DOCKER_READ_ONLY.includes(subCmd)) {
-          return false;
-        }
-        if (DOCKER_WRITE_COMMANDS.includes(subCmd)) {
-          return true;
-        }
-        if (subCmd === "exec") {
-          let execRest = rest.substring(subCmd.length).trimStart();
-          while (execRest.startsWith("-")) {
-            const spaceIdx = execRest.indexOf(" ");
-            if (spaceIdx === -1) break;
-            const afterFlag = execRest.substring(spaceIdx).trimStart();
-            if (afterFlag.startsWith("-")) {
-              const nextSpace = afterFlag.indexOf(" ");
-              if (nextSpace === -1) break;
-              execRest = afterFlag.substring(nextSpace).trimStart();
-            } else {
-              execRest = afterFlag;
-              break;
-            }
-          }
-          if (execRest.startsWith("--container")) {
-            const eqIdx = execRest.indexOf("=");
-            if (eqIdx !== -1) {
-              execRest = execRest.substring(eqIdx + 1).trimStart();
-            } else {
-              const spaceIdx = execRest.indexOf(" ");
-              if (spaceIdx === -1) return false;
-              execRest = execRest.substring(spaceIdx).trimStart();
-            }
-          } else {
-            const spaceIdx = execRest.indexOf(" ");
-            if (spaceIdx === -1) return false;
-            execRest = execRest.substring(spaceIdx).trimStart();
-          }
-          if (execRest) {
-            const execCmd = this.getFirstToken(execRest);
-            if (this.allowedCommands.has(execCmd)) {
-              const tempChecker = new _CommandChecker();
-              const checkResult = tempChecker.check(execRest);
-              if (!checkResult.allowed) {
-                return true;
-              }
-            } else {
-              return true;
-            }
-          }
-          return false;
-        }
-        return true;
-      }
-    }
-    if (firstToken === "eval") {
-      return this.validateEvalArgs(cmd);
-    }
-    if (firstToken === "exec") {
-      return this.validateExecArgs(cmd);
+    if (execRest) {
+      const execCmd = getFirstToken(execRest);
+      if (execRest.includes(">")) return true;
+      if (/\b(rm|touch|mkdir|cp|mv|dd|truncate)\b/.test(execRest)) return true;
     }
     return false;
   }
-  /** eval argument validation — evaluated string'i parse edip write pattern kontrolü */
+  return true;
+}
+
+// src/readonly-checker/write-handlers/systemctl-handler.ts
+function getFirstToken2(cmd) {
+  let token = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (ch === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (ch === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+      token += ch;
+    } else {
+      token += ch;
+    }
+  }
+  return token;
+}
+function skipFlags2(rest) {
+  while (rest.startsWith("-")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) return "";
+    const afterFlag = rest.substring(spaceIdx).trimStart();
+    if (afterFlag.startsWith("-")) {
+      const nextSpace = afterFlag.indexOf(" ");
+      if (nextSpace === -1) break;
+      rest = afterFlag.substring(nextSpace).trimStart();
+    } else {
+      rest = afterFlag;
+      break;
+    }
+  }
+  return rest;
+}
+function systemctlHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("systemctl");
+  if (idx === -1) return false;
+  let rest = cmd.substring(idx + 9).trimStart();
+  rest = skipFlags2(rest);
+  const subCmd = getFirstToken2(rest);
+  if (!subCmd) return false;
+  return !SYSTEMCTL_READ_ONLY.has(subCmd);
+}
+
+// src/readonly-checker/write-handlers/curl-wget-handler.ts
+function curlWgetHasWriteArg(cmd) {
+  if (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd)) return true;
+  if (/\s-[dD]\s/.test(cmd) || /\s-[dD]$/.test(cmd)) return true;
+  if (/--data\s*=/.test(cmd) || /--post-data\s*=/.test(cmd)) return true;
+  return false;
+}
+
+// src/readonly-checker/write-handlers/ip-handler.ts
+function getFirstToken3(cmd) {
+  let token = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (ch === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (ch === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+      token += ch;
+    } else {
+      token += ch;
+    }
+  }
+  return token;
+}
+function skipFlags3(rest) {
+  while (rest.startsWith("-")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) return "";
+    const afterFlag = rest.substring(spaceIdx).trimStart();
+    if (afterFlag.startsWith("-")) {
+      const nextSpace = afterFlag.indexOf(" ");
+      if (nextSpace === -1) break;
+      rest = afterFlag.substring(nextSpace).trimStart();
+    } else {
+      rest = afterFlag;
+      break;
+    }
+  }
+  return rest;
+}
+function ipHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("ip");
+  if (idx === -1) return false;
+  let rest = cmd.substring(idx + 2).trimStart();
+  rest = skipFlags3(rest);
+  const subCmd = getFirstToken3(rest);
+  if (!subCmd) return false;
+  if (IP_READ_ONLY.has(subCmd)) {
+    let nsRest = skipFlags3(rest.substring(subCmd.length).trimStart());
+    const action = getFirstToken3(nsRest);
+    if (action && IP_WRITE_SUBCOMMANDS.get(subCmd)?.includes(action)) return true;
+    return false;
+  }
+  return IP_WRITE_COMMANDS.has(subCmd);
+}
+
+// src/readonly-checker/write-handlers/apt-handler.ts
+function getFirstToken4(cmd) {
+  let token = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (ch === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (ch === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+      token += ch;
+    } else {
+      token += ch;
+    }
+  }
+  return token;
+}
+function skipFlags4(rest) {
+  while (rest.startsWith("-")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) return "";
+    const afterFlag = rest.substring(spaceIdx).trimStart();
+    if (afterFlag.startsWith("-")) {
+      const nextSpace = afterFlag.indexOf(" ");
+      if (nextSpace === -1) break;
+      rest = afterFlag.substring(nextSpace).trimStart();
+    } else {
+      rest = afterFlag;
+      break;
+    }
+  }
+  return rest;
+}
+function aptHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("apt");
+  if (idx === -1) return false;
+  let rest = cmd.substring(idx + 3).trimStart();
+  rest = skipFlags4(rest);
+  const subCmd = getFirstToken4(rest);
+  if (!subCmd) return false;
+  if (APT_READ_ONLY.has(subCmd)) return false;
+  return APT_WRITE_COMMANDS.has(subCmd);
+}
+
+// src/readonly-checker/write-handlers/crontab-handler.ts
+function skipFlags5(rest) {
+  while (rest.startsWith("-") && !rest.startsWith("--")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) return "";
+    rest = rest.substring(spaceIdx).trimStart();
+  }
+  return rest;
+}
+function crontabHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("crontab");
+  if (idx === -1) return false;
+  let rest = cmd.substring(idx + 7).trimStart();
+  if (rest.startsWith("-e") && (rest.length === 2 || !/\w/.test(rest[2]))) return true;
+  rest = skipFlags5(rest);
+  if (rest.startsWith("-u") || rest.startsWith("-U")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx !== -1) rest = rest.substring(spaceIdx).trimStart();
+    else rest = "";
+  }
+  return false;
+}
+
+// src/readonly-checker/write-handlers/firewall-cmd-handler.ts
+function firewallCmdHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("firewall-cmd");
+  if (idx === -1) return false;
+  let rest = cmd.substring(idx + 12).trimStart();
+  if (rest.startsWith("--list-") || rest.startsWith("--get-")) return false;
+  while (rest.startsWith("-") && !rest.startsWith("--")) {
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) break;
+    rest = rest.substring(spaceIdx).trimStart();
+  }
+  if (rest.startsWith("--list-") || rest.startsWith("--get-")) return false;
+  return true;
+}
+
+// src/readonly-checker/write-handlers/rsync-handler.ts
+function rsyncHasWriteArg() {
+  return true;
+}
+
+// src/readonly-checker/write-handlers/mktemp-handler.ts
+function mktempHasWriteArg() {
+  return true;
+}
+
+// src/readonly-checker/write-patterns/write-pattern-detector.ts
+function stripDoubleQuotes(cmd) {
+  let result = "";
+  let inDQ = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (ch === '"' && !inDQ) inDQ = true;
+    else if (ch === '"' && inDQ) inDQ = false;
+    else if (!inDQ) result += ch;
+  }
+  return result;
+}
+var WritePatternDetector = class {
+  detect(segment) {
+    const unquoted = stripDoubleQuotes(segment);
+    if (REDIR_APPEND_RE.test(unquoted)) return true;
+    if (REDIR_COMBINED_RE.test(unquoted)) return true;
+    if (REDIR_STDOUT_RE.test(unquoted)) return true;
+    if (REDIR_STDERR_RE.test(unquoted)) return true;
+    if (TEE_PIPE_RE.test(unquoted)) return true;
+    if (WRITE_PROC_SUB_RE.test(unquoted)) return true;
+    if (XARGS_RE.test(unquoted)) return true;
+    if (HERE_STRING_RE.test(segment)) return true;
+    if (/\bsed\b/.test(unquoted)) {
+      if (SED_INPLACE_RE.test(unquoted)) return true;
+      if (SED_INPLACE_LONG_RE.test(unquoted)) return true;
+      if (SED_WRITE_RE.test(unquoted)) return true;
+    }
+    if (FIND_EXEC_RE.test(unquoted)) return true;
+    if (/\bcp\b/.test(unquoted)) {
+      if (CP_STDIN_RE.test(unquoted)) return true;
+      if (CP_DASH_RE.test(unquoted)) return true;
+    }
+    if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return true;
+    if (/\btar\b/.test(unquoted)) {
+      if (TAR_CREATE_SHORT_RE.test(unquoted)) return true;
+      if (TAR_CREATE_LONG_RE.test(unquoted)) return true;
+      if (TAR_CF_RE.test(unquoted)) return true;
+    }
+    if (this.detectInterpreterWrites(unquoted)) return true;
+    if (this.detectReverseShell(unquoted)) return true;
+    return false;
+  }
+  detectInterpreterWrites(s) {
+    if (!INTERPRETER_RE.test(s)) return false;
+    return PYTHON_OPEN_RE.test(s) || PYTHON_OS_RE.test(s) || PYTHON_SUBPROCESS_RE.test(s) || RUBY_FILE_WRITE_RE.test(s) || RUBY_IO_WRITE_RE.test(s) || NODE_FS_WRITE_RE.test(s);
+  }
+  detectReverseShell(s) {
+    if (!REVERSE_SHELL_NET_RE.test(s)) return false;
+    return REVERSE_SHELL_NC_RE.test(s) || REVERSE_SHELL_SOCAT_RE.test(s) || REVERSE_SHELL_TCP_RE.test(s);
+  }
+};
+
+// src/readonly-checker/resolution/command-resolver.ts
+function getFirstToken5(cmd) {
+  let token = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (ch === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+    } else if (ch === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+      token += ch;
+    } else {
+      token += ch;
+    }
+  }
+  return token;
+}
+function resolveCommand(cmd) {
+  const firstToken = getFirstToken5(cmd);
+  if (firstToken === "sudo") {
+    let rest = cmd.substring(firstToken.length).trimStart();
+    while (rest.startsWith("-") && !rest.match(/^[a-zA-Z]/)) {
+      const flagEnd = rest.search(/\s+/);
+      if (flagEnd === -1) break;
+      const afterFlag = rest.substring(flagEnd).trimStart();
+      if (afterFlag.startsWith("-")) {
+        const nextFlagEnd = afterFlag.search(/\s+/);
+        if (nextFlagEnd === -1) break;
+        rest = afterFlag.substring(nextFlagEnd).trimStart();
+      } else {
+        rest = afterFlag;
+        break;
+      }
+    }
+    return resolveCommand(rest);
+  }
+  if (firstToken === "su") {
+    const rest = cmd.substring(firstToken.length).trimStart();
+    const cMatch = rest.match(/-c\s+['"]?(.+?)['"]?$/);
+    if (cMatch) return resolveCommand(cMatch[1]);
+    return firstToken;
+  }
+  if (firstToken === "ssh") {
+    const rest = cmd.substring(firstToken.length).trimStart();
+    const quotedMatch = rest.match(/^['"]?([^'"\s]+@[^'"\s]+)['"]?\s*(.*)$/);
+    if (quotedMatch) {
+      const afterHost = quotedMatch[2].trimStart();
+      if (afterHost) return resolveCommand(afterHost);
+      return firstToken;
+    }
+    const hostPattern = /[^'"\s]+@[^'"\s]+/;
+    const match = rest.match(hostPattern);
+    if (match && match.index !== void 0) {
+      const afterHost = rest.substring(match.index + match[0].length).trimStart();
+      if (afterHost) return resolveCommand(afterHost);
+    }
+    return firstToken;
+  }
+  return firstToken;
+}
+
+// src/readonly-checker/parsing/loop-extractor.ts
+function findMatchingDone(content) {
+  let depth = 1;
+  let i = 0;
+  while (i < content.length) {
+    if (content[i] === "'") {
+      let j = i + 1;
+      while (j < content.length && content[j] !== "'") j++;
+      i = j + 1;
+      continue;
+    }
+    if (content[i] === '"') {
+      let j = i + 1;
+      while (j < content.length && content[j] !== '"') j++;
+      i = j + 1;
+      continue;
+    }
+    if (content[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (content.substring(i, i + 5) === "done" && (i + 5 >= content.length || !/\w/.test(content[i + 5])) && (i === 0 || !/\w/.test(content[i - 1]))) {
+      depth--;
+      if (depth === 0) return i;
+      i += 5;
+      continue;
+    }
+    if (content.substring(i, i + 2) === "do" && (i + 2 >= content.length || !/\w/.test(content[i + 2])) && (i === 0 || !/\w/.test(content[i - 1]))) {
+      depth++;
+      i += 2;
+      continue;
+    }
+    i++;
+  }
+  return -1;
+}
+function extractLoopBody(segment) {
+  const trimmed = segment.trim();
+  const forMatch = trimmed.match(/^for\s+\S+(\s+in\s+.+?)?\s*;?\s*do\s+(.+)$/s);
+  if (forMatch) {
+    const body = forMatch[2];
+    const doneIdx = findMatchingDone(body);
+    if (doneIdx !== -1) return body.substring(0, doneIdx).trim();
+  }
+  const whileMatch = trimmed.match(/^while\s+.+?\s*;?\s*do\s+(.+)$/s);
+  if (whileMatch) {
+    const body = whileMatch[1];
+    const doneIdx = findMatchingDone(body);
+    if (doneIdx !== -1) return body.substring(0, doneIdx).trim();
+  }
+  return null;
+}
+
+// src/readonly-checker/parsing/substitution-detector.ts
+var SUBSTITUTION_REGEX = /\$\(.*?\)|`[^`]+`/g;
+function checkSubstitutions(command, check2) {
+  const subMatch = command.match(SUBSTITUTION_REGEX);
+  if (!subMatch) return null;
+  for (const sub of subMatch) {
+    const inner = sub.startsWith("$(") ? sub.slice(2, -1) : sub.slice(1, -1);
+    const result = check2(inner);
+    if (!result.allowed) return result;
+  }
+  return null;
+}
+
+// src/readonly-checker/command-checker.ts
+var import_readonly_rules7 = __toESM(require_readonly_rules());
+var SEGMENT_SEPARATORS = ["&&", "||", ";"];
+var PIPE_SEPARATOR = "|";
+var SEGMENT_OPTIONS = {
+  separators: SEGMENT_SEPARATORS,
+  depthChar: { open: "(", close: ")" },
+  secondaryDepthChar: { open: "{", close: "}" }
+};
+var PIPE_OPTIONS = {
+  separators: [PIPE_SEPARATOR],
+  depthChar: { open: "(", close: ")" }
+};
+var CommandChecker = class {
+  whitelist;
+  handlers;
+  patternDetector;
+  constructor() {
+    let whitelistPath = (0, import_path.join)(__dirname, "data", "readonly-whitelist.json");
+    if (!(0, import_fs.existsSync)(whitelistPath)) {
+      whitelistPath = (0, import_path.join)(__dirname, "..", "data", "readonly-whitelist.json");
+    }
+    const whitelistData = JSON.parse((0, import_fs.readFileSync)(whitelistPath, "utf-8"));
+    this.whitelist = new Set(whitelistData.commands);
+    this.handlers = /* @__PURE__ */ new Map([
+      ["git", gitHasWriteArg],
+      ["docker", dockerHasWriteArg],
+      ["systemctl", systemctlHasWriteArg],
+      ["curl", curlWgetHasWriteArg],
+      ["wget", curlWgetHasWriteArg],
+      ["ip", ipHasWriteArg],
+      ["apt", aptHasWriteArg],
+      ["crontab", crontabHasWriteArg],
+      ["firewall-cmd", firewallCmdHasWriteArg],
+      ["rsync", rsyncHasWriteArg],
+      ["mktemp", mktempHasWriteArg]
+    ]);
+    this.patternDetector = new WritePatternDetector();
+  }
+  check(command) {
+    if (!command.trim()) return { allowed: true };
+    const subResult = checkSubstitutions(command, (inner) => this.check(inner));
+    if (subResult && !subResult.allowed) return subResult;
+    const loopBody = extractLoopBody(command);
+    if (loopBody !== null) return this.check(loopBody);
+    const segments = tokenize(command, SEGMENT_OPTIONS);
+    for (const seg of segments) {
+      const trimmed = seg.trim();
+      if (!trimmed) continue;
+      const subshellContent = this.extractSubshellContent(trimmed);
+      if (subshellContent !== null) {
+        const result = this.check(subshellContent);
+        if (!result.allowed) return result;
+        continue;
+      }
+      const braceContent = this.extractBraceContent(trimmed);
+      if (braceContent !== null) {
+        const result = this.check(braceContent);
+        if (!result.allowed) return result;
+        continue;
+      }
+      const pipeSegments = tokenize(trimmed, PIPE_OPTIONS);
+      for (const pipeSeg of pipeSegments) {
+        const pTrimmed = pipeSeg.trim();
+        if (!pTrimmed) continue;
+        const psResult = this.checkProcessSubstitution(pTrimmed);
+        if (!psResult.allowed) return psResult;
+        const resolved = resolveCommand(pTrimmed);
+        const cmd = getFirstToken5(resolved);
+        if (!this.whitelist.has(cmd)) {
+          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist` };
+        }
+        if (cmd === "eval") {
+          const evalResult = this.validateEvalArgs(pTrimmed);
+          if (evalResult) return evalResult;
+        }
+        if (cmd === "exec") {
+          const execResult = this.validateExecArgs(pTrimmed);
+          if (execResult) return execResult;
+        }
+        const handler = this.handlers.get(cmd);
+        if (handler && handler(pTrimmed)) {
+          return { allowed: false, reason: `Write argument detected in command` };
+        }
+        if (this.patternDetector.detect(pTrimmed)) {
+          return { allowed: false, reason: `Write pattern detected in command` };
+        }
+      }
+    }
+    return { allowed: true };
+  }
+  extractSubshellContent(segment) {
+    const match = segment.match(/^\(\s*(.+)\s*\)$/);
+    return match ? match[1] : null;
+  }
+  extractBraceContent(segment) {
+    const match = segment.match(/^\{\s*(.+)\s*\}\s*$/);
+    return match ? match[1] : null;
+  }
+  checkProcessSubstitution(segment) {
+    const regex = />\(([^)]+)\)/g;
+    let match;
+    while ((match = regex.exec(segment)) !== null) {
+      const result = this.check(match[1]);
+      if (!result.allowed) return result;
+    }
+    return { allowed: true };
+  }
   validateEvalArgs(cmd) {
     const rest = cmd.substring(4).trimStart();
     let inner = "";
     if (rest.startsWith("'") || rest.startsWith('"')) {
       const quote = rest[0];
       const endIdx = rest.indexOf(quote, 1);
-      if (endIdx > 1) {
-        inner = rest.slice(1, endIdx);
-      }
+      if (endIdx > 1) inner = rest.slice(1, endIdx);
     } else {
       inner = rest;
     }
     if (inner.trim()) {
-      const tempChecker = new _CommandChecker();
-      return !tempChecker.check(inner).allowed;
+      const result = this.check(inner);
+      if (!result.allowed) return result;
     }
-    return false;
+    return null;
   }
-  /** exec argument validation — shell değiştirme tespiti */
   validateExecArgs(cmd) {
     const rest = cmd.substring(4).trimStart();
-    if (!rest) return false;
-    const target = this.getFirstToken(rest);
-    const shellPatterns = ["bash", "sh", "zsh", "csh", "ksh", "dash", "fish"];
-    if (shellPatterns.includes(target)) {
-      return true;
-    }
-    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) {
-      return true;
-    }
-    return false;
-  }
-  hasWritePattern(segment) {
-    const unquoted = this.stripQuotes(segment);
-    if (this.detectRedirection(unquoted)) {
-      return true;
-    }
-    if (/\|.*tee\b/.test(unquoted)) {
-      return true;
-    }
-    if (/>\(/.test(unquoted)) {
-      return true;
-    }
-    if (this.detectCommandWritePatterns(unquoted)) {
-      return true;
-    }
-    if (/\bxargs\b/.test(unquoted)) {
-      return true;
-    }
-    if (/<<<\s/.test(segment)) {
-      return true;
-    }
-    if (/\bsed\b/.test(segment) && /["']w\s+\/[^"']/.test(segment)) {
-      return true;
-    }
-    if (/\bcp\b/.test(segment) && (/\/dev\/stdin/.test(segment) || /-\s*$/.test(segment))) {
-      return true;
-    }
-    if (/\bdd\b/.test(segment) && /\bof\s*=\s*[^s]/.test(segment)) {
-      return true;
-    }
-    if (/\btar\b/.test(segment) && (/\bc[a-zA-Z]*f/.test(segment) || /--create/.test(segment) || /-c\s+--file/.test(segment))) {
-      return true;
-    }
-    if (this.detectInterpreterWrites(segment)) {
-      return true;
-    }
-    if (this.detectReverseShell(segment)) {
-      return true;
-    }
-    return false;
-  }
-  /** Çift tırnak içindeki içerikleri çıkarır (false positive önleme) */
-  stripQuotes(cmd) {
-    let result = "";
-    let inDoubleQuote = false;
-    for (const ch of cmd) {
-      if (ch === '"' && !inDoubleQuote) {
-        inDoubleQuote = true;
-      } else if (ch === '"' && inDoubleQuote) {
-        inDoubleQuote = false;
-      } else if (!inDoubleQuote) {
-        result += ch;
-      }
-    }
-    return result;
-  }
-  /** Temel redirection pattern'larını tespit eder */
-  detectRedirection(s) {
-    if (/>>/.test(s)) return true;
-    if (/&>/.test(s)) return true;
-    if (/(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/g.test(s)) return true;
-    if (/2>(?!\/dev\/(null|zero))(?!&\d)/.test(s)) return true;
-    return false;
-  }
-  /** Komut bazlı write pattern'ları tespit eder */
-  detectCommandWritePatterns(s) {
-    if (/\bsed\b.*-i[a-z]*\b/.test(s)) return true;
-    if (/\bsed\b.*--in-place/.test(s)) return true;
-    if (/\bfind\b.*(-exec|-execdir)\b/.test(s)) return true;
-    return false;
-  }
-  /** Interpreter-based file write detection */
-  detectInterpreterWrites(segment) {
-    if (!/\b(python3?|perl|ruby|node)\b/.test(segment)) return false;
-    const patterns = [
-      /\bopen\s*\(/,
-      /\bos\.(system|popen|write)\s*\(/,
-      /\bsubprocess\./,
-      /\bFile\.write\s*\(/,
-      /\bIO\.write\s*\(/,
-      /\bfs\.(writeFileSync|createWriteStream|write)\s*\(/
-    ];
-    return patterns.some((p) => p.test(segment));
-  }
-  /** Reverse shell tespiti */
-  detectReverseShell(segment) {
-    const netCmds = /\b(nc|ncat|netcat|socat)\b/.test(segment);
-    if (!netCmds) return false;
-    const reversePatterns = [
-      /-e\s+\/bin\/(sh|bash|zsh)/,
-      /\bexec\s*:\s*\/bin\//,
-      /tcp:.*:\d+/
-    ];
-    return reversePatterns.some((p) => p.test(segment));
+    if (!rest) return null;
+    const target = getFirstToken5(rest);
+    if (import_readonly_rules7.SHELL_PATTERNS.includes(target)) return { allowed: false, reason: "Shell replacement detected" };
+    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: "Shell path detected" };
+    return null;
   }
 };
+var checker = new CommandChecker();
 
 // src/response.ts
 function successResponse(data) {
@@ -52307,7 +52589,7 @@ function isReadonlyMode() {
 }
 
 // src/index.ts
-var checker = new CommandChecker();
+var checker2 = new CommandChecker();
 if (isReadonlyMode()) {
   console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
 } else {
@@ -52481,7 +52763,7 @@ server.registerTool(
   },
   async (args) => {
     if (isReadonlyMode()) {
-      const result = checker.check(args.command);
+      const result = checker2.check(args.command);
       if (!result.allowed) {
         return errorResponse(`Write operation detected: ${result.reason}`);
       }

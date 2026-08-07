@@ -179,7 +179,7 @@ describe("CommandChecker", () => {
       expect(checker.check("realpath file.txt")).toEqual({ allowed: true });
       expect(checker.check("basename /usr/bin/ls")).toEqual({ allowed: true });
       expect(checker.check("dirname /usr/bin/ls")).toEqual({ allowed: true });
-      expect(checker.check("mktemp")).toEqual({ allowed: true });
+      expect(checker.check("mktemp")).toMatchObject({ allowed: false });
       expect(checker.check("tty")).toEqual({ allowed: true });
       expect(checker.check("mesg y")).toEqual({ allowed: true });
       expect(checker.check("wall 'hello'")).toEqual({ allowed: true });
@@ -210,7 +210,7 @@ describe("CommandChecker", () => {
       expect(checker.check("foremost -i file.img")).toEqual({ allowed: true });
       expect(checker.check("testdisk /dev/sda")).toEqual({ allowed: true });
       expect(checker.check("ddrescue /dev/sda /dev/sdb log")).toEqual({ allowed: true });
-      expect(checker.check("rsync -avz src/ dest/")).toEqual({ allowed: true });
+      expect(checker.check("rsync -avz src/ dest/")).toMatchObject({ allowed: false });
       expect(checker.check("scp file user@host:/tmp/")).toEqual({ allowed: true });
       expect(checker.check("sftp user@host")).toEqual({ allowed: true });
       expect(checker.check("ssh user@host")).toEqual({ allowed: true });
@@ -1173,7 +1173,7 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more terminal utilities", () => {
-      expect(checker.check("mktemp")).toEqual({ allowed: true });
+      expect(checker.check("mktemp")).toMatchObject({ allowed: false });
       expect(checker.check("tty")).toEqual({ allowed: true });
       expect(checker.check("mesg y")).toEqual({ allowed: true });
     });
@@ -1454,8 +1454,8 @@ describe("CommandChecker", () => {
       expect(checker.check("service ssh status")).toEqual({ allowed: true });
     });
 
-    it("should allow more rsync and file transfer commands", () => {
-      expect(checker.check("rsync -avz src/ dest/")).toEqual({ allowed: true });
+    it("should block rsync and allow file transfer commands", () => {
+      expect(checker.check("rsync -avz src/ dest/")).toMatchObject({ allowed: false });
       expect(checker.check("scp file user@host:/tmp/")).toEqual({ allowed: true });
       expect(checker.check("sftp user@host")).toEqual({ allowed: true });
     });
