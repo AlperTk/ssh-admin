@@ -3,6 +3,23 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CommandChecker = void 0;
 const fs_1 = require("fs");
 const path_1 = require("path");
+// Git komutları: yazma işlemi yapan alt komutlar
+const GIT_WRITE_COMMANDS = [
+    'commit', 'push', 'merge', 'rebase', 'reset', 'clean',
+    'am', 'apply', 'bisect', 'cherry-pick', 'force-push',
+    'clone', 'pull', 'fetch', 'checkout', 'restore',
+    'stash', 'revert', 'add', 'rm', 'mv',
+    'gc', 'prune', 'replace', 'filter-branch',
+];
+// systemctl: sadece read-only alt komutlar izinli
+const SYSTEMCTL_READ_ONLY = [
+    'status', 'is-active', 'is-enabled', 'is-failed', 'list-units',
+    'list-sockets', 'list-timers', 'list-dependencies', 'cat', 'show',
+    'get-default', 'help', 'dump', 'import-environment', 'tmpfiles',
+    'property', 'daemon-status', 'log', 'is-system-running',
+];
+// Komut substitution: $() ve backtick içi komutlar kontrol edilmeli
+const COMMAND_SUBSTITUTION_REGEX = /\$\(.*?\)|`[^`]+`/g;
 class CommandChecker {
     allowedCommands;
     constructor() {
@@ -12,6 +29,19 @@ class CommandChecker {
     check(command) {
         if (!command.trim()) {
             return { allowed: true };
+        }
+        // Komut substitution ($(), backtick) içindeki komutları kontrol et
+        const subMatch = command.match(COMMAND_SUBSTITUTION_REGEX);
+        if (subMatch) {
+            for (const sub of subMatch) {
+                const inner = sub.startsWith('$(')
+                    ? sub.slice(2, -1)
+                    : sub.slice(1, -1);
+                const result = this.check(inner);
+                if (!result.allowed) {
+                    return result;
+                }
+            }
         }
         console.error(`[READONLY-CHECKER] Checking command: ${command}`);
         const segments = this.parseSegments(command);
@@ -245,17 +275,25 @@ class CommandChecker {
             if (cMatch) {
                 return this.getActualCommand(cMatch[1]);
             }
-            const restToken = this.getFirstToken(rest);
-            if (restToken) {
-                return this.getActualCommand(rest);
-            }
+            // su user → kullanıcı adı, komut yok → su'yu döndür
+            return firstToken;
         }
         if (firstToken === 'ssh') {
             const rest = cmd.substring(firstToken.length).trimStart();
+            // Tek tırnak içindeki host'u çıkar ('user@host' → user@host)
+            const quotedMatch = rest.match(/^['"]?([^'"\s]+@[^'"\s]+)['"]?\s*(.*)$/);
+            if (quotedMatch) {
+                const afterHost = quotedMatch[2].trimStart();
+                if (afterHost) {
+                    return this.getActualCommand(afterHost);
+                }
+                return firstToken; // ssh user@host — komut yok
+            }
+            // Tırnaksız host
             const hostPattern = /[^'"\s]+@[^'"\s]+/;
             const match = rest.match(hostPattern);
-            if (match) {
-                const afterHost = rest.substring(match[0].length).trimStart();
+            if (match && match.index !== undefined) {
+                const afterHost = rest.substring(match.index + match[0].length).trimStart();
                 if (afterHost) {
                     return this.getActualCommand(afterHost);
                 }
@@ -264,24 +302,34 @@ class CommandChecker {
         return firstToken;
     }
     hasWriteArg(cmd, firstToken) {
-        if ((firstToken === 'curl' || firstToken === 'wget') && (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd))) {
+        // curl/wget: -o/-O (output file) VE -d/--data (data exfiltration)
+        if ((firstToken === 'curl' || firstToken === 'wget') && (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd) ||
+            /\s-[dD]\s/.test(cmd) || /\s-[dD]$/.test(cmd) ||
+            /--data\s*=/.test(cmd) || /--post-data\s*=/.test(cmd))) {
             return true;
         }
+        // Git write operations
         if (firstToken === 'git') {
-            const writeCommands = ['commit', 'push', 'merge', 'rebase', 'reset', 'clean', 'am', 'apply', 'bisect', 'cherry-pick', 'force-push', 'push'];
             const rest = cmd.substring(firstToken.length).trimStart();
             const secondToken = this.getFirstToken(rest);
-            if (writeCommands.includes(secondToken)) {
+            if (secondToken === 'stash') {
+                // stash list/read-only alt komutları izinli
+                const thirdToken = this.getFirstToken(rest.substring(secondToken.length).trimStart());
+                const stashReadOnly = ['list', 'show', 'push'];
+                if (thirdToken && !stashReadOnly.includes(thirdToken)) {
+                    return true;
+                }
+                return false; // stash alone or stash list → allowed
+            }
+            if (GIT_WRITE_COMMANDS.includes(secondToken)) {
                 return true;
             }
         }
-        // systemctl whitelist: sadece read-only subkomutlar izinli
+        // systemctl: sadece read-only subkomutlar izinli
         if (firstToken === 'systemctl') {
-            // firstToken'ın komuttaki konumunu bul (sudo/systemctl prefix olabilir)
             const idx = cmd.toLowerCase().indexOf('systemctl');
             if (idx !== -1) {
                 let rest = cmd.substring(idx + firstToken.length).trimStart();
-                // Tüm flag'leri atla (herhangi - ile başlayan token)
                 while (rest.startsWith('-')) {
                     const spaceIdx = rest.indexOf(' ');
                     if (spaceIdx === -1) {
@@ -291,76 +339,189 @@ class CommandChecker {
                     rest = rest.substring(spaceIdx).trimStart();
                 }
                 const subCmd = this.getFirstToken(rest);
-                // Subcommand yoksa (sadece "systemctl") → izinli
                 if (!subCmd) {
                     return false;
                 }
-                const allowedSubCommands = [
-                    'status', 'is-active', 'is-enabled', 'is-failed', 'list-units',
-                    'list-sockets', 'list-timers', 'list-dependencies', 'cat', 'show',
-                    'get-default', 'help', 'dump', 'import-environment', 'tmpfiles',
-                    'property', 'daemon-status', 'log', 'is-system-running',
-                ];
-                if (!allowedSubCommands.includes(subCmd)) {
+                if (!SYSTEMCTL_READ_ONLY.includes(subCmd)) {
                     return true;
                 }
             }
         }
+        // eval: argument içindeki komutları kontrol et
+        if (firstToken === 'eval') {
+            return this.validateEvalArgs(cmd);
+        }
+        // exec: shell değiştirme tespiti
+        if (firstToken === 'exec') {
+            return this.validateExecArgs(cmd);
+        }
+        return false;
+    }
+    /** eval argument validation — evaluated string'i parse edip write pattern kontrolü */
+    validateEvalArgs(cmd) {
+        // eval 'command' veya eval "command" formatından içeriği çıkar
+        const rest = cmd.substring(4).trimStart();
+        let inner = '';
+        if (rest.startsWith("'") || rest.startsWith('"')) {
+            const quote = rest[0];
+            const endIdx = rest.indexOf(quote, 1);
+            if (endIdx > 1) {
+                inner = rest.slice(1, endIdx);
+            }
+        }
+        else {
+            inner = rest;
+        }
+        // İçerikte write pattern var mı?
+        if (inner.trim()) {
+            const tempChecker = new CommandChecker();
+            return !tempChecker.check(inner).allowed;
+        }
+        return false;
+    }
+    /** exec argument validation — shell değiştirme tespiti */
+    validateExecArgs(cmd) {
+        const rest = cmd.substring(4).trimStart();
+        if (!rest)
+            return false; // exec alone = no-op, safe
+        const target = this.getFirstToken(rest);
+        const shellPatterns = ['bash', 'sh', 'zsh', 'csh', 'ksh', 'dash', 'fish'];
+        if (shellPatterns.includes(target)) {
+            return true;
+        }
+        // /bin/sh, /bin/bash gibi path'ler
+        if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) {
+            return true;
+        }
         return false;
     }
     hasWritePattern(segment) {
-        const patterns = [
-            /(?<![-])>[^>]/,
-            />>/,
-            /2>/,
-            /&>/,
-            /\|.*tee\b/,
-            />\(/,
-            /\becho\b.*>/,
-            /\bcat\b.*>/,
-            /\bawk\b.*>/,
-            /\bsed\b.*-i[a-z]*\b/,
-            /\btr\b.*>/,
-            /\bsort\b.*>/,
-            /\buniq\b.*>/,
-            /\bgrep\b.*>/,
-            /\bfind\b.*-exec\b/,
-            /\bxargs\b/,
-        ];
-        for (const pattern of patterns) {
-            if (pattern.test(segment)) {
-                return true;
-            }
-        }
-        // Here-string / here-doc redirection
-        if (/<<</.test(segment)) {
+        // Çift tırnak içindeki > karakterlerini çıkar (false positive önleme)
+        const unquoted = this.stripQuotes(segment);
+        // 1. Temel redirection pattern'ları
+        if (this.detectRedirection(unquoted)) {
             return true;
         }
-        // sed write command: sed ... "w /path" veya sed ... -w /path
+        // 2. Pipe ile tee kullanımı
+        if (/\|.*tee\b/.test(unquoted)) {
+            return true;
+        }
+        // 3. Write process substitution
+        if (/>\(/.test(unquoted)) {
+            return true;
+        }
+        // 4. Komut bazlı write pattern'ları
+        if (this.detectCommandWritePatterns(unquoted)) {
+            return true;
+        }
+        // 5. xargs — her zaman engelle (arbitrary command execution)
+        if (/\bxargs\b/.test(unquoted)) {
+            return true;
+        }
+        // 6. Here-string / here-doc
+        if (/<<<\s/.test(segment)) {
+            return true;
+        }
+        // 7. sed write komutu: sed ... "w /path" veya sed ... -w /path
         if (/\bsed\b/.test(segment) && /["']w\s+\/[^"']/.test(segment)) {
             return true;
         }
-        // cp with stdin/dev/stdin
+        // 8. cp with stdin/dev/stdin
         if (/\bcp\b/.test(segment) && (/\/dev\/stdin/.test(segment) || /-\s*$/.test(segment))) {
             return true;
         }
-        // dd with output file
-        if (/\bdd\b/.test(segment) && /\bof\s*=\s*\//.test(segment)) {
+        // 9. dd with output file (absolute veya relative path)
+        if (/\bdd\b/.test(segment) && /\bof\s*=\s*[^s]/.test(segment)) {
             return true;
         }
-        // tar create mode
-        if (/\btar\b/.test(segment) && /\bc[a-zA-Z]*f/.test(segment)) {
+        // 10. tar create mode (short ve long form)
+        if (/\btar\b/.test(segment) && (/\bc[a-zA-Z]*f/.test(segment) ||
+            /--create/.test(segment) ||
+            /-c\s+--file/.test(segment))) {
             return true;
         }
-        // python/perl/ruby/node one-liner file writes
-        if (/\b(python3?|perl|ruby|node)\b/.test(segment) && /\bopen\s*\(/.test(segment)) {
+        // 11. python/perl/ruby/node file writes (genişletilmiş)
+        if (this.detectInterpreterWrites(segment)) {
             return true;
         }
-        // awk print to file: awk '... > "file"'
-        if (/\bawk\b/.test(segment) && />\s*["'][^"']+["']/.test(segment)) {
+        // 12. nc/socat reverse shell
+        if (this.detectReverseShell(segment)) {
             return true;
         }
         return false;
+    }
+    /** Çift tırnak içindeki içerikleri çıkarır (false positive önleme) */
+    stripQuotes(cmd) {
+        let result = '';
+        let inDoubleQuote = false;
+        for (const ch of cmd) {
+            if (ch === '"' && !inDoubleQuote) {
+                inDoubleQuote = true;
+            }
+            else if (ch === '"' && inDoubleQuote) {
+                inDoubleQuote = false;
+            }
+            else if (!inDoubleQuote) {
+                result += ch;
+            }
+        }
+        return result;
+    }
+    /** Temel redirection pattern'larını tespit eder */
+    detectRedirection(s) {
+        // >> append
+        if (/>>/.test(s))
+            return true;
+        // &> combined stdout+stderr
+        if (/&>/.test(s))
+            return true;
+        // > redirection (not preceded by -, not followed by >, not to /dev/null or /dev/zero, not fd merge >&N)
+        if (/(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/g.test(s))
+            return true;
+        // 2> stderr redirect — /dev/null, /dev/zero veya &N (fd merge) hariç write olarak kabul et
+        if (/2>(?!\/dev\/(null|zero))(?!&\d)/.test(s))
+            return true;
+        return false;
+    }
+    /** Komut bazlı write pattern'ları tespit eder */
+    detectCommandWritePatterns(s) {
+        // > kullanan komutlar için: genel detectRedirection zaten tüm > durumlarını yakalar.
+        // Burada > kullanmayan ama yazma yapan durumları kontrol ediyoruz.
+        // sed -i in-place editing
+        if (/\bsed\b.*-i[a-z]*\b/.test(s))
+            return true;
+        if (/\bsed\b.*--in-place/.test(s))
+            return true;
+        // find -exec VEYA -execdir
+        if (/\bfind\b.*(-exec|-execdir)\b/.test(s))
+            return true;
+        return false;
+    }
+    /** Interpreter-based file write detection */
+    detectInterpreterWrites(segment) {
+        if (!/\b(python3?|perl|ruby|node)\b/.test(segment))
+            return false;
+        const patterns = [
+            /\bopen\s*\(/,
+            /\bos\.(system|popen|write)\s*\(/,
+            /\bsubprocess\./,
+            /\bFile\.write\s*\(/,
+            /\bIO\.write\s*\(/,
+            /\bfs\.(writeFileSync|createWriteStream|write)\s*\(/,
+        ];
+        return patterns.some(p => p.test(segment));
+    }
+    /** Reverse shell tespiti */
+    detectReverseShell(segment) {
+        const netCmds = /\b(nc|ncat|netcat|socat)\b/.test(segment);
+        if (!netCmds)
+            return false;
+        const reversePatterns = [
+            /-e\s+\/bin\/(sh|bash|zsh)/,
+            /\bexec\s*:\s*\/bin\//,
+            /tcp:.*:\d+/,
+        ];
+        return reversePatterns.some(p => p.test(segment));
     }
 }
 exports.CommandChecker = CommandChecker;

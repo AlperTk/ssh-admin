@@ -48736,7 +48736,7 @@ var Protocol = class {
     const capturedTransport = this._transport;
     const relatedTaskId = request.params?._meta?.[RELATED_TASK_META_KEY]?.taskId;
     if (handler === void 0) {
-      const errorResponse = {
+      const errorResponse2 = {
         jsonrpc: "2.0",
         id: request.id,
         error: {
@@ -48747,11 +48747,11 @@ var Protocol = class {
       if (relatedTaskId && this._taskMessageQueue) {
         this._enqueueTaskMessage(relatedTaskId, {
           type: "error",
-          message: errorResponse,
+          message: errorResponse2,
           timestamp: Date.now()
         }, capturedTransport?.sessionId).catch((error51) => this._onerror(new Error(`Failed to enqueue error response: ${error51}`)));
       } else {
-        capturedTransport?.send(errorResponse).catch((error51) => this._onerror(new Error(`Failed to send an error response: ${error51}`)));
+        capturedTransport?.send(errorResponse2).catch((error51) => this._onerror(new Error(`Failed to send an error response: ${error51}`)));
       }
       return;
     }
@@ -48821,7 +48821,7 @@ var Protocol = class {
       if (abortController.signal.aborted) {
         return;
       }
-      const errorResponse = {
+      const errorResponse2 = {
         jsonrpc: "2.0",
         id: request.id,
         error: {
@@ -48833,11 +48833,11 @@ var Protocol = class {
       if (relatedTaskId && this._taskMessageQueue) {
         await this._enqueueTaskMessage(relatedTaskId, {
           type: "error",
-          message: errorResponse,
+          message: errorResponse2,
           timestamp: Date.now()
         }, capturedTransport?.sessionId);
       } else {
-        await capturedTransport?.send(errorResponse);
+        await capturedTransport?.send(errorResponse2);
       }
     }).catch((error51) => this._onerror(new Error(`Failed to send response: ${error51}`))).finally(() => {
       if (this._requestHandlerAbortControllers.get(request.id) === abortController) {
@@ -51416,7 +51416,56 @@ var pool = new ConnectionPool();
 // src/readonly-checker.ts
 var import_fs = require("fs");
 var import_path = require("path");
-var CommandChecker = class {
+var GIT_WRITE_COMMANDS = [
+  "commit",
+  "push",
+  "merge",
+  "rebase",
+  "reset",
+  "clean",
+  "am",
+  "apply",
+  "bisect",
+  "cherry-pick",
+  "force-push",
+  "clone",
+  "pull",
+  "fetch",
+  "checkout",
+  "restore",
+  "stash",
+  "revert",
+  "add",
+  "rm",
+  "mv",
+  "gc",
+  "prune",
+  "replace",
+  "filter-branch"
+];
+var SYSTEMCTL_READ_ONLY = [
+  "status",
+  "is-active",
+  "is-enabled",
+  "is-failed",
+  "list-units",
+  "list-sockets",
+  "list-timers",
+  "list-dependencies",
+  "cat",
+  "show",
+  "get-default",
+  "help",
+  "dump",
+  "import-environment",
+  "tmpfiles",
+  "property",
+  "daemon-status",
+  "log",
+  "is-system-running"
+];
+var COMMAND_SUBSTITUTION_REGEX = /\$\(.*?\)|`[^`]+`/g;
+var CommandChecker = class _CommandChecker {
   allowedCommands;
   constructor() {
     const whitelist = JSON.parse(
@@ -51427,6 +51476,16 @@ var CommandChecker = class {
   check(command) {
     if (!command.trim()) {
       return { allowed: true };
+    }
+    const subMatch = command.match(COMMAND_SUBSTITUTION_REGEX);
+    if (subMatch) {
+      for (const sub of subMatch) {
+        const inner = sub.startsWith("$(") ? sub.slice(2, -1) : sub.slice(1, -1);
+        const result = this.check(inner);
+        if (!result.allowed) {
+          return result;
+        }
+      }
     }
     console.error(`[READONLY-CHECKER] Checking command: ${command}`);
     const segments = this.parseSegments(command);
@@ -51636,17 +51695,22 @@ var CommandChecker = class {
       if (cMatch) {
         return this.getActualCommand(cMatch[1]);
       }
-      const restToken = this.getFirstToken(rest);
-      if (restToken) {
-        return this.getActualCommand(rest);
-      }
+      return firstToken;
     }
     if (firstToken === "ssh") {
       const rest = cmd.substring(firstToken.length).trimStart();
+      const quotedMatch = rest.match(/^['"]?([^'"\s]+@[^'"\s]+)['"]?\s*(.*)$/);
+      if (quotedMatch) {
+        const afterHost = quotedMatch[2].trimStart();
+        if (afterHost) {
+          return this.getActualCommand(afterHost);
+        }
+        return firstToken;
+      }
       const hostPattern = /[^'"\s]+@[^'"\s]+/;
       const match = rest.match(hostPattern);
-      if (match) {
-        const afterHost = rest.substring(match[0].length).trimStart();
+      if (match && match.index !== void 0) {
+        const afterHost = rest.substring(match.index + match[0].length).trimStart();
         if (afterHost) {
           return this.getActualCommand(afterHost);
         }
@@ -51655,14 +51719,21 @@ var CommandChecker = class {
     return firstToken;
   }
   hasWriteArg(cmd, firstToken) {
-    if ((firstToken === "curl" || firstToken === "wget") && (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd))) {
+    if ((firstToken === "curl" || firstToken === "wget") && (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd) || /\s-[dD]\s/.test(cmd) || /\s-[dD]$/.test(cmd) || /--data\s*=/.test(cmd) || /--post-data\s*=/.test(cmd))) {
       return true;
     }
     if (firstToken === "git") {
-      const writeCommands = ["commit", "push", "merge", "rebase", "reset", "clean", "am", "apply", "bisect", "cherry-pick", "force-push", "push"];
       const rest = cmd.substring(firstToken.length).trimStart();
       const secondToken = this.getFirstToken(rest);
-      if (writeCommands.includes(secondToken)) {
+      if (secondToken === "stash") {
+        const thirdToken = this.getFirstToken(rest.substring(secondToken.length).trimStart());
+        const stashReadOnly = ["list", "show", "push"];
+        if (thirdToken && !stashReadOnly.includes(thirdToken)) {
+          return true;
+        }
+        return false;
+      }
+      if (GIT_WRITE_COMMANDS.includes(secondToken)) {
         return true;
       }
     }
@@ -51682,59 +51753,70 @@ var CommandChecker = class {
         if (!subCmd) {
           return false;
         }
-        const allowedSubCommands = [
-          "status",
-          "is-active",
-          "is-enabled",
-          "is-failed",
-          "list-units",
-          "list-sockets",
-          "list-timers",
-          "list-dependencies",
-          "cat",
-          "show",
-          "get-default",
-          "help",
-          "dump",
-          "import-environment",
-          "tmpfiles",
-          "property",
-          "daemon-status",
-          "log",
-          "is-system-running"
-        ];
-        if (!allowedSubCommands.includes(subCmd)) {
+        if (!SYSTEMCTL_READ_ONLY.includes(subCmd)) {
           return true;
         }
       }
     }
+    if (firstToken === "eval") {
+      return this.validateEvalArgs(cmd);
+    }
+    if (firstToken === "exec") {
+      return this.validateExecArgs(cmd);
+    }
+    return false;
+  }
+  /** eval argument validation — evaluated string'i parse edip write pattern kontrolü */
+  validateEvalArgs(cmd) {
+    const rest = cmd.substring(4).trimStart();
+    let inner = "";
+    if (rest.startsWith("'") || rest.startsWith('"')) {
+      const quote = rest[0];
+      const endIdx = rest.indexOf(quote, 1);
+      if (endIdx > 1) {
+        inner = rest.slice(1, endIdx);
+      }
+    } else {
+      inner = rest;
+    }
+    if (inner.trim()) {
+      const tempChecker = new _CommandChecker();
+      return !tempChecker.check(inner).allowed;
+    }
+    return false;
+  }
+  /** exec argument validation — shell değiştirme tespiti */
+  validateExecArgs(cmd) {
+    const rest = cmd.substring(4).trimStart();
+    if (!rest) return false;
+    const target = this.getFirstToken(rest);
+    const shellPatterns = ["bash", "sh", "zsh", "csh", "ksh", "dash", "fish"];
+    if (shellPatterns.includes(target)) {
+      return true;
+    }
+    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) {
+      return true;
+    }
     return false;
   }
   hasWritePattern(segment) {
-    const patterns = [
-      /(?<![-])>[^>]/,
-      />>/,
-      /2>/,
-      /&>/,
-      /\|.*tee\b/,
-      />\(/,
-      /\becho\b.*>/,
-      /\bcat\b.*>/,
-      /\bawk\b.*>/,
-      /\bsed\b.*-i[a-z]*\b/,
-      /\btr\b.*>/,
-      /\bsort\b.*>/,
-      /\buniq\b.*>/,
-      /\bgrep\b.*>/,
-      /\bfind\b.*-exec\b/,
-      /\bxargs\b/
-    ];
-    for (const pattern of patterns) {
-      if (pattern.test(segment)) {
-        return true;
-      }
+    const unquoted = this.stripQuotes(segment);
+    if (this.detectRedirection(unquoted)) {
+      return true;
     }
-    if (/<<</.test(segment)) {
+    if (/\|.*tee\b/.test(unquoted)) {
+      return true;
+    }
+    if (/>\(/.test(unquoted)) {
+      return true;
+    }
+    if (this.detectCommandWritePatterns(unquoted)) {
+      return true;
+    }
+    if (/\bxargs\b/.test(unquoted)) {
+      return true;
+    }
+    if (/<<<\s/.test(segment)) {
       return true;
     }
     if (/\bsed\b/.test(segment) && /["']w\s+\/[^"']/.test(segment)) {
@@ -51743,26 +51825,104 @@ var CommandChecker = class {
     if (/\bcp\b/.test(segment) && (/\/dev\/stdin/.test(segment) || /-\s*$/.test(segment))) {
       return true;
     }
-    if (/\bdd\b/.test(segment) && /\bof\s*=\s*\//.test(segment)) {
+    if (/\bdd\b/.test(segment) && /\bof\s*=\s*[^s]/.test(segment)) {
       return true;
     }
-    if (/\btar\b/.test(segment) && /\bc[a-zA-Z]*f/.test(segment)) {
+    if (/\btar\b/.test(segment) && (/\bc[a-zA-Z]*f/.test(segment) || /--create/.test(segment) || /-c\s+--file/.test(segment))) {
       return true;
     }
-    if (/\b(python3?|perl|ruby|node)\b/.test(segment) && /\bopen\s*\(/.test(segment)) {
+    if (this.detectInterpreterWrites(segment)) {
       return true;
     }
-    if (/\bawk\b/.test(segment) && />\s*["'][^"']+["']/.test(segment)) {
+    if (this.detectReverseShell(segment)) {
       return true;
     }
     return false;
   }
+  /** Çift tırnak içindeki içerikleri çıkarır (false positive önleme) */
+  stripQuotes(cmd) {
+    let result = "";
+    let inDoubleQuote = false;
+    for (const ch of cmd) {
+      if (ch === '"' && !inDoubleQuote) {
+        inDoubleQuote = true;
+      } else if (ch === '"' && inDoubleQuote) {
+        inDoubleQuote = false;
+      } else if (!inDoubleQuote) {
+        result += ch;
+      }
+    }
+    return result;
+  }
+  /** Temel redirection pattern'larını tespit eder */
+  detectRedirection(s) {
+    if (/>>/.test(s)) return true;
+    if (/&>/.test(s)) return true;
+    if (/(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/g.test(s)) return true;
+    if (/2>(?!\/dev\/(null|zero))(?!&\d)/.test(s)) return true;
+    return false;
+  }
+  /** Komut bazlı write pattern'ları tespit eder */
+  detectCommandWritePatterns(s) {
+    if (/\bsed\b.*-i[a-z]*\b/.test(s)) return true;
+    if (/\bsed\b.*--in-place/.test(s)) return true;
+    if (/\bfind\b.*(-exec|-execdir)\b/.test(s)) return true;
+    return false;
+  }
+  /** Interpreter-based file write detection */
+  detectInterpreterWrites(segment) {
+    if (!/\b(python3?|perl|ruby|node)\b/.test(segment)) return false;
+    const patterns = [
+      /\bopen\s*\(/,
+      /\bos\.(system|popen|write)\s*\(/,
+      /\bsubprocess\./,
+      /\bFile\.write\s*\(/,
+      /\bIO\.write\s*\(/,
+      /\bfs\.(writeFileSync|createWriteStream|write)\s*\(/
+    ];
+    return patterns.some((p) => p.test(segment));
+  }
+  /** Reverse shell tespiti */
+  detectReverseShell(segment) {
+    const netCmds = /\b(nc|ncat|netcat|socat)\b/.test(segment);
+    if (!netCmds) return false;
+    const reversePatterns = [
+      /-e\s+\/bin\/(sh|bash|zsh)/,
+      /\bexec\s*:\s*\/bin\//,
+      /tcp:.*:\d+/
+    ];
+    return reversePatterns.some((p) => p.test(segment));
+  }
 };
 
-// src/index.ts
+// src/response.ts
+function successResponse(data) {
+  return {
+    content: [{ type: "text", text: JSON.stringify({ success: true, data }, null, 2) }]
+  };
+}
+function errorResponse(message) {
+  return {
+    content: [{ type: "text", text: JSON.stringify({ success: false, error: message }) }],
+    isError: true
+  };
+}
+
+// src/readonly-guard.ts
 var READONLY_MODE = process.env.MCP_SSH_READONLY === "true";
+function requireWrite() {
+  if (READONLY_MODE) {
+    return errorResponse("Readonly mode is enabled. Write operations are not allowed.");
+  }
+  return null;
+}
+function isReadonlyMode() {
+  return READONLY_MODE;
+}
+
+// src/index.ts
 var checker = new CommandChecker();
-if (READONLY_MODE) {
+if (isReadonlyMode()) {
   console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
 } else {
   console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
@@ -51771,41 +51931,35 @@ var server = new McpServer({
   name: "mcp-ssh",
   version: "1.0.0"
 });
-server.tool(
+server.registerTool(
   "registry_add_server",
-  "Add a new SSH server to the registry",
   {
-    alias: external_exports.string().describe("Unique alias for this server (e.g., 'prod-web')"),
-    host: external_exports.string().describe("Hostname or IP address"),
-    port: external_exports.number().default(22).describe("SSH port (default: 22)"),
-    username: external_exports.string().describe("SSH username"),
-    authMethod: external_exports.enum(["key", "password"]).describe("Authentication method"),
-    keyPath: external_exports.string().optional().describe("Path to SSH private key file (for key auth)")
-  },
-  async ({ alias, host, port, username, authMethod, keyPath }) => {
-    if (READONLY_MODE) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
-        isError: true
-      };
+    title: "Add Server",
+    description: "Add a new SSH server to the registry",
+    inputSchema: {
+      alias: external_exports.string().describe("Unique alias for this server (e.g., 'prod-web')"),
+      host: external_exports.string().describe("Hostname or IP address"),
+      port: external_exports.number().default(22).describe("SSH port (default: 22)"),
+      username: external_exports.string().describe("SSH username"),
+      authMethod: external_exports.enum(["key", "password"]).describe("Authentication method"),
+      keyPath: external_exports.string().optional().describe("Path to SSH private key file (for key auth)")
     }
+  },
+  async (args) => {
+    const blocked = requireWrite();
+    if (blocked) return blocked;
     try {
-      const result = addServer({ alias, host, port, username, authMethod, keyPath });
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, server: result }, null, 2) }]
-      };
+      const result = addServer(args);
+      return successResponse(result);
     } catch (err) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: err.message }) }],
-        isError: true
-      };
+      const message = err instanceof Error ? err.message : String(err);
+      return errorResponse(message);
     }
   }
 );
 server.tool(
   "registry_list_servers",
   "List all registered SSH servers (credentials hidden)",
-  {},
   async () => {
     const hosts = listServers();
     return {
@@ -51813,125 +51967,114 @@ server.tool(
     };
   }
 );
-server.tool(
+server.registerTool(
   "registry_get_server",
-  "Get details of a specific registered server",
   {
-    alias: external_exports.string().describe("Server alias")
+    title: "Get Server",
+    description: "Get details of a specific registered server",
+    inputSchema: {
+      alias: external_exports.string().describe("Server alias")
+    }
   },
-  async ({ alias }) => {
+  async (args) => {
     try {
-      const host = getServer(alias);
-      return {
-        content: [{ type: "text", text: JSON.stringify({ server: host }, null, 2) }]
-      };
+      const host = getServer(args.alias);
+      return successResponse(host);
     } catch (err) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: err.message }) }],
-        isError: true
-      };
+      const message = err instanceof Error ? err.message : String(err);
+      return errorResponse(message);
     }
   }
 );
-server.tool(
+server.registerTool(
   "registry_update_server",
-  "Update a registered server's properties (cannot change host/port)",
   {
-    alias: external_exports.string().describe("Server alias to update"),
-    username: external_exports.string().optional().describe("New username"),
-    authMethod: external_exports.enum(["key", "password"]).optional().describe("New auth method"),
-    keyPath: external_exports.string().optional().describe("New key path")
-  },
-  async ({ alias, ...updates }) => {
-    if (READONLY_MODE) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
-        isError: true
-      };
+    title: "Update Server",
+    description: "Update a registered server's properties (cannot change host/port)",
+    inputSchema: {
+      alias: external_exports.string().describe("Server alias to update"),
+      username: external_exports.string().optional().describe("New username"),
+      authMethod: external_exports.enum(["key", "password"]).optional().describe("New auth method"),
+      keyPath: external_exports.string().optional().describe("New key path")
     }
+  },
+  async (args) => {
+    const blocked = requireWrite();
+    if (blocked) return blocked;
     try {
-      const result = updateServer(alias, updates);
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, server: result }, null, 2) }]
-      };
+      const updates = {};
+      if (args.username !== void 0) updates.username = args.username;
+      if (args.authMethod !== void 0) updates.authMethod = args.authMethod;
+      if (args.keyPath !== void 0) updates.keyPath = args.keyPath;
+      const result = updateServer(args.alias, updates);
+      return successResponse(result);
     } catch (err) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: err.message }) }],
-        isError: true
-      };
+      const message = err instanceof Error ? err.message : String(err);
+      return errorResponse(message);
     }
   }
 );
-server.tool(
+server.registerTool(
   "registry_delete_server",
-  "Remove a server from the registry",
   {
-    alias: external_exports.string().describe("Server alias to delete")
-  },
-  async ({ alias }) => {
-    if (READONLY_MODE) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: "Readonly mode is enabled. Write operations are not allowed." }) }],
-        isError: true
-      };
+    title: "Delete Server",
+    description: "Remove a server from the registry",
+    inputSchema: {
+      alias: external_exports.string().describe("Server alias to delete")
     }
+  },
+  async (args) => {
+    const blocked = requireWrite();
+    if (blocked) return blocked;
     try {
-      deleteServer(alias);
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, message: `Server '${alias}' deleted` }) }]
-      };
+      deleteServer(args.alias);
+      return successResponse({ message: `Server '${args.alias}' deleted` });
     } catch (err) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: err.message }) }],
-        isError: true
-      };
+      const message = err instanceof Error ? err.message : String(err);
+      return errorResponse(message);
     }
   }
 );
-server.tool(
+server.registerTool(
   "connection_open",
-  "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
   {
-    alias: external_exports.string().describe("Server alias from registry"),
-    timeout: external_exports.number().optional().describe("Connection timeout in milliseconds (default: 5000)")
+    title: "Open Connection",
+    description: "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
+    inputSchema: {
+      alias: external_exports.string().describe("Server alias from registry"),
+      timeout: external_exports.number().optional().describe("Connection timeout in milliseconds (default: 5000)")
+    }
   },
-  async ({ alias, timeout }) => {
+  async (args) => {
     try {
-      const result = await pool.open(alias, timeout);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
+      const result = await pool.open(args.alias, args.timeout);
+      return successResponse(result);
     } catch (err) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: err.message }) }],
-        isError: true
-      };
+      const message = err instanceof Error ? err.message : String(err);
+      return errorResponse(message);
     }
   }
 );
-server.tool(
+server.registerTool(
   "connection_close",
-  "Close an open SSH session",
   {
-    sessionId: external_exports.string().describe("Session ID to close")
-  },
-  async ({ sessionId }) => {
-    const result = pool.close(sessionId);
-    if (!result.success) {
-      return {
-        content: [{ type: "text", text: JSON.stringify(result) }],
-        isError: true
-      };
+    title: "Close Session",
+    description: "Close an open SSH session",
+    inputSchema: {
+      sessionId: external_exports.string().describe("Session ID to close")
     }
-    return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-    };
+  },
+  async (args) => {
+    const result = pool.close(args.sessionId);
+    if (!result.success) {
+      return errorResponse(result.message);
+    }
+    return successResponse(result);
   }
 );
 server.tool(
   "connection_list",
   "List all active SSH sessions",
-  {},
   async () => {
     const sessions = pool.list();
     return {
@@ -51939,34 +52082,30 @@ server.tool(
     };
   }
 );
-server.tool(
+server.registerTool(
   "command_execute",
-  "Execute a command on an open SSH session. Can be called multiple times on the same session.",
   {
-    sessionId: external_exports.string().describe("Session ID from connection_open"),
-    command: external_exports.string().describe("Shell command to execute"),
-    timeout: external_exports.number().optional().default(6e4).describe("Timeout in milliseconds (default: 60000)")
+    title: "Execute Command",
+    description: "Execute a command on an open SSH session. Can be called multiple times on the same session.",
+    inputSchema: {
+      sessionId: external_exports.string().describe("Session ID from connection_open"),
+      command: external_exports.string().describe("Shell command to execute"),
+      timeout: external_exports.number().optional().default(6e4).describe("Timeout in milliseconds (default: 60000)")
+    }
   },
-  async ({ sessionId, command, timeout }) => {
-    if (READONLY_MODE) {
-      const result = checker.check(command);
+  async (args) => {
+    if (isReadonlyMode()) {
+      const result = checker.check(args.command);
       if (!result.allowed) {
-        return {
-          content: [{ type: "text", text: JSON.stringify({ success: false, error: `Write operation detected: ${result.reason}` }) }],
-          isError: true
-        };
+        return errorResponse(`Write operation detected: ${result.reason}`);
       }
     }
     try {
-      const result = await pool.executeCommand(sessionId, command, timeout);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
+      const result = await pool.executeCommand(args.sessionId, args.command, args.timeout ?? 6e4);
+      return successResponse(result);
     } catch (err) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, error: err.message }) }],
-        isError: true
-      };
+      const message = err instanceof Error ? err.message : String(err);
+      return errorResponse(message);
     }
   }
 );

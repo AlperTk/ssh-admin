@@ -14,7 +14,21 @@ declare class CommandChecker {
     private getFirstToken;
     private getActualCommand;
     private hasWriteArg;
+    /** eval argument validation — evaluated string'i parse edip write pattern kontrolü */
+    private validateEvalArgs;
+    /** exec argument validation — shell değiştirme tespiti */
+    private validateExecArgs;
     private hasWritePattern;
+    /** Çift tırnak içindeki içerikleri çıkarır (false positive önleme) */
+    private stripQuotes;
+    /** Temel redirection pattern'larını tespit eder */
+    private detectRedirection;
+    /** Komut bazlı write pattern'ları tespit eder */
+    private detectCommandWritePatterns;
+    /** Interpreter-based file write detection */
+    private detectInterpreterWrites;
+    /** Reverse shell tespiti */
+    private detectReverseShell;
 }
 export { CommandChecker };
 //# sourceMappingURL=readonly-checker.d.ts.map
