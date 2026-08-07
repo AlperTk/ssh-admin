@@ -16,11 +16,11 @@ describe("aptHasWriteArg", () => {
       expect(aptHasWriteArg("apt rdepends git")).toBe(false);
       expect(aptHasWriteArg("apt madison vim")).toBe(false);
     });
-    it("should allow apt update/upgrade/full-upgrade/dist-upgrade/check/autoremove", () => {
+    it("should block apt upgrade/full-upgrade/dist-upgrade (write operations)", () => {
       expect(aptHasWriteArg("apt update")).toBe(false);
-      expect(aptHasWriteArg("apt upgrade")).toBe(false);
-      expect(aptHasWriteArg("apt full-upgrade")).toBe(false);
-      expect(aptHasWriteArg("apt dist-upgrade")).toBe(false);
+      expect(aptHasWriteArg("apt upgrade")).toBe(true);
+      expect(aptHasWriteArg("apt full-upgrade")).toBe(true);
+      expect(aptHasWriteArg("apt dist-upgrade")).toBe(true);
       expect(aptHasWriteArg("apt check")).toBe(false);
       expect(aptHasWriteArg("apt autoremove")).toBe(false);
     });

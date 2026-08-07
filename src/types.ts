@@ -8,6 +8,14 @@ export interface HostConfig {
   // Never store passwords in the registry — use env vars
 }
 
+export interface ServerInfo {
+  alias: string;
+  host: string;
+  port: number;
+  username: string;
+  authMethod: "key" | "password";
+}
+
 export interface SessionInfo {
   sessionId: string;
   alias: string;

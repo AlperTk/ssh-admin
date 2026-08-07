@@ -64,8 +64,8 @@ export const IP_READ_ONLY_SUBCOMMANDS = new Map<string, string[]>([
 // apt: sadece read-only alt komutlar izinli
 export const APT_READ_ONLY = new Set([
   'list', 'show', 'search', 'policy', 'info', 'cache', 'depends',
-  'rdepends', 'madison', 'edit-sources', 'full-upgrade', 'dist-upgrade',
-  'update', 'upgrade', 'check', 'simulator', 'autoremove',
+  'rdepends', 'madison', 'edit-sources',
+  'update', 'check', 'simulator', 'autoremove',
 ]);
 
 
@@ -73,9 +73,9 @@ export const APT_READ_ONLY = new Set([
 // docker: sadece read-only alt komutlar izinli
 export const DOCKER_READ_ONLY = new Set([
   'ps', 'images', 'inspect', 'logs', 'top', 'stats', 'version', 'info',
-  'diff', 'port', 'events', 'pull', 'config', 'node', 'service', 'task',
-  'volume', 'network', 'plugin', 'secret', 'swarm', 'container', 'image',
-  'system',
+  'diff', 'port', 'events', 'task',
+  'container', 'image', 'system',
+  'config', 'node', 'service', 'volume', 'network', 'plugin', 'secret', 'swarm',
 ]);
 
 

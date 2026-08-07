@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { HostConfig, ServerRegistry } from "./types.js";
+import { HostConfig, ServerInfo, ServerRegistry } from "./types.js";
 
 const REGISTRY_DIR = process.env.MCP_SSH_REGISTRY_PATH
   ? path.dirname(process.env.MCP_SSH_REGISTRY_PATH)
@@ -14,18 +14,37 @@ function ensureRegistryDir() {
   }
 }
 
+let registryCache: ServerRegistry | null = null;
+let registryCacheMtime = 0;
+
 function loadRegistry(): ServerRegistry {
   ensureRegistryDir();
   if (!fs.existsSync(REGISTRY_FILE)) {
-    return { hosts: [] };
+    registryCache = { hosts: [] };
+    registryCacheMtime = 0;
+    return registryCache;
+  }
+  const stats = fs.statSync(REGISTRY_FILE);
+  if (registryCache && registryCacheMtime === stats.mtimeMs) {
+    return registryCache;
   }
   const content = fs.readFileSync(REGISTRY_FILE, "utf-8");
-  return JSON.parse(content) as ServerRegistry;
+  registryCache = JSON.parse(content) as ServerRegistry;
+  registryCacheMtime = stats.mtimeMs;
+  return registryCache;
+}
+
+function invalidateCache() {
+  registryCache = null;
+  registryCacheMtime = 0;
 }
 
 function saveRegistry(registry: ServerRegistry) {
   ensureRegistryDir();
-  fs.writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2), "utf-8");
+  const tmpFile = REGISTRY_FILE + `.tmp.${process.pid}.${Date.now()}`;
+  fs.writeFileSync(tmpFile, JSON.stringify(registry, null, 2), "utf-8");
+  fs.renameSync(tmpFile, REGISTRY_FILE);
+  invalidateCache();
 }
 
 function findHost(alias: string): { index: number; host: HostConfig } | null {
@@ -48,10 +67,9 @@ export function addServer(host: Omit<HostConfig, "alias"> & { alias: string }): 
   return { ...host };
 }
 
-export function listServers(): HostConfig[] {
+export function listServers(): ServerInfo[] {
   const registry = loadRegistry();
-  // Never expose credentials in list output
-  return registry.hosts.map(({ keyPath: _kp, ...h }) => h);
+  return registry.hosts.map(({ keyPath: _kp, ...h }) => h as ServerInfo);
 }
 
 export function getServer(alias: string): HostConfig {

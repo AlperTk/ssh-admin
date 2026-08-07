@@ -30,8 +30,8 @@ describe("dockerHasWriteArg", () => {
       expect(dockerHasWriteArg("docker port container1")).toBe(false);
       expect(dockerHasWriteArg("docker events")).toBe(false);
     });
-    it("should allow docker pull", () => {
-      expect(dockerHasWriteArg("docker pull ubuntu:latest")).toBe(false);
+    it("should block docker pull (disk write)", () => {
+      expect(dockerHasWriteArg("docker pull ubuntu:latest")).toBe(true);
     });
     it("should allow docker ls commands", () => {
       expect(dockerHasWriteArg("docker config ls")).toBe(false);

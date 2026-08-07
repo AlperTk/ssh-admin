@@ -33,7 +33,11 @@ export function curlWgetHasWriteArg(cmd: string): boolean {
 
     // Short flag: -X veya combined -abc
     if (token.startsWith('-') && !token.startsWith('--')) {
-      const flags = token.substring(1).split('');
+      const flags = token.substring(1);
+      if (flags.includes('o') || flags.includes('O')) {
+        hasUnknownFlag = true;
+        continue;
+      }
       for (const f of flags) {
         const flagKey = '-' + f;
         if (!CURL_SAFE_FLAGS.has(flagKey)) {

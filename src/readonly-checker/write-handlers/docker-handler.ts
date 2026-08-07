@@ -1,5 +1,6 @@
 import { DOCKER_READ_ONLY, DOCKER_NAMESPACE_WRITE } from '../../data/readonly-rules.js';
 import { getFirstToken, skipShortFlags } from '../resolution/command-resolver.js';
+import { dockerExecHasWriteArg } from './docker-exec-checker.js';
 
 export function dockerHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(6).trimStart();
@@ -40,9 +41,8 @@ export function dockerHasWriteArg(cmd: string): boolean {
       // Basit yaklaşım: execRest'i checker'a ver (recursive call yerine inline check)
       // Burada sadece ilk token'ı kontrol ediyoruz, write pattern detector bunu halleder
       // exec içindeki komutun write yapması durumunda true döndür
-      // execRest'te > redirection veya write pattern var mı?
-      if (execRest.includes('>')) return true;
-      if (/\b(rm|touch|mkdir|cp|mv|dd|truncate)\b/.test(execRest)) return true;
+      // execRest'te write pattern var mı?
+      if (execRest && dockerExecHasWriteArg(execRest)) return true;
     }
     return false;
   }

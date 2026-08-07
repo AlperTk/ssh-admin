@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import { Client, ClientChannel } from "ssh2";
+import { Client, ClientChannel, ConnectConfig, ExecOptions } from "ssh2";
 import { SessionInfo, CommandResult } from "./types.js";
 import { getServer, resolveCredentials } from "./registry.js";
 
@@ -16,7 +16,7 @@ interface InternalSession {
   authConfig: { keyPath?: string; password?: string };
 }
 
-class ConnectionPool {
+export class ConnectionPool {
   private sessions = new Map<string, InternalSession>();
   private hostToSession = new Map<string, string>(); // host → sessionId (max 1 per host)
 
@@ -39,19 +39,17 @@ class ConnectionPool {
     const sessionId = crypto.randomUUID();
     const client = new Client();
 
-    const connectOpts: any = {
+    const connectOpts: ConnectConfig = {
       host: hostConfig.host,
       port: hostConfig.port,
       username: hostConfig.username,
       readyTimeout: timeout,
       keepaliveInterval: Math.max(10000, timeout / 3),
       keepaliveCountMax: 10,
-      GSSAPIAuthentication: false,
-      addressFamily: 4,
+      forceIPv4: true,
     };
 
     if (hostConfig.authMethod === "key" && credentials.key) {
-      console.error("[DEBUG] Using privateKey from file");
       connectOpts.privateKey = credentials.key;
     }
     if (credentials.password) {
@@ -73,8 +71,7 @@ class ConnectionPool {
           reject(new Error(`Connection verification timed out after ${Math.max(30, timeout / 1000)}s for '${alias}'`));
         }, Math.max(30000, timeout));
 
-        console.error("[DEBUG] SSH ready for alias:", alias);
-        client.exec("echo ping", (err: Error | undefined, stream: any) => {
+        client.exec("echo ping", (err: Error | undefined, stream: ClientChannel) => {
           if (err) {
             clearTimeout(verifyTimer);
             client.end();
@@ -90,7 +87,6 @@ class ConnectionPool {
           stream.on("close", () => {
             clearTimeout(verifyTimer);
             if (output.trim() === "ping") {
-              console.error("[DEBUG] Connection verified for alias:", alias);
               session = {
                 sessionId,
                 alias,
@@ -131,8 +127,7 @@ class ConnectionPool {
         reject(new Error(`SSH connection failed for '${alias}': ${err.message}`));
       });
 
-      client.on("close", (...args: any[]) => {
-        console.error("[DEBUG] SSH close event args:", JSON.stringify(args));
+      client.on("close", () => {
         if (session) {
           session.connected = false;
         }
@@ -142,9 +137,10 @@ class ConnectionPool {
 
       try {
         client.connect(connectOpts);
-      } catch (e: any) {
+      } catch (e: unknown) {
         clearTimeout(timer);
-        reject(e);
+        const message = e instanceof Error ? e.message : String(e);
+        reject(new Error(`Connection failed: ${message}`));
       }
     });
   }
@@ -190,10 +186,8 @@ class ConnectionPool {
       const start = Date.now();
 
       try {
-        console.error("[DEBUG] executing:", command);
-        session.client.exec(command, { env: { TERM: "xterm" } }, (err: Error | undefined, stream: any) => {
+        session.client.exec(command, { env: { TERM: "xterm" } } as ExecOptions, (err: Error | undefined, stream: ClientChannel) => {
           if (err) {
-            console.error("[DEBUG] exec callback error:", err.message);
             reject(new Error(`Command execution failed: ${err.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
             return;
           }
@@ -243,15 +237,27 @@ class ConnectionPool {
           reject(new Error(`Stream error: ${err.message}`));
         });
       });
-    } catch (e: any) {
-      console.error("[DEBUG] exec sync error:", e.message);
-      reject(new Error(`Command execution failed: ${e.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      reject(new Error(`Command execution failed: ${message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`));
     }
     });
   }
 
   getSessionCount(): number {
     return this.sessions.size;
+  }
+
+  closeAll(): void {
+    for (const session of this.sessions.values()) {
+      try {
+        session.client.end();
+      } catch {
+        // ignore errors during shutdown
+      }
+    }
+    this.sessions.clear();
+    this.hostToSession.clear();
   }
 }
 

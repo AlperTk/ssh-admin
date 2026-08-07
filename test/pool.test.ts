@@ -113,4 +113,26 @@ describe("ConnectionPool", () => {
       expect(ConnectionPool.getSessionCount()).toBe(2);
     });
   });
+
+  describe("closeAll", () => {
+    it("should close all sessions and clear maps", () => {
+      const s1 = createMockSession({ sessionId: "all-s1", host: "10.0.0.1" });
+      const s2 = createMockSession({ sessionId: "all-s2", host: "10.0.0.2" });
+      (ConnectionPool as any).sessions.set("all-s1", s1);
+      (ConnectionPool as any).sessions.set("all-s2", s2);
+      (ConnectionPool as any).hostToSession.set("10.0.0.1", "all-s1");
+      (ConnectionPool as any).hostToSession.set("10.0.0.2", "all-s2");
+
+      ConnectionPool.closeAll();
+
+      expect(ConnectionPool.getSessionCount()).toBe(0);
+      expect((ConnectionPool as any).hostToSession.size).toBe(0);
+    });
+
+    it("should handle empty pool gracefully", () => {
+      (ConnectionPool as any).sessions.clear();
+      (ConnectionPool as any).hostToSession.clear();
+      expect(() => ConnectionPool.closeAll()).not.toThrow();
+    });
+  });
 });

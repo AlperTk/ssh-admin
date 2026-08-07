@@ -1,14 +1,28 @@
 import { errorResponse } from "./response.js";
 
-const READONLY_MODE = process.env.MCP_SSH_READONLY === "true";
+let _readonlyModeOverride: boolean | null = null;
 
-export function requireWrite(): ReturnType<typeof errorResponse> | null {
-  if (READONLY_MODE) {
+function getReadonlyMode(): boolean {
+  if (_readonlyModeOverride !== null) return _readonlyModeOverride;
+  return process.env.MCP_SSH_READONLY === "true";
+}
+
+export function setReadonlyMode(readonly: boolean): void {
+  _readonlyModeOverride = readonly;
+}
+
+export function resetReadonlyMode(): void {
+  _readonlyModeOverride = null;
+}
+
+export function requireWrite(override?: boolean): ReturnType<typeof errorResponse> | null {
+  const readonly = override ?? getReadonlyMode();
+  if (readonly) {
     return errorResponse("Readonly mode is enabled. Write operations are not allowed.");
   }
   return null;
 }
 
-export function isReadonlyMode(): boolean {
-  return READONLY_MODE;
+export function isReadonlyMode(override?: boolean): boolean {
+  return override ?? getReadonlyMode();
 }

@@ -750,7 +750,7 @@ describe("CommandChecker", () => {
       expect(checker.check("docker diff container1")).toEqual({ allowed: true });
       expect(checker.check("docker port container1")).toEqual({ allowed: true });
       expect(checker.check("docker events")).toEqual({ allowed: true });
-      expect(checker.check("docker pull ubuntu:latest")).toEqual({ allowed: true });
+      expect(checker.check("docker pull ubuntu:latest").allowed).toBe(false);
       expect(checker.check("docker config ls")).toEqual({ allowed: true });
       expect(checker.check("docker node ls")).toEqual({ allowed: true });
       expect(checker.check("docker service ls")).toEqual({ allowed: true });
@@ -1490,9 +1490,9 @@ describe("CommandChecker", () => {
       expect(checker.check("apt rdepends git")).toEqual({ allowed: true });
       expect(checker.check("apt madison vim")).toEqual({ allowed: true });
       expect(checker.check("apt update")).toEqual({ allowed: true });
-      expect(checker.check("apt upgrade")).toEqual({ allowed: true });
-      expect(checker.check("apt full-upgrade")).toEqual({ allowed: true });
-      expect(checker.check("apt dist-upgrade")).toEqual({ allowed: true });
+      expect(checker.check("apt upgrade").allowed).toBe(false);
+      expect(checker.check("apt full-upgrade").allowed).toBe(false);
+      expect(checker.check("apt dist-upgrade").allowed).toBe(false);
       expect(checker.check("apt check")).toEqual({ allowed: true });
       expect(checker.check("apt autoremove")).toEqual({ allowed: true });
     });

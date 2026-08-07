@@ -12,25 +12,40 @@ npm run build  # bundle → dist/bundle.js
 
 ## Architecture
 ```
-index.ts (MCP tools)
+index.ts (entry point)
+├── tools/
+│   ├── registry-tools.ts    ← registry MCP tool register'ları
+│   ├── connection-tools.ts  ← connection MCP tool register'ları
+│   └── command-tools.ts     ← command_execute tool register'ı
 ├── pool.ts        → SSH session pool (ssh2 Client)
-├── registry.ts    → Host registry (~/.mcp-ssh/hosts.json)
+├── registry.ts    → Host registry (~/.mcp-ssh/hosts.json, mtime-based cache)
+├── readonly-guard.ts → Readonly mode flag (inject edilebilir)
+├── response.ts    → successResponse, errorResponse, formatError
+├── errors.ts      → AppError + domain error sınıfları
 └── readonly-checker.ts → Command whitelist + write pattern detection
 ```
 
 ## Pool API
-- `pool.open(alias, timeout?)` → `{ sessionId, status }` (async)
+- `pool.open(alias, timeout?)` → `{ sessionId, status, verified }` (async)
 - `pool.close(sessionId)` → `{ success, message }`
 - `pool.list()` → `SessionInfo[]`
 - `pool.executeCommand(sessionId, command, timeout?)` → `{ stdout, stderr, exitCode, durationMs }` (async)
+- `pool.getSessionCount()` → `number`
+- `pool.closeAll()` → tüm session'ları kapatır (graceful shutdown için)
+
+> `ConnectionPool` class export edildi — tool modülleri için tip parametresi olarak kullanılır.
 
 ## Registry API
 - `addServer({ alias, host, port, username, authMethod, keyPath? })` → `HostConfig`
-- `listServers()` → `HostConfig[]` (no credentials)
+- `listServers()` → `ServerInfo[]` (no credentials, no keyPath)
 - `getServer(alias)` → `HostConfig`
 - `updateServer(alias, { username?, authMethod?, keyPath? })` → `HostConfig`
 - `deleteServer(alias)` → void
 - `resolveCredentials(alias, host)` → `{ keyPath?, password? }` (throws if password missing)
+
+> `ServerInfo` tipi `alias`, `host`, `port`, `username`, `authMethod` alanlarını içerir — `keyPath` gizlidir.
+
+> `registry.ts` mtime-based cache kullanır — dosya değişmeden tekrar okuma yapmaz.
 
 ## Readonly Checker
 
@@ -62,6 +77,7 @@ src/readonly-checker/
 ├── write-handlers/                  ← her komut tipi için whitelist kontrolü
 │   ├── git-handler.ts               ← git READ_ONLY whitelist (log, diff, status...)
 │   ├── docker-handler.ts            ← docker DOCKER_READ_ONLY whitelist
+│   ├── docker-exec-checker.ts       ← docker exec içi write pattern detection
 │   ├── systemctl-handler.ts         ← systemctl SYSTEMCTL_READ_ONLY whitelist
 │   ├── curl-wget-handler.ts         ← curl safe flag whitelist, wget tüm HTTP/FTP engelle
 │   ├── ip-handler.ts                ← ip IP_READ_ONLY + IP_READ_ONLY_SUBCOMMANDS whitelist
@@ -123,7 +139,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 | curl | `CURL_SAFE_FLAGS` set — -s, -v, -I, -w, --compressed... |
 | wget | **Tüm HTTP/FTP çağrıları engellenir** (varsayılan dosya yazar) |
 | ip | `IP_READ_ONLY` + `IP_READ_ONLY_SUBCOMMANDS` map |
-| apt | `APT_READ_ONLY` set — list, show, search, update... |
+| apt | `APT_READ_ONLY` set — list, show, search, update, check, autoremove... (upgrade/full-upgrade/dist-upgrade write işlem olduğu için engellenir) |
 | journalctl | `JOURNALCTL_SAFE_FLAGS` set — --no-pager, --lines, -f... |
 | awk | `AWK_SAFE_PATTERNS[]` — print, printf, BEGIN, END... |
 | tar | `TAR_SAFE_FLAGS` + create/extract detection |
@@ -173,14 +189,20 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 ### Testler
 ```bash
-npm test              # 362 test
+npm test              # 417 test
 ```
 
 #### Test Yapısı
 ```
 test/
+├── response.test.ts                    ← successResponse, errorResponse, formatError (AppError/Error/unknown)
+├── readonly-guard.test.ts              ← setReadonlyMode, resetReadonlyMode, requireWrite/isReadonlyMode override
 ├── registry.test.ts                    ← registry API (add, list, get, update, delete, resolveCredentials)
 ├── pool.test.ts                        ← ConnectionPool (close, list, executeCommand, getSessionCount)
+├── tools/
+│   ├── registry-tools.test.ts          ← 5 tool registration + schema doğrulama
+│   ├── connection-tools.test.ts        ← 3 tool registration + schema doğrulama
+│   └── command-tools.test.ts           ← command_execute registration + schema doğrulama
 └── readonly-checker/
     ├── command-checker.test.ts          ← ana check() akışı (whitelist, combined commands, write patterns)
     ├── write-handlers/
@@ -208,10 +230,13 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (362)
+npm test                              # tüm testler (415)
 npm test -- test/readonly-checker/    # readonly-checker modülü (347 test)
-npm test -- test/pool.test.ts         # ConnectionPool (6 test)
+npm test -- test/pool.test.ts         # ConnectionPool (6 test: close, list, executeCommand, getSessionCount, closeAll)
 npm test -- test/registry.test.ts     # Registry (12 test)
+npm test -- test/response.test.ts     # response helpers (18 test)
+npm test -- test/readonly-guard.test.ts # readonly guard (17 test)
+npm test -- test/tools/               # tools modülleri (18 test)
 npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git handler (31 test)
 ```
 
@@ -229,6 +254,35 @@ MCP_SSH_READONLY=true node dist/bundle.js
 
 - Registry yazma tool'ları tamamen engellenir (`registry_add_server`, `registry_update_server`, `registry_delete_server`)
 - `command_execute` whitelist + write pattern ile filtrelenir
+- `readonly-guard.ts` → `setReadonlyMode(bool)` / `resetReadonlyMode()` export edildi (test için)
+
+## Graceful Shutdown
+SIGTERM ve SIGINT sinyalleri yakalanır — tüm SSH session'lar temiz kapanır:
+```bash
+# Server çalışırken:
+kill -TERM <pid>   # SIGTERM → pool.closeAll() → process.exit(0)
+kill -INT <pid>    # SIGINT → pool.closeAll() → process.exit(0)
+```
+
+## Error Handling
+- `response.ts` → `formatError(err)` helper — `AppError` subclass'lardan `code` çıkarır
+- `errors.ts` → `AppError`, `HostNotFoundError`, `SessionNotFoundError`, `ConnectionError`, `ReadOnlyViolationError`, `CredentialError`, `DuplicateHostError`, `InvalidUpdateError`
+
+## Tools Modülleri
+Tool register'ları `src/tools/` altında modülerleştirildi:
+
+| Dosya | Sorumluluk |
+|---|---|
+| `tools/registry-tools.ts` | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` |
+| `tools/connection-tools.ts` | `connection_open`, `connection_close`, `connection_list` |
+| `tools/command-tools.ts` | `command_execute` (readonly checker entegrasyonu dahil) |
+
+Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` sadece wire-up yapar.
+
+## Configuration
+- `"type": "module"` — ESM kullanıyor
+- `tsconfig.json` → `strict: true`, `module: Node16`, `moduleResolution: Node16`
+- `LICENSE` — MIT License dosyası mevcut
 
 ## Constraints
 - Max 1 session per host (auto-reuse)

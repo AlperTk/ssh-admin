@@ -5,8 +5,9 @@ const TAR_SAFE_FLAGS = new Set([
 ]);
 
 export function tarHasWriteArg(cmd: string): boolean {
-  const idx = cmd.toLowerCase().indexOf('tar');
-  if (idx === -1) return false;
+  const match = cmd.toLowerCase().match(/\btar\b/);
+  if (!match) return false;
+  const idx = match.index!;
   let rest = cmd.substring(idx + 3).trimStart();
 
   // İlk token = flag grubu (-cf, -xf, t, tf, vb.)
