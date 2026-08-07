@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConnectionPool } from "../pool.js";
 import { checker } from "../readonly-checker.js";
-import { isReadonlyMode } from "../readonly-guard.js";
+
 import { successResponse, errorResponse, formatError } from "../response.js";
 
 export function registerCommandTool(server: McpServer, pool: ConnectionPool): void {
@@ -21,21 +21,19 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
         return errorResponse("Invalid sessionId format");
       }
-      if (isReadonlyMode()) {
-        const result = checker.check(args.command);
-        if (!result.allowed) {
-          const parts: string[] = [`Write operation detected: ${result.reason}`];
-          if (result.checkLayer) parts.push(`[check_layer=${result.checkLayer}]`);
-          if (result.resolvedCommand) parts.push(`[resolved_command=${result.resolvedCommand}]`);
-          if (result.originalCommand) parts.push(`[original_command=${result.originalCommand}]`);
-          if (result.handlerName) parts.push(`[handler=${result.handlerName}]`);
-          if (result.blockedCommand) parts.push(`[blocked_command=${result.blockedCommand}]`);
-          if (result.matchedRule) parts.push(`[matched_rule=${result.matchedRule}]`);
-          if (result.matchedText) parts.push(`[matched_text=${result.matchedText}]`);
-          if (result.segmentIndex !== undefined) parts.push(`[segment=${result.segmentIndex}]`);
-          if (result.pipeSegments) parts.push(`[pipe_segments=[${result.pipeSegments.join(', ')}]]`);
-          return errorResponse(parts.join(' '));
-        }
+      const checkResult = checker.check(args.command);
+      if (!checkResult.allowed) {
+        const parts: string[] = [`Write operation detected: ${checkResult.reason}`];
+        if (checkResult.checkLayer) parts.push(`[check_layer=${checkResult.checkLayer}]`);
+        if (checkResult.resolvedCommand) parts.push(`[resolved_command=${checkResult.resolvedCommand}]`);
+        if (checkResult.originalCommand) parts.push(`[original_command=${checkResult.originalCommand}]`);
+        if (checkResult.handlerName) parts.push(`[handler=${checkResult.handlerName}]`);
+        if (checkResult.blockedCommand) parts.push(`[blocked_command=${checkResult.blockedCommand}]`);
+        if (checkResult.matchedRule) parts.push(`[matched_rule=${checkResult.matchedRule}]`);
+        if (checkResult.matchedText) parts.push(`[matched_text=${checkResult.matchedText}]`);
+        if (checkResult.segmentIndex !== undefined) parts.push(`[segment=${checkResult.segmentIndex}]`);
+        if (checkResult.pipeSegments) parts.push(`[pipe_segments=[${checkResult.pipeSegments.join(', ')}]]`);
+        return errorResponse(parts.join(' '));
       }
       try {
         const result = await pool.executeCommand(args.sessionId, args.command, args.timeout);

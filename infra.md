@@ -96,7 +96,7 @@ index.ts (entry point)
 ## Readonly Checker
 
 ### Ne Yapar?
-`command_execute` tool'unda gelen komutu filtreler:
+`command_execute` tool'unda gelen komutu **her zaman** filtreler (env değişkenine bağımlı):
 1. Komut whitelist'te yoksa → engelle
 2. Handler whitelist'te yoksa → engelle
 3. Write pattern tespit edilirse → engelle
@@ -176,7 +176,7 @@ check(command)
 
 ### Üç Katmanlı Koruma
 
-Read-only mode üç katmanlı savunma sağlar:
+Her komut üç katmanlı savunma ile filtrelenir:
 
 | Katman | Açıklama | Örnek Engeller |
 |---|---|---|
@@ -354,7 +354,7 @@ MCP_SSH_READONLY=true node dist/bundle.cjs
 ```
 
 - Registry yazma tool'ları tamamen engellenir (`registry_add_server`, `registry_update_server`, `registry_delete_server`)
-- `command_execute` whitelist + write pattern ile filtrelenir
+- `command_execute` whitelist + write pattern kontrolü **her zaman aktiftir** (env değişkenine bağımlı değildir)
 - `readonly-guard.ts` → `setReadonlyMode(bool)` / `resetReadonlyMode()` export edildi (test için)
 
 ## Graceful Shutdown
@@ -376,7 +376,7 @@ Tool register'ları `src/tools/` altında modülerleştirildi:
 |---|---|
 | `tools/registry-tools.ts` | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` |
 | `tools/connection-tools.ts` | `connection_open`, `connection_close`, `connection_list` |
-| `tools/command-tools.ts` | `command_execute` (readonly checker entegrasyonu dahil) |
+| `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü) |
 
 Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` sadece wire-up yapar.
 
@@ -396,8 +396,14 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - Registry file mode 0600 (sadece owner okuyabilir)
 - `HostConfig.forceIPv4` optional — default false (IPv6 destekli)
 - `command_execute` tool'unda sessionId UUID validation mevcut
+- `command_execute` whitelist + write pattern kontrolü **her zaman aktiftir** (MCP_SSH_READONLY env değişkenine bağımlı değildir)
 
 ## Changelog
+
+### Her Zaman Aktif Whitelist
+- `command_execute` whitelist + write pattern kontrolü **her zaman aktiftir** — `MCP_SSH_READONLY` env değişkenine bağımlı değil
+- `src/tools/command-tools.ts` → `isReadonlyMode()` kontrolü kaldırıldı, `checker.check()` her komut için çalışır
+- `MCP_SSH_READONLY` artık sadece registry yazma tool'larını (`registry_add_server`, `registry_update_server`, `registry_delete_server`) engeller
 
 ### False Positive Düzeltmeleri
 - `iptables -L -n` false positive düzeltildi — handler'a short flag whitelist kontrolü eklendi
