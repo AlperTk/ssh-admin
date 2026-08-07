@@ -29,7 +29,6 @@
     "file",
     "stat",
     "tar",
-    "unzip",
     "base64",
     "md5sum",
     "sha256sum",

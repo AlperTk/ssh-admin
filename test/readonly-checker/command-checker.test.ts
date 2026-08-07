@@ -29,7 +29,6 @@ describe("CommandChecker", () => {
       expect(checker.check("file /etc/passwd")).toEqual({ allowed: true });
       expect(checker.check("stat /etc/passwd")).toEqual({ allowed: true });
       expect(checker.check("tar xf archive.tar")).toEqual({ allowed: true });
-      expect(checker.check("unzip archive.zip")).toEqual({ allowed: true });
       expect(checker.check("base64 file.txt")).toEqual({ allowed: true });
       expect(checker.check("md5sum file.txt")).toEqual({ allowed: true });
       expect(checker.check("sha256sum file.txt")).toEqual({ allowed: true });
@@ -1271,7 +1270,6 @@ describe("CommandChecker", () => {
 
     it("should allow more compression and archive tools", () => {
       expect(checker.check("tar xf archive.tar")).toEqual({ allowed: true });
-      expect(checker.check("unzip archive.zip")).toEqual({ allowed: true });
       expect(checker.check("zcat file.txt.gz")).toEqual({ allowed: true });
       expect(checker.check("bzcat file.txt.bz2")).toEqual({ allowed: true });
       expect(checker.check("zgrep 'pattern' file.txt.gz")).toEqual({ allowed: true });
