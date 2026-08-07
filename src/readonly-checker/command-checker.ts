@@ -9,8 +9,7 @@ import { ipHasWriteArg } from './write-handlers/ip-handler.js';
 import { aptHasWriteArg } from './write-handlers/apt-handler.js';
 import { crontabHasWriteArg } from './write-handlers/crontab-handler.js';
 import { firewallCmdHasWriteArg } from './write-handlers/firewall-cmd-handler.js';
-import { rsyncHasWriteArg } from './write-handlers/rsync-handler.js';
-import { mktempHasWriteArg } from './write-handlers/mktemp-handler.js';
+
 import { fail2banHasWriteArg } from './write-handlers/fail2ban-handler.js';
 import { journalctlHasWriteArg } from './write-handlers/journalctl-handler.js';
 import { awkHasWriteArg } from './write-handlers/awk-handler.js';
@@ -25,11 +24,14 @@ import { ufwHasWriteArg } from './write-handlers/ufw-handler.js';
 import { iptablesHasWriteArg } from './write-handlers/iptables-handler.js';
 import { scriptreplayHasWriteArg } from './write-handlers/scriptreplay-handler.js';
 import { partprobeHasWriteArg } from './write-handlers/partprobe-handler.js';
+import { sysctlHasWriteArg } from './write-handlers/sysctl-handler.js';
+import { arHasWriteArg } from './write-handlers/ar-handler.js';
+import { stripHasWriteArg } from './write-handlers/strip-handler.js';
+import { objcopyHasWriteArg } from './write-handlers/objcopy-handler.js';
 import { WritePatternDetector } from './write-patterns/write-pattern-detector.js';
 import { resolveCommand, getFirstToken as resolverGetFirstToken } from './resolution/command-resolver.js';
 import { extractLoopBody } from './parsing/loop-extractor.js';
 import { checkSubstitutions } from './parsing/substitution-detector.js';
-import { SHELL_PATTERNS } from '../data/readonly-rules.js';
 
 export interface CheckResult {
   allowed: boolean;
@@ -82,8 +84,6 @@ export class CommandChecker {
       ['apt', aptHasWriteArg],
       ['crontab', crontabHasWriteArg],
       ['firewall-cmd', firewallCmdHasWriteArg],
-      ['rsync', rsyncHasWriteArg],
-      ['mktemp', mktempHasWriteArg],
       ['fail2ban-client', fail2banHasWriteArg],
       ['journalctl', journalctlHasWriteArg],
       ['awk', awkHasWriteArg],
@@ -98,6 +98,10 @@ export class CommandChecker {
       ['iptables', iptablesHasWriteArg],
       ['scriptreplay', scriptreplayHasWriteArg],
       ['partprobe', partprobeHasWriteArg],
+      ['sysctl', sysctlHasWriteArg],
+      ['ar', arHasWriteArg],
+      ['strip', stripHasWriteArg],
+      ['objcopy', objcopyHasWriteArg],
     ]);
 
     this.patternDetector = new WritePatternDetector();
@@ -157,15 +161,7 @@ export class CommandChecker {
           return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist`, blockedCommand: cmd, segmentIndex: segIdx };
         }
 
-        // 3d. eval/exec özel validation
-        if (cmd === 'eval') {
-          const evalResult = this.validateEvalArgs(pTrimmed);
-          if (evalResult) return evalResult;
-        }
-        if (cmd === 'exec') {
-          const execResult = this.validateExecArgs(pTrimmed);
-          if (execResult) return execResult;
-        }
+
 
         // 3e. DIRECT DISPATCH — O(1), no iteration
         const handler = this.handlers.get(cmd);
@@ -221,14 +217,6 @@ export class CommandChecker {
     return null;
   }
 
-  private validateExecArgs(cmd: string): CheckResult | null {
-    const rest = cmd.substring(4).trimStart();
-    if (!rest) return null;
-    const target = resolverGetFirstToken(rest);
-    if (SHELL_PATTERNS.includes(target as any)) return { allowed: false, reason: 'Shell replacement detected', blockedCommand: target };
-    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: 'Shell path detected', blockedCommand: target };
-    return null;
-  }
 }
 
 // Singleton instance — her yerde aynı referans

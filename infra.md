@@ -38,9 +38,11 @@ index.ts (entry point)
 │   │   ├── apt-handler.ts       ← apt APT_READ_ONLY whitelist
 │   │   ├── crontab-handler.ts   ← -e, -r, -R, - (stdin) + skipFlags sonrası - tespiti
 │   │   ├── firewall-cmd-handler.ts ← --list-* / --get-* whitelist
-│   │   ├── rsync-handler.ts     ← her zaman yazma
-│   │   ├── mktemp-handler.ts    ← her zaman yazma
-│   │   ├── fail2ban-handler.ts  ← status/gettag read-only, diğerleri write
+│   │   ├── sysctl-handler.ts      ← -w flag engelle (kernel parametresi yazma)
+│   │   ├── ar-handler.ts          ← her zaman yazma
+│   │   ├── strip-handler.ts       ← her zaman yazma
+│   │   ├── objcopy-handler.ts     ← her zaman yazma
+│   │   ├── fail2ban-handler.ts    ← status/gettag read-only, diğerleri write
 │   │   ├── journalctl-handler.ts ← JOURNALCTL_SAFE_FLAGS whitelist
 │   │   ├── awk-handler.ts       ← AWK_SAFE_PATTERNS whitelist
 │   │   ├── scp-handler.ts       ← scp user@host:/path pattern tespiti
@@ -62,7 +64,7 @@ index.ts (entry point)
 │       ├── loop-extractor.ts    ← for/while döngü gövdesi çıkarma
 │       └── substitution-detector.ts ← $() ve backtick recursive check
 └── data/
-    ├── readonly-whitelist.json  ← whitelist komut listesi (349 komut, ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
+    ├── readonly-whitelist.json  ← whitelist komut listesi (340 komut, exec/eval/source/chroot/script/nmap/masscan/ssh/sftp/ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
     └── readonly-rules.ts        ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS vb. whitelist sabitleri
 ```
 
@@ -128,8 +130,10 @@ src/readonly-checker/
 │   ├── apt-handler.ts               ← apt APT_READ_ONLY whitelist
 │   ├── crontab-handler.ts           ← -e, -r, -R, - (stdin) + skipFlags sonrası - tespiti
 │   ├── firewall-cmd-handler.ts      ← --list-* / --get-* whitelist
-│   ├── rsync-handler.ts             ← her zaman yazma
-│   ├── mktemp-handler.ts            ← her zaman yazma
+│   ├── sysctl-handler.ts            ← -w flag engelle (kernel parametresi yazma)
+│   ├── ar-handler.ts                ← her zaman yazma
+│   ├── strip-handler.ts             ← her zaman yazma
+│   ├── objcopy-handler.ts           ← her zaman yazma
 │   ├── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
 │   ├── journalctl-handler.ts        ← JOURNALCTL_SAFE_FLAGS whitelist
 │   ├── awk-handler.ts               ← AWK_SAFE_PATTERNS whitelist
@@ -152,7 +156,7 @@ src/readonly-checker/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (349 komut, ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
+├── readonly-whitelist.json          ← whitelist komut listesi (340 komut, exec/eval/source/chroot/script/nmap/masscan/ssh/sftp/ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
 └── readonly-rules.ts                ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS, PARTX_READ_ONLY, KPARTX_READ_ONLY, DMSETUP_READ_ONLY, SNAP_READ_ONLY, TUNE2FS_READ_ONLY, UFW_READ_ONLY, IPTABLES_READ_ONLY, PARTPROBE_READ_ONLY vb. whitelist sabitleri
 ```
 
@@ -198,7 +202,10 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 | awk | `AWK_SAFE_PATTERNS[]` — print, printf, BEGIN, END... |
 | tar | `TAR_SAFE_FLAGS` + create/extract detection |
 | scp | `user@host:/path` pattern tespiti |
-| rsync/mktemp | Her zaman yazma (true döner) |
+| sysctl | `-w` flag → engelle (kernel parametresi yazma) |
+| ar | Her zaman yazma (archive oluşturur) |
+| strip | Her zaman yazma (binary modifikasyon) |
+| objcopy | Her zaman yazma (binary modifikasyon) |
 | partx | `--show`, `-s` read-only, diğerleri write |
 | kpartx | `-l`, `-r` read-only, diğerleri write |
 | dmsetup | `ls`, `info`, `status`, `table` read-only, diğerleri write |
@@ -278,8 +285,10 @@ test/
     │   ├── apt-handler.test.ts          ← aptHasWriteArg (read-only vs write komutlar)
     │   ├── crontab-handler.test.ts      ← crontabHasWriteArg (-e, -r, -R, -, -u root - flag tespiti)
     │   ├── firewall-cmd-handler.test.ts ← --list-* / --get-* whitelist
-    │   ├── rsync-handler.test.ts        ← her zaman write (true döner)
-    │   ├── mktemp-handler.test.ts       ← her zaman write (true döner)
+    │   ├── sysctl-handler.test.ts       ← -w flag engelleme
+    │   ├── ar-handler.test.ts           ← her zaman write (true döner)
+    │   ├── strip-handler.test.ts        ← her zaman write (true döner)
+    │   ├── objcopy-handler.test.ts      ← her zaman write (true döner)
     │   ├── fail2ban-handler.test.ts   ← FAIL2BAN_READ_ONLY whitelist
     │   ├── journalctl-handler.test.ts ← JOURNALCTL_SAFE_FLAGS whitelist
     │   ├── scp-handler.test.ts        ← scp user@host:/path pattern tespiti

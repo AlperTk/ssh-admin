@@ -67,8 +67,8 @@ describe("CommandChecker", () => {
       expect(checker.check("continue")).toEqual({ allowed: true });
       expect(checker.check("shift")).toEqual({ allowed: true });
       expect(checker.check("wait")).toEqual({ allowed: true });
-      expect(checker.check("exec")).toEqual({ allowed: true });
-      expect(checker.check("eval echo hello")).toEqual({ allowed: true });
+      expect(checker.check("exec")).toMatchObject({ allowed: false });
+      expect(checker.check("eval echo hello")).toMatchObject({ allowed: false });
       expect(checker.check("xargs ls")).toMatchObject({ allowed: false });
       expect(checker.check("less file.txt")).toEqual({ allowed: true });
       expect(checker.check("more file.txt")).toEqual({ allowed: true });
@@ -95,8 +95,8 @@ describe("CommandChecker", () => {
       expect(checker.check("timeout 30 command")).toEqual({ allowed: true });
       expect(checker.check("nice -n 10 command")).toEqual({ allowed: true });
       expect(checker.check("ionice -c 3 command")).toEqual({ allowed: true });
-      expect(checker.check("chroot /mnt command")).toEqual({ allowed: true });
-      expect(checker.check("script /tmp/log")).toEqual({ allowed: true });
+      expect(checker.check("chroot /mnt command")).toMatchObject({ allowed: false });
+      expect(checker.check("script /tmp/log")).toMatchObject({ allowed: false });
       expect(checker.check("tput cols")).toEqual({ allowed: true });
       expect(checker.check("stty -a")).toEqual({ allowed: true });
       expect(checker.check("cal")).toEqual({ allowed: true });
@@ -113,10 +113,10 @@ describe("CommandChecker", () => {
       expect(checker.check("readelf -h /usr/bin/ls")).toEqual({ allowed: true });
       expect(checker.check("strings /usr/bin/ls")).toEqual({ allowed: true });
       expect(checker.check("size /usr/bin/ls")).toEqual({ allowed: true });
-      expect(checker.check("strip --remove-section=.note /usr/bin/ls")).toEqual({ allowed: true });
-      expect(checker.check("objcopy --only-keep-debug /usr/bin/ls /tmp/debug")).toEqual({ allowed: true });
+      expect(checker.check("strip --remove-section=.note /usr/bin/ls")).toMatchObject({ allowed: false });
+      expect(checker.check("objcopy --only-keep-debug /usr/bin/ls /tmp/debug")).toMatchObject({ allowed: false });
       expect(checker.check("as --help")).toEqual({ allowed: true });
-      expect(checker.check("ar rcs libfoo.a file.o")).toEqual({ allowed: true });
+      expect(checker.check("ar rcs libfoo.a file.o")).toMatchObject({ allowed: false });
       expect(checker.check("ranlib libfoo.a")).toEqual({ allowed: true });
       expect(checker.check("addr2line -e /usr/bin/ls 0x1234")).toEqual({ allowed: true });
       expect(checker.check("c++filt _Z3fooi")).toEqual({ allowed: true });
@@ -155,7 +155,7 @@ describe("CommandChecker", () => {
       expect(checker.check("getopt --help")).toEqual({ allowed: true });
       expect(checker.check("read -p 'Enter: ' var")).toEqual({ allowed: true });
       expect(checker.check("mapfile -t arr < file.txt")).toEqual({ allowed: true });
-      expect(checker.check("source ~/.bashrc")).toEqual({ allowed: true });
+      expect(checker.check("source ~/.bashrc")).toMatchObject({ allowed: false });
       expect(checker.check(". ~/.bashrc")).toEqual({ allowed: true });
       expect(checker.check("export VAR=value")).toEqual({ allowed: true });
       expect(checker.check("local var=value")).toEqual({ allowed: true });
@@ -207,12 +207,12 @@ describe("CommandChecker", () => {
       expect(checker.check("ddrescue /dev/sda /dev/sdb log")).toMatchObject({ allowed: false });
       expect(checker.check("rsync -avz src/ dest/")).toMatchObject({ allowed: false });
       expect(checker.check("scp file user@host:/tmp/")).toMatchObject({ allowed: false, blockedCommand: "scp" });
-      expect(checker.check("sftp user@host")).toEqual({ allowed: true });
-      expect(checker.check("ssh user@host")).toEqual({ allowed: true });
+      expect(checker.check("sftp user@host")).toMatchObject({ allowed: false });
+      expect(checker.check("ssh user@host")).toMatchObject({ allowed: false });
       expect(checker.check("nc -zv host 80")).toEqual({ allowed: true });
       expect(checker.check("socat TCP:host:80 -")).toEqual({ allowed: true });
-      expect(checker.check("nmap -sV host")).toEqual({ allowed: true });
-      expect(checker.check("masscan -p80 host")).toEqual({ allowed: true });
+      expect(checker.check("nmap -sV host")).toMatchObject({ allowed: false });
+      expect(checker.check("masscan -p80 host")).toMatchObject({ allowed: false });
       expect(checker.check("zmap -p 80")).toEqual({ allowed: true });
       expect(checker.check("arping -c 3 host")).toEqual({ allowed: true });
       expect(checker.check("etherwake aa:bb:cc:dd:ee:ff")).toEqual({ allowed: true });
@@ -623,8 +623,8 @@ describe("CommandChecker", () => {
 
     it("should validate eval arguments", () => {
       expect(checker.check("eval 'rm -rf /'")).toMatchObject({ allowed: false });
-      expect(checker.check("eval \"cat /etc/passwd\"")).toEqual({ allowed: true });
-      expect(checker.check("eval echo hello")).toEqual({ allowed: true });
+      expect(checker.check("eval \"cat /etc/passwd\"")).toMatchObject({ allowed: false });
+      expect(checker.check("eval echo hello")).toMatchObject({ allowed: false });
     });
 
     it("should validate exec arguments for shell replacement", () => {
@@ -632,7 +632,7 @@ describe("CommandChecker", () => {
       expect(checker.check("exec sh")).toMatchObject({ allowed: false });
       expect(checker.check("exec /bin/bash")).toMatchObject({ allowed: false });
       expect(checker.check("exec /usr/bin/zsh")).toMatchObject({ allowed: false });
-      expect(checker.check("exec")).toEqual({ allowed: true });
+      expect(checker.check("exec")).toMatchObject({ allowed: false });
     });
 
     it("should detect extended git write operations", () => {
@@ -807,7 +807,7 @@ describe("CommandChecker", () => {
 
     it("should handle eval with single-quoted dangerous command", () => {
       expect(checker.check("eval 'rm -rf /tmp/*'")).toMatchObject({ allowed: false });
-      expect(checker.check("eval \"cat /etc/passwd\"")).toEqual({ allowed: true });
+      expect(checker.check("eval \"cat /etc/passwd\"")).toMatchObject({ allowed: false });
     });
 
     it("should handle sudo with multiple flags", () => {
@@ -817,7 +817,7 @@ describe("CommandChecker", () => {
     });
 
     it("should handle ssh with quoted host", () => {
-      expect(checker.check("ssh 'user@host'")).toEqual({ allowed: true });
+      expect(checker.check("ssh 'user@host'")).toMatchObject({ allowed: false });
       expect(checker.check("ssh 'user@host' ls")).toEqual({ allowed: true });
       expect(checker.check("ssh 'user@host' rm /tmp/file")).toMatchObject({ allowed: false });
     });
@@ -871,8 +871,8 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more network and system info commands", () => {
-      expect(checker.check("nmap -sV host")).toEqual({ allowed: true });
-      expect(checker.check("masscan -p80 host")).toEqual({ allowed: true });
+      expect(checker.check("nmap -sV host")).toMatchObject({ allowed: false });
+      expect(checker.check("masscan -p80 host")).toMatchObject({ allowed: false });
       expect(checker.check("zmap -p 80")).toEqual({ allowed: true });
       expect(checker.check("arping -c 3 host")).toEqual({ allowed: true });
       expect(checker.check("etherwake aa:bb:cc:dd:ee:ff")).toEqual({ allowed: true });
@@ -895,10 +895,10 @@ describe("CommandChecker", () => {
       expect(checker.check("readelf -h /usr/bin/ls")).toEqual({ allowed: true });
       expect(checker.check("strings /usr/bin/ls")).toEqual({ allowed: true });
       expect(checker.check("size /usr/bin/ls")).toEqual({ allowed: true });
-      expect(checker.check("strip --remove-section=.note /usr/bin/ls")).toEqual({ allowed: true });
-      expect(checker.check("objcopy --only-keep-debug /usr/bin/ls /tmp/debug")).toEqual({ allowed: true });
+      expect(checker.check("strip --remove-section=.note /usr/bin/ls")).toMatchObject({ allowed: false });
+      expect(checker.check("objcopy --only-keep-debug /usr/bin/ls /tmp/debug")).toMatchObject({ allowed: false });
       expect(checker.check("as --help")).toEqual({ allowed: true });
-      expect(checker.check("ar rcs libfoo.a file.o")).toEqual({ allowed: true });
+      expect(checker.check("ar rcs libfoo.a file.o")).toMatchObject({ allowed: false });
       expect(checker.check("ranlib libfoo.a")).toEqual({ allowed: true });
       expect(checker.check("addr2line -e /usr/bin/ls 0x1234")).toEqual({ allowed: true });
       expect(checker.check("c++filt _Z3fooi")).toEqual({ allowed: true });
@@ -1199,7 +1199,7 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more script and terminal recording tools", () => {
-      expect(checker.check("script /tmp/log")).toEqual({ allowed: true });
+      expect(checker.check("script /tmp/log")).toMatchObject({ allowed: false });
       expect(checker.check("scriptreplay /tmp/log")).toEqual({ allowed: true });
     });
 
@@ -1237,8 +1237,8 @@ describe("CommandChecker", () => {
       expect(checker.check("continue")).toEqual({ allowed: true });
       expect(checker.check("shift")).toEqual({ allowed: true });
       expect(checker.check("wait")).toEqual({ allowed: true });
-      expect(checker.check("exec")).toEqual({ allowed: true });
-      expect(checker.check("eval echo hello")).toEqual({ allowed: true });
+      expect(checker.check("exec")).toMatchObject({ allowed: false });
+      expect(checker.check("eval echo hello")).toMatchObject({ allowed: false });
     });
 
     it("should allow more environment and variable utilities", () => {
@@ -1255,7 +1255,7 @@ describe("CommandChecker", () => {
     it("should allow more input and output utilities", () => {
       expect(checker.check("read -p 'Enter: ' var")).toEqual({ allowed: true });
       expect(checker.check("mapfile -t arr < file.txt")).toEqual({ allowed: true });
-      expect(checker.check("source ~/.bashrc")).toEqual({ allowed: true });
+      expect(checker.check("source ~/.bashrc")).toMatchObject({ allowed: false });
       expect(checker.check(". ~/.bashrc")).toEqual({ allowed: true });
       expect(checker.check("export VAR=value")).toEqual({ allowed: true });
       expect(checker.check("local var=value")).toEqual({ allowed: true });
@@ -1449,7 +1449,7 @@ describe("CommandChecker", () => {
     it("should block rsync and allow file transfer commands", () => {
       expect(checker.check("rsync -avz src/ dest/")).toMatchObject({ allowed: false });
       expect(checker.check("scp file user@host:/tmp/")).toMatchObject({ allowed: false, blockedCommand: "scp" });
-      expect(checker.check("sftp user@host")).toEqual({ allowed: true });
+      expect(checker.check("sftp user@host")).toMatchObject({ allowed: false });
     });
 
     it("should block mount and umount commands", () => {
@@ -1458,7 +1458,7 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more chroot and script commands", () => {
-      expect(checker.check("chroot /mnt command")).toEqual({ allowed: true });
+      expect(checker.check("chroot /mnt command")).toMatchObject({ allowed: false });
     });
 
     it("should handle xargs with read-only commands", () => {

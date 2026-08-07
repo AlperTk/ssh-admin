@@ -1,12 +1,15 @@
 import { GIT_READ_ONLY, GIT_STASH_READ_ONLY } from '../../data/readonly-rules.js';
-import { getFirstToken } from './base-handler.js';
+import { getFirstToken, skipFlags } from './base-handler.js';
 
 export function gitHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(4).trimStart();
-  const token = getFirstToken(rest);
+  const afterFlags = skipFlags(rest);
+  const token = getFirstToken(afterFlags);
+
+  if (token === '') return false;
 
   if (token === 'stash') {
-    let rest2 = rest.substring(token.length).trimStart();
+    let rest2 = afterFlags.substring(token.length).trimStart();
     const thirdToken = getFirstToken(rest2);
     if (thirdToken && !GIT_STASH_READ_ONLY.includes(thirdToken as any)) return true;
     return false;
