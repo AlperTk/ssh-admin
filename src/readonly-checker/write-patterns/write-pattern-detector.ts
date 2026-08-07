@@ -19,8 +19,16 @@ function stripDoubleQuotes(cmd: string): string {
   return result;
 }
 
+/** Redirect hedefi /dev/null ise güvenli (veri kaybı yok) */
+function isDevNullRedirect(segment: string): boolean {
+  return /\/dev\/null\s*$/.test(segment.trim());
+}
+
 export class WritePatternDetector {
   detect(segment: string): { ok: boolean; debug?: { rule: string; text: string } } {
+    // /dev/null redirect'leri güvenli — gerçek dosya yazma yok
+    if (isDevNullRedirect(segment)) return { ok: false };
+
     const unquoted = stripDoubleQuotes(segment);
 
     // 1. Temel redirection pattern'ları

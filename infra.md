@@ -53,18 +53,18 @@ index.ts (entry point)
 │   │   ├── snap-handler.ts      ← snap list/info/find read-only, diğerleri write
 │   │   ├── tune2fs-handler.ts   ← tune2fs -l read-only, diğerleri write
 │   │   ├── ufw-handler.ts       ← ufw status/show/list read-only, diğerleri write
-│   │   ├── iptables-handler.ts  ← iptables -L/-S/-C read-only, diğerleri write
+│   │   ├── iptables-handler.ts  ← short flag whitelist kontrolü + long flag IPTABLES_READ_ONLY
 │   │   ├── scriptreplay-handler.ts ← her zaman read-only
 │   │   └── partprobe-handler.ts ← partprobe -s/-d read-only, diğerleri write
 │   ├── write-patterns/
-│   │   └── write-pattern-detector.ts ← redirection, interpreter writes, reverse shell, xargs read-only detection
+│   │   └── write-pattern-detector.ts ← redirection, interpreter writes, reverse shell, /dev/null bypass
 │   ├── resolution/
-│   │   └── command-resolver.ts  ← sudo/su/ssh peel-through
+│   │   └── command-resolver.ts  ← sudo/su/ssh peel-through (-l/-L terminal flag desteği)
 │   └── parsing/
 │       ├── loop-extractor.ts    ← for/while döngü gövdesi çıkarma
 │       └── substitution-detector.ts ← $() ve backtick recursive check
 └── data/
-    ├── readonly-whitelist.json  ← whitelist komut listesi (320 komut, dpkg/dpkg-query, mail/mailx/mutt/elm/pine, svn/hg/bzr, service/init/telinit/runlevel, bvi/hexedit, nc/ncat/netcat/socat kaldırıldı)
+    ├── readonly-whitelist.json  ← whitelist komut listesi (321 komut, dpkg/dpkg-query, mail/mailx/mutt/elm/pine, svn/hg/bzr, service/init/telinit/runlevel, bvi/hexedit, nc/ncat/netcat/socat kaldırıldı)
     └── readonly-rules.ts        ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS vb. whitelist sabitleri
 ```
 
@@ -156,7 +156,7 @@ src/readonly-checker/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (320 komut, dpkg/dpkg-query, mail/mailx/mutt/elm/pine, svn/hg/bzr, service/init/telinit/runlevel, bvi/hexedit, nc/ncat/netcat/socat kaldırıldı)
+├── readonly-whitelist.json          ← whitelist komut listesi (321 komut, dpkg/dpkg-query, mail/mailx/mutt/elm/pine, svn/hg/bzr, service/init/telinit/runlevel, bvi/hexedit, nc/ncat/netcat/socat kaldırıldı)
 └── readonly-rules.ts                ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS, PARTX_READ_ONLY, KPARTX_READ_ONLY, DMSETUP_READ_ONLY, SNAP_READ_ONLY, TUNE2FS_READ_ONLY, UFW_READ_ONLY, IPTABLES_READ_ONLY, PARTPROBE_READ_ONLY vb. whitelist sabitleri
 ```
 
@@ -398,6 +398,15 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - `command_execute` tool'unda sessionId UUID validation mevcut
 
 ## Changelog
+
+### False Positive Düzeltmeleri
+- `iptables -L -n` false positive düzeltildi — handler'a short flag whitelist kontrolü eklendi
+- `sudo -l` false positive düzeltildi — resolver `-l`/`-L` terminal flag desteği kazandırdı
+- `lastb` whitelist'e eklendi (failed login kayıtları okuma komutu)
+- `2>/dev/null` false positive düzeltildi — WritePatternDetector `/dev/null` bypass desteği kazandırdı
+- `command-checker.ts` satır sayısı: 206 → 214
+- `CheckResult` interface'e debug alanları eklendi: `checkLayer`, `resolvedCommand`, `originalCommand`, `handlerName`, `pipeSegments`
+- `command-tools.ts` gereksiz `?? 60000` fallback kaldırıldı (Zod `.default(60000)` yeterli)
 
 ### Dead Code Temizliği
 - `CRONTAB_WRITE_FLAGS`, `SHELL_PATTERNS`, `SCRIPTREPLAY_READ_ONLY` → `readonly-rules.ts`'den kaldırıldı (kullanılmıyordu)

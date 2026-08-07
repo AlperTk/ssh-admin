@@ -11,6 +11,11 @@ export function resolveCommand(cmd: string): string {
     let rest = cmd.substring(firstToken.length).trimStart();
     while (rest.startsWith('-') && !rest.match(/^[a-zA-Z]/)) {
       const flagEnd = rest.search(/\s+/);
+      const flag = flagEnd === -1 ? rest : rest.substring(0, flagEnd);
+      // -l (list sudo perms) ve diğer okuma flag'leri → son flag, sudo olarak döndür
+      if (flag === '-l' || flag === '-L' || flag === '-V' || flag === '--version' || flag === '--help') {
+        return 'sudo';
+      }
       if (flagEnd === -1) break;
       const afterFlag = rest.substring(flagEnd).trimStart();
       if (afterFlag.startsWith('-')) {
