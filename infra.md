@@ -37,15 +37,18 @@ index.ts (MCP tools)
 ### Ne Yapar?
 `command_execute` tool'unda gelen komutu filtreler:
 1. Komut whitelist'te yoksa → engelle
-2. Whitelist'te varsa ama write pattern içeriyorsa → engelle
-3. İkisi de geçerse → izin ver
+2. Whitelist'te varsa ama handler whitelist'te yoksa → engelle
+3. Handler whitelist'te yoksa → engelle
+4. Her iki kontrol de geçerse → izin ver
 
-### Tasarım Deseni: Singleton + Direct Dispatch + Early Exit
+### Tasarım Deseni: Singleton + Direct Dispatch + Early Exit + Whitelist-Only
 - **Whitelist**: `Set.has()` → O(1) lookup
+- **Handler Whitelist**: Her handler kendi safe flag/subcommand whitelist'ine sahiptir
 - **Routing**: `Map.get(cmd)` → direkt handler'a (chain iteration yok)
 - **I/O**: JSON bir kez constructor'da okunur, her check'te tekrar okunmaz
 - **Regex**: Constructor'da derlenir, her check'te yeniden compile edilmez
 - **Early exit**: Whitelist miss → hemen dön, daha fazla işlem yapılmaz
+- **Whitelist-Only**: Bilinmeyen flag/subcommand → engelle (blacklist kaldırıldı)
 
 ### Dosya Yapısı
 ```
@@ -56,20 +59,21 @@ src/readonly-checker/
 │   ├── whitelist: Set<string>       ← O(1) lookup
 │   ├── handlers: Map<string, Fn>    ← O(1) direct dispatch
 │   └── patternDetector              ← write pattern detection
-├── write-handlers/                  ← her komut tipi için write kontrolü
-│   ├── git-handler.ts               ← git write komutları (commit, push, init...)
-│   ├── docker-handler.ts            ← docker write subkomutları (rm, run, stop...)
-│   ├── systemctl-handler.ts         ← systemctl write subkomutları (start, stop...)
-│   ├── curl-wget-handler.ts         ← -o/-O output, -d/--data exfiltration
-│   ├── ip-handler.ts                ← ip write subkomutları (add, del, flush...)
-│   ├── apt-handler.ts               ← apt write komutları (install, remove...)
+├── write-handlers/                  ← her komut tipi için whitelist kontrolü
+│   ├── git-handler.ts               ← git READ_ONLY whitelist (log, diff, status...)
+│   ├── docker-handler.ts            ← docker DOCKER_READ_ONLY whitelist
+│   ├── systemctl-handler.ts         ← systemctl SYSTEMCTL_READ_ONLY whitelist
+│   ├── curl-wget-handler.ts         ← curl safe flag whitelist, wget tüm HTTP/FTP engelle
+│   ├── ip-handler.ts                ← ip IP_READ_ONLY + IP_READ_ONLY_SUBCOMMANDS whitelist
+│   ├── apt-handler.ts               ← apt APT_READ_ONLY whitelist
 │   ├── crontab-handler.ts           ← -e flag (yazma)
-│   ├── firewall-cmd-handler.ts      ← --list-* / --get-* hariç hepsi yazma
+│   ├── firewall-cmd-handler.ts      ← --list-* / --get-* whitelist
 │   ├── rsync-handler.ts             ← her zaman yazma
 │   ├── mktemp-handler.ts            ← her zaman yazma
 │   ├── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
-│   ├── journalctl-handler.ts        ← --vacuum-size/--rotate/--flush vb. write flag tespiti
-│   └── awk-handler.ts               ← awk write pattern (print > file, system(), getline)
+│   ├── journalctl-handler.ts        ← JOURNALCTL_SAFE_FLAGS whitelist
+│   ├── awk-handler.ts               ← AWK_SAFE_PATTERNS whitelist
+│   └── tar-handler.ts               ← tar create/extract/write detection (whitelist)
 ├── write-patterns/
 │   └── write-pattern-detector.ts    ← redirection, interpreter writes, reverse shell, xargs read-only detection
 ├── resolution/
@@ -78,8 +82,8 @@ src/readonly-checker/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (355 komut)
-└── readonly-rules.ts                ← GIT_WRITE_COMMANDS, DOCKER_READ_ONLY vb. sabitler
+├── readonly-whitelist.json          ← whitelist komut listesi (355+ komut)
+└── readonly-rules.ts                ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS vb. whitelist sabitleri
 ```
 
 ### Kontrol Akışı
@@ -91,10 +95,28 @@ check(command)
   → per segment:
        1. resolve (sudo/su/ssh peel)
        2. whitelist.has(cmd) → YOKSA ❌ early exit
-       3. handlers.get(cmd)?.hasWriteArg() → EVET ❌
+       3. handlers.get(cmd)?.hasWriteArg() → EVET ❌ (whitelist kontrolü)
        4. write pattern detector → EVET ❌
   → ✅ izin
 ```
+
+### Whitelist-Only Yaklaşımı
+Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izinli, bilinmeyen her şey engellenir.
+
+| Handler | Whitelist |
+|---|---|
+| git | `GIT_READ_ONLY[]` — log, diff, status, show... |
+| docker | `DOCKER_READ_ONLY` set — ps, images, inspect... |
+| systemctl | `SYSTEMCTL_READ_ONLY` set — status, is-active, list-units... |
+| curl | `CURL_SAFE_FLAGS` set — -s, -v, -I, -w, --compressed... |
+| wget | **Tüm HTTP/FTP çağrıları engellenir** (varsayılan dosya yazar) |
+| ip | `IP_READ_ONLY` + `IP_READ_ONLY_SUBCOMMANDS` map |
+| apt | `APT_READ_ONLY` set — list, show, search, update... |
+| journalctl | `JOURNALCTL_SAFE_FLAGS` set — --no-pager, --lines, -f... |
+| awk | `AWK_SAFE_PATTERNS[]` — print, printf, BEGIN, END... |
+| tar | `TAR_SAFE_FLAGS` + create/extract detection |
+| scp | `user@host:/path` pattern tespiti |
+| rsync/mktemp | Her zaman yazma (true döner) |
 
 ### Hata Mesajı Formatı (Debug Info)
 ```json
@@ -118,27 +140,28 @@ check(command)
 
 #### Yeni Write Handler Ekleme
 1. `src/readonly-checker/write-handlers/<name>-handler.ts` oluştur
-2. Export: `export function hasWriteArg(cmd: string): boolean`
-3. `command-checker.ts` Map'e kaydet
+2. **Whitelist yaklaşımı**: sadece bilinen safe flag/subcommand'ları izin ver
+3. Export: `export function hasWriteArg(cmd: string): boolean`
+4. `command-checker.ts` Map'e kaydet
 
-#### Yeni Write Pattern Ekleme
-1. `src/data/readonly-rules.ts` → yeni regex ekle
-2. `src/readonly-checker/write-patterns/write-pattern-detector.ts` → detect() metoduna ekle
-3. `test/readonly-checker/write-patterns/write-pattern-detector.test.ts` → test ekle
+#### Yeni Whitelist Sabiti Ekleme
+1. `src/data/readonly-rules.ts` → yeni whitelist Set/Array ekle
+2. İlgili handler'da kullan
+3. `test/readonly-checker/write-handlers/<name>-handler.test.ts` → test ekle
 
 #### Hangi Dosyaya Bakmalı?
 | İhtiyaç | Dosya |
 |---|---|
-| Whitelist güncelle | `src/data/readonly-whitelist.json` |
-| Yeni komut write kontrolü | `write-handlers/` veya `write-patterns/` |
+| Komut whitelist güncelle | `src/data/readonly-whitelist.json` |
+| Yeni komut write kontrolü | `write-handlers/<name>-handler.ts` |
+| Handler whitelist sabiti | `src/data/readonly-rules.ts` |
 | Komut resolution (sudo/su/ssh) | `resolution/command-resolver.ts` |
 | Loop/substitution parsing | `parsing/loop-extractor.ts`, `parsing/substitution-detector.ts` |
-| Tüm write pattern kuralları | `write-patterns/write-pattern-detector.ts` |
-| Sabitler (GIT_WRITE_COMMANDS vb.) | `src/data/readonly-rules.ts` |
+| Write pattern kuralları | `write-patterns/write-pattern-detector.ts` |
 
 ### Testler
 ```bash
-npm test              # 358 test
+npm test              # 362 test
 ```
 
 #### Test Yapısı
@@ -152,7 +175,7 @@ test/
     │   ├── git-handler.test.ts          ← gitHasWriteArg (read/write alt komutlar)
     │   ├── docker-handler.test.ts       ← dockerHasWriteArg (namespace + action kontrolü)
     │   ├── systemctl-handler.test.ts    ← systemctlHasWriteArg (read-only set karşılaştırma)
-    │   ├── curl-wget-handler.test.ts    ← curlWgetHasWriteArg (-o/-O/-d/--data pattern'ları)
+    │   ├── curl-wget-handler.test.ts    ← curlWgetHasWriteArg (curl safe flag whitelist, wget tüm HTTP/FTP engelle)
     │   ├── ip-handler.test.ts           ← ipHasWriteArg (addr/link/route eylemleri)
     │   ├── apt-handler.test.ts          ← aptHasWriteArg (read-only vs write komutlar)
     │   ├── crontab-handler.test.ts      ← crontabHasWriteArg (-e flag tespiti)
@@ -160,7 +183,8 @@ test/
     │   ├── rsync-handler.test.ts        ← her zaman write (true döner)
     │   ├── mktemp-handler.test.ts       ← her zaman write (true döner)
 │   ├── fail2ban-handler.test.ts     ← status/gettag read-only, diğerleri write
-│   └── journalctl-handler.test.ts   ← --vacuum-size/--rotate/--flush vb. write flag tespiti
+│   ├── journalctl-handler.test.ts   ← JOURNALCTL_SAFE_FLAGS whitelist
+│   └── tar-handler.test.ts          ← tar create/extract/write detection
     ├── write-patterns/
     │   └── write-pattern-detector.test.ts ← redirection, interpreter writes, reverse shell
     ├── parsing/
@@ -172,8 +196,8 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (341)
-npm test -- test/readonly-checker/    # readonly-checker modülü (323 test)
+npm test                              # tüm testler (362)
+npm test -- test/readonly-checker/    # readonly-checker modülü (347 test)
 npm test -- test/pool.test.ts         # ConnectionPool (6 test)
 npm test -- test/registry.test.ts     # Registry (12 test)
 npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git handler (31 test)
