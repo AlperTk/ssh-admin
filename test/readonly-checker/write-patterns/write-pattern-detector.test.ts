@@ -205,14 +205,11 @@ describe("WritePatternDetector", () => {
   });
 
   describe("tar create", () => {
-    it("should detect tar cf", () => {
-      expect(detector.detect("tar cf archive.tar .")).toMatchObject({ ok: true });
-      expect(detector.detect("tar czf archive.tar.gz dir/")).toMatchObject({ ok: true });
-      expect(detector.detect("tar cJf archive.tar.xz dir/")).toMatchObject({ ok: true });
-    });
-    it("should detect tar --create", () => {
-      expect(detector.detect("tar --create --file archive.tar .")).toMatchObject({ ok: true });
-      expect(detector.detect("tar -c --file archive.tar .")).toMatchObject({ ok: true });
+    it("tar create/extract artık tar-handler'da kontrol edilir", () => {
+      // tar pattern detection write-pattern-detector'dan kaldırıldı
+      // tar-handler whitelist yaklaşımı kullanıyor
+      expect(detector.detect("tar cf archive.tar .")).toMatchObject({ ok: false });
+      expect(detector.detect("tar xf archive.tar .")).toMatchObject({ ok: false });
     });
   });
 

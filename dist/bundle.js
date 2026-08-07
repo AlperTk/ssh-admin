@@ -51489,52 +51489,113 @@ function tokenize(input, options) {
 }
 
 // src/data/readonly-rules.ts
-var GIT_WRITE_COMMANDS = [
-  "commit",
-  "push",
-  "merge",
-  "rebase",
-  "reset",
-  "clean",
-  "am",
-  "apply",
-  "bisect",
-  "cherry-pick",
-  "force-push",
-  "clone",
-  "pull",
-  "fetch",
-  "checkout",
-  "restore",
+var GIT_READ_ONLY = [
+  "log",
+  "show",
+  "diff",
+  "status",
+  "tag",
+  "describe",
+  "blame",
+  "shortlog",
+  "for-each-ref",
+  "ls-files",
+  "ls-tree",
+  "rev-list",
+  "rev-parse",
+  "name-rev",
+  "cat-file",
+  "verify-tag",
+  "verify-commit",
+  "diff-tree",
+  "diff-files",
+  "pack-refs",
+  "count-objects",
+  "var",
+  "config",
+  "version",
+  "remote",
+  "worktree",
   "stash",
-  "revert",
-  "add",
-  "rm",
-  "mv",
-  "gc",
-  "prune",
-  "replace",
-  "filter-branch",
-  "init",
-  "bare",
-  "signoff"
+  "mailinfo",
+  "mailsplit",
+  "interpret-trailers",
+  "fmt-merge-msg",
+  "merge-tree",
+  "mktree",
+  "write-tree",
+  "read-tree",
+  "update-index",
+  "update-ref",
+  "symbolic-ref",
+  "get-toplevel",
+  "is-inside-work-tree",
+  "is-inside-git-dir",
+  "sort-object",
+  "branch",
+  "reflog"
 ];
 var GIT_STASH_READ_ONLY = ["list", "show", "push"];
-var JOURNALCTL_WRITE_FLAGS = /* @__PURE__ */ new Set([
-  "--vacuum-size",
-  "--vacuum-time",
-  "--vacuum-files",
-  "--rotate",
-  "--flush",
-  "--sync",
-  "--relinquish-mount",
-  "--disk-size",
-  "--max-file-size",
-  "--compress",
-  "--move-catalog",
-  "--compress-catalog",
-  "--no-reorder",
-  "--header"
+var JOURNALCTL_SAFE_FLAGS = /* @__PURE__ */ new Set([
+  "--no-pager",
+  "--no-full",
+  "--lines",
+  "--output",
+  "--quiet",
+  "--all",
+  "--utc",
+  "--reverse",
+  "--since",
+  "--until",
+  "--cursor",
+  "--identifier",
+  "--unit",
+  "--priority",
+  "--grep",
+  "--field",
+  "--catalog",
+  "--disk-use",
+  "--list-boots",
+  "--machine",
+  "--root",
+  "--user",
+  "--system",
+  "--boot",
+  "--current",
+  "--dmesg",
+  "--effect",
+  "--follow",
+  "--force",
+  "--help",
+  "--interval",
+  "--journal-dir",
+  "--local-timezone",
+  "--match",
+  "--namespace",
+  "--show-cursor",
+  "--tail",
+  "--transient-key",
+  "--uid",
+  "--version",
+  "-f",
+  "-n",
+  "-o",
+  "-q",
+  "-a",
+  "-u",
+  "-p",
+  "-g",
+  "-F",
+  "-b",
+  "-k",
+  "-e",
+  "-m",
+  "-x",
+  "-i",
+  "--no-pager",
+  "--no-full",
+  "--disk",
+  "--verify"
 ]);
 var SYSTEMCTL_READ_ONLY = /* @__PURE__ */ new Set([
   "status",
@@ -51570,28 +51631,14 @@ var IP_READ_ONLY = /* @__PURE__ */ new Set([
   "check",
   "session"
 ]);
-var IP_WRITE_COMMANDS = /* @__PURE__ */ new Set([
-  "add",
-  "del",
-  "change",
-  "chg",
-  "replace",
-  "flush",
-  "set",
-  "create",
-  "destroy",
-  "remove",
-  "save",
-  "restore"
-]);
-var IP_WRITE_SUBCOMMANDS = /* @__PURE__ */ new Map([
-  ["addr", ["add", "del", "flush"]],
-  ["link", ["set", "add", "del", "delete", "change", "chg", "replace"]],
-  ["route", ["add", "del", "change", "chg", "replace", "append"]],
-  ["neigh", ["add", "del", "replace", "chgr"]],
-  ["rule", ["add", "del", "flush"]],
-  ["tunnel", ["add", "del", "change", "chg", "replace"]],
-  ["maddr", ["add", "del", "change", "chg", "replace"]]
+var IP_READ_ONLY_SUBCOMMANDS = /* @__PURE__ */ new Map([
+  ["addr", ["show", "list"]],
+  ["link", ["show", "list"]],
+  ["route", ["show", "list"]],
+  ["neigh", ["show", "list"]],
+  ["rule", ["show", "list"]],
+  ["tunnel", ["show", "list"]],
+  ["maddr", ["show", "list"]]
 ]);
 var APT_READ_ONLY = /* @__PURE__ */ new Set([
   "list",
@@ -51611,19 +51658,6 @@ var APT_READ_ONLY = /* @__PURE__ */ new Set([
   "check",
   "simulator",
   "autoremove"
-]);
-var APT_WRITE_COMMANDS = /* @__PURE__ */ new Set([
-  "install",
-  "remove",
-  "purge",
-  "reinstall",
-  "hold",
-  "unhold",
-  "lock",
-  "unlock",
-  "clean",
-  "autoclean",
-  "fix-broken"
 ]);
 var DOCKER_READ_ONLY = /* @__PURE__ */ new Set([
   "ps",
@@ -51650,34 +51684,6 @@ var DOCKER_READ_ONLY = /* @__PURE__ */ new Set([
   "container",
   "image",
   "system"
-]);
-var DOCKER_WRITE_COMMANDS = /* @__PURE__ */ new Set([
-  "rm",
-  "rmi",
-  "prune",
-  "stop",
-  "start",
-  "restart",
-  "kill",
-  "run",
-  "update",
-  "rename",
-  "tag",
-  "push",
-  "save",
-  "load",
-  "import",
-  "export",
-  "commit",
-  "cp",
-  "attach",
-  "wait",
-  "build",
-  "create",
-  "pause",
-  "unpause",
-  "resize",
-  "modify"
 ]);
 var DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
   ["system", ["prune"]],
@@ -51708,12 +51714,6 @@ var FIND_EXEC_RE = /\bfind\b.*(-exec|-execdir)\b/;
 var CP_STDIN_RE = /\/dev\/stdin/;
 var CP_DASH_RE = /-\s*$/;
 var DD_OF_RE = /\bof\s*=\s*[^s]/;
-var TAR_CREATE_SHORT_RE = /\bc[a-zA-Z]*f/;
-var TAR_CREATE_LONG_RE = /--create/;
-var TAR_CF_RE = /-c\s+--file/;
-var TAR_EXTRACT_SHORT_RE = /\bx[a-zA-Z]*f/;
-var TAR_EXTRACT_LONG_RE = /--extract/;
-var TAR_XF_RE = /-x\s+--file/;
 var INTERPRETER_RE = /\b(python3?|perl|ruby|node)\b/;
 var PYTHON_OPEN_RE = /\bopen\s*\(/;
 var PYTHON_OS_RE = /\bos\.(system|popen|write)\s*\(/;
@@ -51725,14 +51725,28 @@ var REVERSE_SHELL_NET_RE = /\b(nc|ncat|netcat|socat)\b/;
 var REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
 var REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
 var REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
-var AWK_WRITE_PATTERNS = [
-  /print\s+.*>\s*\/[^n]/,
-  /print\s+.*>>\s*\/[^n]/,
-  /printf\s+.*>\s*\/[^n]/,
-  /printf\s+.*>>\s*\/[^n]/,
-  /\bsystem\s*\(/,
-  /\bgetline\s*<\s*\/[^n]/,
-  /\bgetline\s*\|\//
+var AWK_SAFE_PATTERNS = [
+  /print\s+[\$]?/,
+  /print\s+[^>]/,
+  /printf\s+["'].*["']\s*,?\s*/,
+  /\bBEGIN\b/,
+  /\bEND\b/,
+  /\bif\s*\(/,
+  /\bfor\s*\(/,
+  /\bwhile\s*\(/,
+  /\bnext\b/,
+  /\bexit\b/,
+  /\bdelete\s+\w+/,
+  /\blength\s*\(/,
+  /\bsplit\s*\(/,
+  /\bsubstr\s*\(/,
+  /\bsub\s*\(/,
+  /\bgsub\s*\(/,
+  /\bindex\s*\(/,
+  /\bmatch\s*\(/,
+  /\btoupper\s*\(/,
+  /\blower\s*\(/,
+  /\bsort\s*\(/
 ];
 
 // src/readonly-checker/write-handlers/git-handler.ts
@@ -51774,7 +51788,7 @@ function gitHasWriteArg(cmd) {
     if (thirdToken && !GIT_STASH_READ_ONLY.includes(thirdToken)) return true;
     return false;
   }
-  return GIT_WRITE_COMMANDS.includes(token);
+  return !GIT_READ_ONLY.includes(token);
 }
 
 // src/readonly-checker/write-handlers/docker-handler.ts
@@ -51823,7 +51837,6 @@ function dockerHasWriteArg(cmd) {
     if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) return true;
   }
   if (DOCKER_READ_ONLY.has(subCmd)) return false;
-  if (DOCKER_WRITE_COMMANDS.has(subCmd)) return true;
   if (subCmd === "exec") {
     let execRest = skipFlags(rest.substring(subCmd.length).trimStart());
     if (execRest.startsWith("--container")) {
@@ -51896,13 +51909,96 @@ function systemctlHasWriteArg(cmd) {
 }
 
 // src/readonly-checker/write-handlers/curl-wget-handler.ts
+var CURL_SAFE_FLAGS = /* @__PURE__ */ new Set([
+  "-s",
+  "-v",
+  "-I",
+  "-w",
+  "-A",
+  "-e",
+  "-H",
+  "-b",
+  "-c",
+  "-G",
+  "-4",
+  "-6",
+  "-L",
+  "-k",
+  "-m",
+  "--compressed",
+  "--retry",
+  "--connect-timeout",
+  "--max-time",
+  "--interface",
+  "--tcpnodelay",
+  "--globoff",
+  "--progress-bar",
+  "--remote-name-all",
+  "--silent",
+  "--verbose",
+  "--head",
+  "--write-out",
+  "--user-agent",
+  "--referer",
+  "--header",
+  "--cookie",
+  "--cookie-jar",
+  "--get",
+  "--ipv4",
+  "--ipv6",
+  "--location",
+  "--insecure",
+  "--max-time"
+]);
+var CURL_WRITE_LONG_FLAGS = /* @__PURE__ */ new Set([
+  "output",
+  "dump-header",
+  "trace",
+  "trace-ascii",
+  "libcurl",
+  "stderr",
+  "config",
+  "egd-file",
+  "log-file",
+  "random-file",
+  "output-dir",
+  "compressed-session-file",
+  "tlsautofingerprint",
+  "tlspinnedkey",
+  "unix-socket",
+  "proxy-service-name",
+  "service-name"
+]);
 function curlWgetHasWriteArg(cmd) {
-  if (/\s-[^\s]*[oO]/.test(cmd)) return true;
-  if (/--output\s*=\s*file/i.test(cmd)) return true;
-  if (/--content-disposition/.test(cmd)) return true;
-  if (/\bwget\b\s+https?:\/\//.test(cmd)) return true;
-  if (/\s-[dD]\b/.test(cmd) || /\s-[dD]$/.test(cmd)) return true;
-  if (/--data\s*=/.test(cmd) || /--post-data\s*=/.test(cmd)) return true;
+  if (/\bwget\b/.test(cmd)) return true;
+  if (!/\bcurl\b/.test(cmd)) return false;
+  const tokens = cmd.split(/\s+/);
+  let hasUnknownFlag = false;
+  let hasWriteFlag = false;
+  for (let i = 1; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.startsWith("--")) {
+      const flagName = token.split("=")[0];
+      if (CURL_WRITE_LONG_FLAGS.has(flagName)) {
+        hasWriteFlag = true;
+      } else if (!CURL_SAFE_FLAGS.has(flagName)) {
+        hasUnknownFlag = true;
+      }
+      continue;
+    }
+    if (token.startsWith("-") && !token.startsWith("--")) {
+      const flags = token.substring(1).split("");
+      for (const f of flags) {
+        const flagKey = "-" + f;
+        if (!CURL_SAFE_FLAGS.has(flagKey)) {
+          hasUnknownFlag = true;
+        }
+      }
+      continue;
+    }
+  }
+  if (hasUnknownFlag) return true;
+  if (hasWriteFlag) return true;
   return false;
 }
 
@@ -51949,13 +52045,16 @@ function ipHasWriteArg(cmd) {
   rest = skipFlags3(rest);
   const subCmd = getFirstToken3(rest);
   if (!subCmd) return false;
-  if (IP_READ_ONLY.has(subCmd)) {
+  const subCmdLower = subCmd.toLowerCase();
+  if (IP_READ_ONLY.has(subCmdLower)) {
     let nsRest = skipFlags3(rest.substring(subCmd.length).trimStart());
     const action = getFirstToken3(nsRest);
-    if (action && IP_WRITE_SUBCOMMANDS.get(subCmd)?.includes(action)) return true;
-    return false;
+    const allowedActions = IP_READ_ONLY_SUBCOMMANDS.get(subCmdLower);
+    if (allowedActions && action && allowedActions.includes(action)) return false;
+    if (!allowedActions) return false;
+    return true;
   }
-  return IP_WRITE_COMMANDS.has(subCmd);
+  return true;
 }
 
 // src/readonly-checker/write-handlers/apt-handler.ts
@@ -52001,8 +52100,7 @@ function aptHasWriteArg(cmd) {
   rest = skipFlags4(rest);
   const subCmd = getFirstToken4(rest);
   if (!subCmd) return false;
-  if (APT_READ_ONLY.has(subCmd)) return false;
-  return APT_WRITE_COMMANDS.has(subCmd);
+  return !APT_READ_ONLY.has(subCmd);
 }
 
 // src/readonly-checker/write-handlers/crontab-handler.ts
@@ -52073,8 +52171,19 @@ function journalctlHasWriteArg(cmd) {
   const rest = cmd.substring(idx + 10).trimStart();
   const tokens = rest.split(/\s+/);
   for (const token of tokens) {
+    if (!token.startsWith("-")) continue;
     const flag = token.split("=")[0];
-    if (JOURNALCTL_WRITE_FLAGS.has(flag)) return true;
+    if (flag.startsWith("--")) {
+      if (!JOURNALCTL_SAFE_FLAGS.has(flag)) return true;
+      continue;
+    }
+    if (flag.length === 2) {
+      if (!JOURNALCTL_SAFE_FLAGS.has(flag)) return true;
+    } else if (flag.length > 2) {
+      for (let i = 1; i < flag.length; i++) {
+        if (!JOURNALCTL_SAFE_FLAGS.has("-" + flag[i])) return true;
+      }
+    }
   }
   return false;
 }
@@ -52095,10 +52204,11 @@ function awkHasWriteArg(cmd) {
       if (ch === " " || ch === "	" || ch === ";") break;
     }
   }
-  for (const pattern of AWK_WRITE_PATTERNS) {
-    if (pattern.test(program)) return true;
+  if (!program.trim()) return false;
+  for (const pattern of AWK_SAFE_PATTERNS) {
+    if (pattern.test(program)) return false;
   }
-  return false;
+  return true;
 }
 
 // src/readonly-checker/write-handlers/scp-handler.ts
@@ -52109,6 +52219,37 @@ function scpHasWriteArg(cmd) {
     return true;
   }
   return false;
+}
+
+// src/readonly-checker/write-handlers/tar-handler.ts
+var TAR_SAFE_FLAGS = /* @__PURE__ */ new Set([
+  "t",
+  "tf",
+  "tvf",
+  "tzf",
+  "tc",
+  "tcv"
+]);
+function tarHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("tar");
+  if (idx === -1) return false;
+  let rest = cmd.substring(idx + 3).trimStart();
+  const tokens = rest.split(/\s+/);
+  if (!tokens[0]) return false;
+  const firstToken = tokens[0];
+  if (firstToken.startsWith("-")) {
+    const flags = firstToken.substring(1);
+    if (flags.includes("c")) return true;
+    if (flags.includes("x")) return true;
+    if (flags.includes("t")) return false;
+    return true;
+  }
+  for (const token of tokens) {
+    if (token === "--create" || token === "--replace") return true;
+    if (token === "--extract" || token === "--get") return true;
+    if (token === "--list" || token === "--list-newer") return false;
+  }
+  return !TAR_SAFE_FLAGS.has(firstToken);
 }
 
 // src/readonly-checker/write-patterns/write-pattern-detector.ts
@@ -52256,14 +52397,6 @@ var WritePatternDetector = class {
       if (CP_DASH_RE.test(unquoted)) return { ok: true, debug: { rule: "CP_DASH_RE", text: "cp -" } };
     }
     if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return { ok: true, debug: { rule: "DD_OF_RE", text: "dd of=" } };
-    if (/\btar\b/.test(unquoted)) {
-      if (TAR_CREATE_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CREATE_SHORT_RE", text: "tar cf" } };
-      if (TAR_CREATE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CREATE_LONG_RE", text: "tar --create" } };
-      if (TAR_CF_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CF_RE", text: "tar -c --file" } };
-      if (TAR_EXTRACT_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_EXTRACT_SHORT_RE", text: "tar xf" } };
-      if (TAR_EXTRACT_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_EXTRACT_LONG_RE", text: "tar --extract" } };
-      if (TAR_XF_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_XF_RE", text: "tar -x --file" } };
-    }
     const interpResult = this.detectInterpreterWrites(unquoted);
     if (interpResult.ok) return interpResult;
     const reverseShellResult = this.detectReverseShell(unquoted);
@@ -52457,7 +52590,8 @@ var CommandChecker = class {
       ["fail2ban-client", fail2banHasWriteArg],
       ["journalctl", journalctlHasWriteArg],
       ["awk", awkHasWriteArg],
-      ["scp", scpHasWriteArg]
+      ["scp", scpHasWriteArg],
+      ["tar", tarHasWriteArg]
     ]);
     this.patternDetector = new WritePatternDetector();
   }

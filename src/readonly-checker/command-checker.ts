@@ -15,6 +15,7 @@ import { fail2banHasWriteArg } from './write-handlers/fail2ban-handler.js';
 import { journalctlHasWriteArg } from './write-handlers/journalctl-handler.js';
 import { awkHasWriteArg } from './write-handlers/awk-handler.js';
 import { scpHasWriteArg } from './write-handlers/scp-handler.js';
+import { tarHasWriteArg } from './write-handlers/tar-handler.js';
 import { WritePatternDetector } from './write-patterns/write-pattern-detector.js';
 import { resolveCommand, getFirstToken as resolverGetFirstToken } from './resolution/command-resolver.js';
 import { extractLoopBody } from './parsing/loop-extractor.js';
@@ -78,6 +79,7 @@ export class CommandChecker {
       ['journalctl', journalctlHasWriteArg],
       ['awk', awkHasWriteArg],
       ['scp', scpHasWriteArg],
+      ['tar', tarHasWriteArg],
     ]);
 
     this.patternDetector = new WritePatternDetector();

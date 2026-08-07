@@ -1,4 +1,4 @@
-import { IP_READ_ONLY, IP_WRITE_COMMANDS, IP_WRITE_SUBCOMMANDS } from '../../data/readonly-rules.js';
+import { IP_READ_ONLY, IP_READ_ONLY_SUBCOMMANDS } from '../../data/readonly-rules.js';
 
 function getFirstToken(cmd: string): string {
   let token = '';
@@ -40,15 +40,21 @@ export function ipHasWriteArg(cmd: string): boolean {
   rest = skipFlags(rest);
   const subCmd = getFirstToken(rest);
   if (!subCmd) return false;
+  const subCmdLower = subCmd.toLowerCase();
 
   // ip {addr,link,route,...} {show,list} → okuma
-  if (IP_READ_ONLY.has(subCmd)) {
+  if (IP_READ_ONLY.has(subCmdLower)) {
     let nsRest = skipFlags(rest.substring(subCmd.length).trimStart());
     const action = getFirstToken(nsRest);
-    if (action && IP_WRITE_SUBCOMMANDS.get(subCmd)?.includes(action)) return true;
-    return false;
+    // Subcommand mapping varsa ve action whitelist'te → okuma
+    const allowedActions = IP_READ_ONLY_SUBCOMMANDS.get(subCmdLower);
+    if (allowedActions && action && allowedActions.includes(action)) return false;
+    // Subcommand mapping yoksa → okuma (monitor, check, session gibi)
+    if (!allowedActions) return false;
+    // Action whitelist'te yoksa → yazma
+    return true;
   }
 
-  // ip {add,del,...} → yazma
-  return IP_WRITE_COMMANDS.has(subCmd);
+  // Whitelist: READ_ONLY listesinde yoksa → yazma
+  return true;
 }

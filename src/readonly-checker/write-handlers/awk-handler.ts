@@ -1,4 +1,4 @@
-import { AWK_WRITE_PATTERNS } from '../../data/readonly-rules.js';
+import { AWK_SAFE_PATTERNS } from '../../data/readonly-rules.js';
 
 export function awkHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(4).trimStart();
@@ -15,9 +15,10 @@ export function awkHasWriteArg(cmd: string): boolean {
     }
   }
 
-  for (const pattern of AWK_WRITE_PATTERNS) {
-    if (pattern.test(program)) return true;
+  // Whitelist: sadece SAFE_PATTERNS listesindeki pattern'lar izinli
+  if (!program.trim()) return false;
+  for (const pattern of AWK_SAFE_PATTERNS) {
+    if (pattern.test(program)) return false;
   }
-
-  return false;
+  return true;
 }

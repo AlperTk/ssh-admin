@@ -1,4 +1,4 @@
-import { DOCKER_READ_ONLY, DOCKER_WRITE_COMMANDS, DOCKER_NAMESPACE_WRITE } from '../../data/readonly-rules.js';
+import { DOCKER_READ_ONLY, DOCKER_NAMESPACE_WRITE } from '../../data/readonly-rules.js';
 
 function getFirstToken(cmd: string): string {
   let token = '';
@@ -45,8 +45,8 @@ export function dockerHasWriteArg(cmd: string): boolean {
     if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) return true;
   }
 
+  // Whitelist: sadece DOCKER_READ_ONLY izinli
   if (DOCKER_READ_ONLY.has(subCmd)) return false;
-  if (DOCKER_WRITE_COMMANDS.has(subCmd)) return true;
 
   // docker exec özel kontrol
   if (subCmd === 'exec') {

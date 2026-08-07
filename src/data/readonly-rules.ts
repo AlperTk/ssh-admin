@@ -1,22 +1,39 @@
-// Git komutları: yazma işlemi yapan alt komutlar
-export const GIT_WRITE_COMMANDS = [
-  'commit', 'push', 'merge', 'rebase', 'reset', 'clean',
-  'am', 'apply', 'bisect', 'cherry-pick', 'force-push',
-  'clone', 'pull', 'fetch', 'checkout', 'restore',
-  'stash', 'revert', 'add', 'rm', 'mv',
-  'gc', 'prune', 'replace', 'filter-branch',
-  'init', 'bare', 'signoff',
+// Git: sadece bu alt komutlar okuma olarak kabul edilir
+export const GIT_READ_ONLY = [
+  'log', 'show', 'diff', 'status', 'tag', 'describe',
+  'blame', 'shortlog', 'for-each-ref', 'ls-files',
+  'ls-tree', 'rev-list', 'rev-parse', 'name-rev',
+  'cat-file', 'verify-tag', 'verify-commit',
+  'diff-tree', 'diff-files', 'pack-refs',
+  'count-objects', 'var', 'config', 'version',
+  'remote', 'worktree', 'stash', 'mailinfo', 'mailsplit',
+  'interpret-trailers', 'fmt-merge-msg', 'merge-tree',
+  'mktree', 'write-tree', 'read-tree', 'update-index',
+  'update-ref', 'symbolic-ref', 'get-toplevel', 'is-inside-work-tree',
+  'is-inside-git-dir', 'sort-object',
+  'branch', 'reflog',
 ] as const;
 
 export const GIT_STASH_READ_ONLY = ['list', 'show', 'push'] as const;
 
-// journalctl: write flag'ler engellenir, okuma flag'leri izinli
-export const JOURNALCTL_WRITE_FLAGS = new Set([
-  '--vacuum-size', '--vacuum-time', '--vacuum-files',
-  '--rotate', '--flush', '--sync',
-  '--relinquish-mount', '--disk-size', '--max-file-size', '--compress',
-  '--move-catalog', '--compress-catalog',
-  '--no-reorder', '--header',
+// journalctl: sadece bu flag'ler okuma olarak kabul edilir
+export const JOURNALCTL_SAFE_FLAGS = new Set([
+  '--no-pager', '--no-full', '--lines', '--output',
+  '--quiet', '--all', '--utc', '--reverse',
+  '--since', '--until', '--cursor', '--identifier',
+  '--unit', '--priority', '--grep', '--field',
+  '--catalog', '--disk-use', '--list-boots',
+  '--machine', '--root', '--user', '--system',
+  '--boot', '--current', '--dmesg', '--effect',
+  '--follow', '--force',
+  '--help', '--interval', '--journal-dir',
+  '--local-timezone', '--match', '--namespace',
+  '--show-cursor', '--tail', '--transient-key',
+  '--uid', '--version',
+  '-f', '-n', '-o', '-q', '-a', '-u', '-p',
+  '-g', '-F', '-b', '-k', '-e', '-m', '-x',
+  '-i', '--no-pager', '--no-full',
+  '--disk', '--verify',
 ]);
 
 // systemctl: sadece read-only alt komutlar izinli
@@ -33,19 +50,15 @@ export const IP_READ_ONLY = new Set([
   'maddr', 'monitor', 'check', 'session',
 ]);
 
-export const IP_WRITE_COMMANDS = new Set([
-  'add', 'del', 'change', 'chg', 'replace', 'flush', 'set',
-  'create', 'destroy', 'remove', 'save', 'restore',
-]);
-
-export const IP_WRITE_SUBCOMMANDS = new Map<string, string[]>([
-  ['addr', ['add', 'del', 'flush']],
-  ['link', ['set', 'add', 'del', 'delete', 'change', 'chg', 'replace']],
-  ['route', ['add', 'del', 'change', 'chg', 'replace', 'append']],
-  ['neigh', ['add', 'del', 'replace', 'chgr']],
-  ['rule', ['add', 'del', 'flush']],
-  ['tunnel', ['add', 'del', 'change', 'chg', 'replace']],
-  ['maddr', ['add', 'del', 'change', 'chg', 'replace']],
+// ip: read-only subcommand mapping (whitelist)
+export const IP_READ_ONLY_SUBCOMMANDS = new Map<string, string[]>([
+  ['addr', ['show', 'list']],
+  ['link', ['show', 'list']],
+  ['route', ['show', 'list']],
+  ['neigh', ['show', 'list']],
+  ['rule', ['show', 'list']],
+  ['tunnel', ['show', 'list']],
+  ['maddr', ['show', 'list']],
 ]);
 
 // apt: sadece read-only alt komutlar izinli
@@ -55,10 +68,7 @@ export const APT_READ_ONLY = new Set([
   'update', 'upgrade', 'check', 'simulator', 'autoremove',
 ]);
 
-export const APT_WRITE_COMMANDS = new Set([
-  'install', 'remove', 'purge', 'reinstall', 'hold', 'unhold',
-  'lock', 'unlock', 'clean', 'autoclean', 'fix-broken',
-]);
+
 
 // docker: sadece read-only alt komutlar izinli
 export const DOCKER_READ_ONLY = new Set([
@@ -68,12 +78,7 @@ export const DOCKER_READ_ONLY = new Set([
   'system',
 ]);
 
-export const DOCKER_WRITE_COMMANDS = new Set([
-  'rm', 'rmi', 'prune', 'stop', 'start', 'restart', 'kill', 'run',
-  'update', 'rename', 'tag', 'push', 'save', 'load', 'import',
-  'export', 'commit', 'cp', 'attach', 'wait', 'build', 'create',
-  'pause', 'unpause', 'resize', 'modify',
-]);
+
 
 export const DOCKER_NAMESPACE_WRITE = new Map<string, string[]>([
   ['system', ['prune']],
@@ -111,12 +116,7 @@ export const FIND_EXEC_RE = /\bfind\b.*(-exec|-execdir)\b/;
 export const CP_STDIN_RE = /\/dev\/stdin/;
 export const CP_DASH_RE = /-\s*$/;
 export const DD_OF_RE = /\bof\s*=\s*[^s]/;
-export const TAR_CREATE_SHORT_RE = /\bc[a-zA-Z]*f/;
-export const TAR_CREATE_LONG_RE = /--create/;
-export const TAR_CF_RE = /-c\s+--file/;
-export const TAR_EXTRACT_SHORT_RE = /\bx[a-zA-Z]*f/;
-export const TAR_EXTRACT_LONG_RE = /--extract/;
-export const TAR_XF_RE = /-x\s+--file/;
+
 export const INTERPRETER_RE = /\b(python3?|perl|ruby|node)\b/;
 export const PYTHON_OPEN_RE = /\bopen\s*\(/;
 export const PYTHON_OS_RE = /\bos\.(system|popen|write)\s*\(/;
@@ -129,13 +129,27 @@ export const REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
 export const REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
 export const REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
 
-// awk: write pattern'lar (awk program içindeki print/printf redirection, system(), getline)
-export const AWK_WRITE_PATTERNS = [
-  /print\s+.*>\s*\/[^n]/,
-  /print\s+.*>>\s*\/[^n]/,
-  /printf\s+.*>\s*\/[^n]/,
-  /printf\s+.*>>\s*\/[^n]/,
-  /\bsystem\s*\(/,
-  /\bgetline\s*<\s*\/[^n]/,
-  /\bgetline\s*\|\//,
+// awk: safe pattern'lar (whitelist — sadece bunlar izinli)
+export const AWK_SAFE_PATTERNS = [
+  /print\s+[\$]?/,
+  /print\s+[^>]/,
+  /printf\s+["'].*["']\s*,?\s*/,
+  /\bBEGIN\b/,
+  /\bEND\b/,
+  /\bif\s*\(/,
+  /\bfor\s*\(/,
+  /\bwhile\s*\(/,
+  /\bnext\b/,
+  /\bexit\b/,
+  /\bdelete\s+\w+/,
+  /\blength\s*\(/,
+  /\bsplit\s*\(/,
+  /\bsubstr\s*\(/,
+  /\bsub\s*\(/,
+  /\bgsub\s*\(/,
+  /\bindex\s*\(/,
+  /\bmatch\s*\(/,
+  /\btoupper\s*\(/,
+  /\blower\s*\(/,
+  /\bsort\s*\(/,
 ] as const;

@@ -40,5 +40,6 @@ export function systemctlHasWriteArg(cmd: string): boolean {
   rest = skipFlags(rest);
   const subCmd = getFirstToken(rest);
   if (!subCmd) return false;
+  // Whitelist: sadece READ_ONLY listesindeki komutlar izinli
   return !SYSTEMCTL_READ_ONLY.has(subCmd);
 }

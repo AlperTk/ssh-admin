@@ -1,4 +1,4 @@
-import { APT_READ_ONLY, APT_WRITE_COMMANDS } from '../../data/readonly-rules.js';
+import { APT_READ_ONLY } from '../../data/readonly-rules.js';
 
 function getFirstToken(cmd: string): string {
   let token = '';
@@ -40,6 +40,6 @@ export function aptHasWriteArg(cmd: string): boolean {
   rest = skipFlags(rest);
   const subCmd = getFirstToken(rest);
   if (!subCmd) return false;
-  if (APT_READ_ONLY.has(subCmd)) return false;
-  return APT_WRITE_COMMANDS.has(subCmd);
+  // Whitelist: sadece APT_READ_ONLY izinli
+  return !APT_READ_ONLY.has(subCmd);
 }

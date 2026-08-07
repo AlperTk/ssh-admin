@@ -1,8 +1,7 @@
-import { GIT_WRITE_COMMANDS, GIT_STASH_READ_ONLY } from '../../data/readonly-rules.js';
+import { GIT_READ_ONLY, GIT_STASH_READ_ONLY } from '../../data/readonly-rules.js';
 
 export function gitHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(4).trimStart();
-  // get first token after 'git'
   let token = '';
   let inSingleQuote = false;
   let inDoubleQuote = false;
@@ -17,7 +16,6 @@ export function gitHasWriteArg(cmd: string): boolean {
   }
 
   if (token === 'stash') {
-    // stash list/show/push → read-only
     let rest2 = rest.substring(token.length).trimStart();
     let thirdToken = '';
     let sq = false, dq = false;
@@ -34,5 +32,6 @@ export function gitHasWriteArg(cmd: string): boolean {
     return false;
   }
 
-  return GIT_WRITE_COMMANDS.includes(token as any);
+  // Whitelist: sadece READ_ONLY listesindeki komutlar izinli
+  return !GIT_READ_ONLY.includes(token as any);
 }
