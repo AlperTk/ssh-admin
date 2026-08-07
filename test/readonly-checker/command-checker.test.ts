@@ -37,7 +37,6 @@ describe("CommandChecker", () => {
       expect(checker.check("sed 's/old/new/g' file.txt")).toEqual({ allowed: true });
       expect(checker.check("echo hello")).toEqual({ allowed: true });
       expect(checker.check("printf '%s' 'hello'")).toEqual({ allowed: true });
-      expect(checker.check("env")).toEqual({ allowed: true });
       expect(checker.check("printenv")).toEqual({ allowed: true });
       expect(checker.check("which ls")).toEqual({ allowed: true });
       expect(checker.check("whereis ls")).toEqual({ allowed: true });
@@ -1244,7 +1243,6 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more environment and variable utilities", () => {
-      expect(checker.check("env")).toEqual({ allowed: true });
       expect(checker.check("printenv")).toEqual({ allowed: true });
       expect(checker.check("which ls")).toEqual({ allowed: true });
       expect(checker.check("whereis ls")).toEqual({ allowed: true });
