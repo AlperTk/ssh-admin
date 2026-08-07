@@ -1,3 +1,8 @@
+// fail2ban-client: okuma subcommand'ları whitelist
+const FAIL2BAN_READ_ONLY = new Set([
+  'status', 'gettag', 'ping', 'help', 'version',
+]);
+
 export function fail2banHasWriteArg(cmd: string): boolean {
   const idx = cmd.toLowerCase().indexOf('fail2ban-client');
   if (idx === -1) return false;
@@ -10,10 +15,6 @@ export function fail2banHasWriteArg(cmd: string): boolean {
   const spaceIdx = rest.indexOf(' ');
   const subcmd = spaceIdx === -1 ? rest : rest.substring(0, spaceIdx);
 
-  // status / gettag → read-only
-  const readOnlySubcmds = ['status', 'gettag'];
-  if (readOnlySubcmds.includes(subcmd.toLowerCase())) return false;
-
-  // Diğer tüm komutlar → write
-  return true;
+  // Whitelist: sadece READ_ONLY subcommand'lar izinli
+  return !FAIL2BAN_READ_ONLY.has(subcmd.toLowerCase());
 }

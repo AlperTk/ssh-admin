@@ -3,19 +3,16 @@ export function firewallCmdHasWriteArg(cmd: string): boolean {
   if (idx === -1) return false;
   let rest = cmd.substring(idx + 12).trimStart();
 
-  // --list-* veya --get-* ile başlayan okuma komutları
-  if (rest.startsWith('--list-') || rest.startsWith('--get-')) return false;
-
-  // Diğer - flag'leri atla
+  // Short flag'leri atla
   while (rest.startsWith('-') && !rest.startsWith('--')) {
     const spaceIdx = rest.indexOf(' ');
-    if (spaceIdx === -1) break;
+    if (spaceIdx === -1) return false;
     rest = rest.substring(spaceIdx).trimStart();
   }
 
-  // Kalan --list-* veya --get-* kontrolü
+  // Whitelist: --list-* ve --get-* okuma flag'leri
   if (rest.startsWith('--list-') || rest.startsWith('--get-')) return false;
 
-  // Diğer tüm komutlar yazma olarak kabul
+  // Diğer tüm komutlar → yazma
   return true;
 }

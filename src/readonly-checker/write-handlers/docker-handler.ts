@@ -1,46 +1,14 @@
 import { DOCKER_READ_ONLY, DOCKER_NAMESPACE_WRITE } from '../../data/readonly-rules.js';
-
-function getFirstToken(cmd: string): string {
-  let token = '';
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  for (let i = 0; i < cmd.length; i++) {
-    const ch = cmd[i];
-    if (ch === "'" && !inDoubleQuote) { inSingleQuote = !inSingleQuote; }
-    else if (ch === '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; }
-    else if (!inSingleQuote && !inDoubleQuote) {
-      if (ch === ' ' || ch === '\t' || ch === ';') break;
-      token += ch;
-    } else { token += ch; }
-  }
-  return token;
-}
-
-function skipFlags(rest: string): string {
-  while (rest.startsWith('-')) {
-    const spaceIdx = rest.indexOf(' ');
-    if (spaceIdx === -1) return '';
-    const afterFlag = rest.substring(spaceIdx).trimStart();
-    if (afterFlag.startsWith('-')) {
-      const nextSpace = afterFlag.indexOf(' ');
-      if (nextSpace === -1) break;
-      rest = afterFlag.substring(nextSpace).trimStart();
-    } else {
-      rest = afterFlag;
-      break;
-    }
-  }
-  return rest;
-}
+import { getFirstToken, skipShortFlags } from '../resolution/command-resolver.js';
 
 export function dockerHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(6).trimStart();
-  const subCmd = getFirstToken(skipFlags(rest));
+  const subCmd = getFirstToken(skipDockerFlags(rest));
   if (!subCmd) return false;
 
   // İki seviyeli alt komut kontrolü: docker {namespace} {action}
   if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
-    let nsRest = skipFlags(rest.substring(subCmd.length).trimStart());
+    let nsRest = skipDockerFlags(rest.substring(subCmd.length).trimStart());
     const action = getFirstToken(nsRest);
     if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) return true;
   }
@@ -50,7 +18,7 @@ export function dockerHasWriteArg(cmd: string): boolean {
 
   // docker exec özel kontrol
   if (subCmd === 'exec') {
-    let execRest = skipFlags(rest.substring(subCmd.length).trimStart());
+    let execRest = skipDockerFlags(rest.substring(subCmd.length).trimStart());
     // container adını atla
     if (execRest.startsWith('--container')) {
       const eqIdx = execRest.indexOf('=');
@@ -80,4 +48,21 @@ export function dockerHasWriteArg(cmd: string): boolean {
   }
 
   return true;
+}
+
+function skipDockerFlags(rest: string): string {
+  while (rest.startsWith('-')) {
+    const spaceIdx = rest.indexOf(' ');
+    if (spaceIdx === -1) return '';
+    const afterFlag = rest.substring(spaceIdx).trimStart();
+    if (afterFlag.startsWith('-')) {
+      const nextSpace = afterFlag.indexOf(' ');
+      if (nextSpace === -1) break;
+      rest = afterFlag.substring(nextSpace).trimStart();
+    } else {
+      rest = afterFlag;
+      break;
+    }
+  }
+  return rest;
 }

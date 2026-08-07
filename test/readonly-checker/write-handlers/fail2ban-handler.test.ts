@@ -35,8 +35,8 @@ describe("fail2banHasWriteArg", () => {
       expect(fail2banHasWriteArg("fail2ban-client stop")).toBe(true);
       expect(fail2banHasWriteArg("fail2ban-client restart")).toBe(true);
     });
-    it("should block ping", () => {
-      expect(fail2banHasWriteArg("fail2ban-client ping")).toBe(true);
+    it("should allow ping (read-only)", () => {
+      expect(fail2banHasWriteArg("fail2ban-client ping")).toBe(false);
     });
   });
 

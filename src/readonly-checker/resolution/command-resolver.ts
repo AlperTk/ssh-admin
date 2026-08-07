@@ -15,6 +15,16 @@ export function getFirstToken(cmd: string): string {
   return token;
 }
 
+/** Short flag'leri atla (-x -y gibi, --long flag hariç) */
+export function skipShortFlags(rest: string): string {
+  while (rest.startsWith('-') && !rest.startsWith('--')) {
+    const spaceIdx = rest.indexOf(' ');
+    if (spaceIdx === -1) return '';
+    rest = rest.substring(spaceIdx).trimStart();
+  }
+  return rest;
+}
+
 /** Komutu çöz: sudo/su/ssh peel-through */
 export function resolveCommand(cmd: string): string {
   const firstToken = getFirstToken(cmd);

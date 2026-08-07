@@ -91,8 +91,6 @@ export class WritePatternDetector {
     // 9. dd with output file
     if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return { ok: true, debug: { rule: 'DD_OF_RE', text: 'dd of=' } };
 
-
-
     // 11. Interpreter writes
     const interpResult = this.detectInterpreterWrites(unquoted);
     if (interpResult.ok) return interpResult;

@@ -1,6 +1,7 @@
 // tar: sadece bu flag'ler okuma olarak kabul edilir
 const TAR_SAFE_FLAGS = new Set([
   't', 'tf', 'tvf', 'tzf', 'tc', 'tcv',
+  '--list', '--list-newer', '-t',
 ]);
 
 export function tarHasWriteArg(cmd: string): boolean {
