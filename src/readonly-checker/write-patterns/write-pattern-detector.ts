@@ -4,6 +4,7 @@ import {
   SED_INPLACE_RE, SED_INPLACE_LONG_RE, SED_WRITE_RE,
   FIND_EXEC_RE, CP_STDIN_RE, CP_DASH_RE, DD_OF_RE,
   TAR_CREATE_SHORT_RE, TAR_CREATE_LONG_RE, TAR_CF_RE,
+  TAR_EXTRACT_SHORT_RE, TAR_EXTRACT_LONG_RE, TAR_XF_RE,
   INTERPRETER_RE, PYTHON_OPEN_RE, PYTHON_OS_RE, PYTHON_SUBPROCESS_RE,
   RUBY_FILE_WRITE_RE, RUBY_IO_WRITE_RE, NODE_FS_WRITE_RE,
   REVERSE_SHELL_NET_RE, REVERSE_SHELL_NC_RE, REVERSE_SHELL_SOCAT_RE, REVERSE_SHELL_TCP_RE,
@@ -92,11 +93,14 @@ export class WritePatternDetector {
     // 9. dd with output file
     if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return { ok: true, debug: { rule: 'DD_OF_RE', text: 'dd of=' } };
 
-    // 10. tar create mode
+    // 10. tar create/extract mode
     if (/\btar\b/.test(unquoted)) {
       if (TAR_CREATE_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_CREATE_SHORT_RE', text: 'tar cf' } };
       if (TAR_CREATE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_CREATE_LONG_RE', text: 'tar --create' } };
       if (TAR_CF_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_CF_RE', text: 'tar -c --file' } };
+      if (TAR_EXTRACT_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_EXTRACT_SHORT_RE', text: 'tar xf' } };
+      if (TAR_EXTRACT_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_EXTRACT_LONG_RE', text: 'tar --extract' } };
+      if (TAR_XF_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_XF_RE', text: 'tar -x --file' } };
     }
 
     // 11. Interpreter writes
