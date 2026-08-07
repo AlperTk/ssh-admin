@@ -115,9 +115,49 @@ check(command)
 
 ### Testler
 ```bash
-npm test              # 176 test
-npm test -- src/readonly-checker.test.ts  # sadece checker (164 test)
+npm test              # 330 test
 ```
+
+#### Test Yapısı
+```
+test/
+├── registry.test.ts                    ← registry API (add, list, get, update, delete, resolveCredentials)
+├── pool.test.ts                        ← ConnectionPool (close, list, executeCommand, getSessionCount)
+└── readonly-checker/
+    ├── command-checker.test.ts          ← ana check() akışı (whitelist, combined commands, write patterns)
+    ├── write-handlers/
+    │   ├── git-handler.test.ts          ← gitHasWriteArg (read/write alt komutlar)
+    │   ├── docker-handler.test.ts       ← dockerHasWriteArg (namespace + action kontrolü)
+    │   ├── systemctl-handler.test.ts    ← systemctlHasWriteArg (read-only set karşılaştırma)
+    │   ├── curl-wget-handler.test.ts    ← curlWgetHasWriteArg (-o/-O/-d/--data pattern'ları)
+    │   ├── ip-handler.test.ts           ← ipHasWriteArg (addr/link/route eylemleri)
+    │   ├── apt-handler.test.ts          ← aptHasWriteArg (read-only vs write komutlar)
+    │   ├── crontab-handler.test.ts      ← crontabHasWriteArg (-e flag tespiti)
+    │   ├── firewall-cmd-handler.test.ts ← firewallCmdHasWriteArg (--list-* / --get-* hariç)
+    │   ├── rsync-handler.test.ts        ← her zaman write (true döner)
+    │   └── mktemp-handler.test.ts       ← her zaman write (true döner)
+    ├── write-patterns/
+    │   └── write-pattern-detector.test.ts ← redirection, interpreter writes, reverse shell
+    ├── parsing/
+    │   ├── loop-extractor.test.ts       ← for/while gövde çıkarma
+    │   └── substitution-detector.test.ts ← $() ve backtick recursive check
+    └── resolution/
+        └── command-resolver.test.ts     ← sudo/su/ssh peel-through, getFirstToken
+```
+
+#### Test Çalıştırma
+```bash
+npm test                              # tüm testler (330)
+npm test -- test/readonly-checker/    # readonly-checker modülü (297 test)
+npm test -- test/pool.test.ts         # ConnectionPool (6 test)
+npm test -- test/registry.test.ts     # Registry (12 test)
+npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git handler (31 test)
+```
+
+#### Test Stratejisi
+- **Integration testleri**: `command-checker.test.ts` — tam `check()` akışını whitelist + handler + pattern kombinasyonlarıyla test eder
+- **Unit testleri**: Her handler kendi test dosyasında — `hasWriteArg(cmd)` fonksiyonunun doğru token'ı parse edip read/write kararını verdiğini doğrular
+- **Alt modül testleri**: `write-pattern-detector`, `loop-extractor`, `substitution-detector`, `command-resolver` — bağımsız fonksiyonların doğru çalıştığını test eder
 
 ## Readonly Mode
 ```bash

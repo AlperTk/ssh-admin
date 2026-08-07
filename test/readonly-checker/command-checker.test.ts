@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CommandChecker } from "./readonly-checker.js";
+import { CommandChecker } from "../../src/readonly-checker.js";
 
 describe("CommandChecker", () => {
   const checker = new CommandChecker();
@@ -651,7 +651,6 @@ describe("CommandChecker", () => {
       expect(checker.check("git add file.txt")).toMatchObject({ allowed: false });
       expect(checker.check("git rm file.txt")).toMatchObject({ allowed: false });
       expect(checker.check("git mv old new")).toMatchObject({ allowed: false });
-      // git tag flagsız → read-only (listing tags), flag'li write ama detekt zor
       expect(checker.check("git gc")).toMatchObject({ allowed: false });
       expect(checker.check("git prune")).toMatchObject({ allowed: false });
       expect(checker.check("git replace old new")).toMatchObject({ allowed: false });

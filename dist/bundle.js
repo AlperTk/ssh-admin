@@ -27036,230 +27036,6 @@ var require_lib2 = __commonJS({
   }
 });
 
-// data/readonly-rules.js
-var require_readonly_rules = __commonJS({
-  "data/readonly-rules.js"(exports2) {
-    "use strict";
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.REVERSE_SHELL_TCP_RE = exports2.REVERSE_SHELL_SOCAT_RE = exports2.REVERSE_SHELL_NC_RE = exports2.REVERSE_SHELL_NET_RE = exports2.NODE_FS_WRITE_RE = exports2.RUBY_IO_WRITE_RE = exports2.RUBY_FILE_WRITE_RE = exports2.PYTHON_SUBPROCESS_RE = exports2.PYTHON_OS_RE = exports2.PYTHON_OPEN_RE = exports2.INTERPRETER_RE = exports2.TAR_CF_RE = exports2.TAR_CREATE_LONG_RE = exports2.TAR_CREATE_SHORT_RE = exports2.DD_OF_RE = exports2.CP_DASH_RE = exports2.CP_STDIN_RE = exports2.FIND_EXEC_RE = exports2.SED_WRITE_RE = exports2.SED_INPLACE_LONG_RE = exports2.SED_INPLACE_RE = exports2.HERE_STRING_RE = exports2.XARGS_RE = exports2.WRITE_PROC_SUB_RE = exports2.TEE_PIPE_RE = exports2.REDIR_STDERR_RE = exports2.REDIR_STDOUT_RE = exports2.REDIR_COMBINED_RE = exports2.REDIR_APPEND_RE = exports2.SHELL_PATTERNS = exports2.CRONTAB_WRITE_FLAGS = exports2.DOCKER_NAMESPACE_WRITE = exports2.DOCKER_WRITE_COMMANDS = exports2.DOCKER_READ_ONLY = exports2.APT_WRITE_COMMANDS = exports2.APT_READ_ONLY = exports2.IP_WRITE_SUBCOMMANDS = exports2.IP_WRITE_COMMANDS = exports2.IP_READ_ONLY = exports2.SYSTEMCTL_READ_ONLY = exports2.GIT_STASH_READ_ONLY = exports2.GIT_WRITE_COMMANDS = void 0;
-    exports2.GIT_WRITE_COMMANDS = [
-      "commit",
-      "push",
-      "merge",
-      "rebase",
-      "reset",
-      "clean",
-      "am",
-      "apply",
-      "bisect",
-      "cherry-pick",
-      "force-push",
-      "clone",
-      "pull",
-      "fetch",
-      "checkout",
-      "restore",
-      "stash",
-      "revert",
-      "add",
-      "rm",
-      "mv",
-      "gc",
-      "prune",
-      "replace",
-      "filter-branch"
-    ];
-    exports2.GIT_STASH_READ_ONLY = ["list", "show", "push"];
-    exports2.SYSTEMCTL_READ_ONLY = /* @__PURE__ */ new Set([
-      "status",
-      "is-active",
-      "is-enabled",
-      "is-failed",
-      "list-units",
-      "list-sockets",
-      "list-timers",
-      "list-dependencies",
-      "cat",
-      "show",
-      "get-default",
-      "help",
-      "dump",
-      "import-environment",
-      "tmpfiles",
-      "property",
-      "daemon-status",
-      "log",
-      "is-system-running"
-    ]);
-    exports2.IP_READ_ONLY = /* @__PURE__ */ new Set([
-      "addr",
-      "link",
-      "route",
-      "neigh",
-      "rule",
-      "tunnel",
-      "xfrm",
-      "maddr",
-      "monitor",
-      "check",
-      "session"
-    ]);
-    exports2.IP_WRITE_COMMANDS = /* @__PURE__ */ new Set([
-      "add",
-      "del",
-      "change",
-      "chg",
-      "replace",
-      "flush",
-      "set",
-      "create",
-      "destroy",
-      "remove",
-      "save",
-      "restore"
-    ]);
-    exports2.IP_WRITE_SUBCOMMANDS = /* @__PURE__ */ new Map([
-      ["addr", ["add", "del", "flush"]],
-      ["link", ["set", "add", "del", "delete", "change", "chg", "replace"]],
-      ["route", ["add", "del", "change", "chg", "replace", "append"]],
-      ["neigh", ["add", "del", "replace", "chgr"]],
-      ["rule", ["add", "del", "flush"]],
-      ["tunnel", ["add", "del", "change", "chg", "replace"]],
-      ["maddr", ["add", "del", "change", "chg", "replace"]]
-    ]);
-    exports2.APT_READ_ONLY = /* @__PURE__ */ new Set([
-      "list",
-      "show",
-      "search",
-      "policy",
-      "info",
-      "cache",
-      "depends",
-      "rdepends",
-      "madison",
-      "edit-sources",
-      "full-upgrade",
-      "dist-upgrade",
-      "update",
-      "upgrade",
-      "check",
-      "simulator",
-      "autoremove"
-    ]);
-    exports2.APT_WRITE_COMMANDS = /* @__PURE__ */ new Set([
-      "install",
-      "remove",
-      "purge",
-      "reinstall",
-      "hold",
-      "unhold",
-      "lock",
-      "unlock",
-      "clean",
-      "autoclean",
-      "fix-broken"
-    ]);
-    exports2.DOCKER_READ_ONLY = /* @__PURE__ */ new Set([
-      "ps",
-      "images",
-      "inspect",
-      "logs",
-      "top",
-      "stats",
-      "version",
-      "info",
-      "diff",
-      "port",
-      "events",
-      "pull",
-      "config",
-      "node",
-      "service",
-      "task",
-      "volume",
-      "network",
-      "plugin",
-      "secret",
-      "swarm",
-      "container",
-      "image",
-      "system"
-    ]);
-    exports2.DOCKER_WRITE_COMMANDS = /* @__PURE__ */ new Set([
-      "rm",
-      "rmi",
-      "prune",
-      "stop",
-      "start",
-      "restart",
-      "kill",
-      "run",
-      "update",
-      "rename",
-      "tag",
-      "push",
-      "save",
-      "load",
-      "import",
-      "export",
-      "commit",
-      "cp",
-      "attach",
-      "wait",
-      "build",
-      "create",
-      "pause",
-      "unpause",
-      "resize",
-      "modify"
-    ]);
-    exports2.DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
-      ["system", ["prune"]],
-      ["image", ["rm", "push", "save", "load", "history", "tag"]],
-      ["container", ["rm", "start", "stop", "restart", "kill", "exec", "update", "rename", "cp", "attach", "wait", "pause", "unpause", "resize"]],
-      ["volume", ["rm", "create"]],
-      ["network", ["rm", "connect", "disconnect"]],
-      ["plugin", ["install", "remove", "disable", "enable"]],
-      ["secret", ["rm", "create", "update"]],
-      ["config", ["rm", "create", "update"]],
-      ["node", ["demote", "promote", "update", "rm"]],
-      ["service", ["rm", "create", "update", "scale", "rollback"]],
-      ["swarm", ["leave", "unlock", "lock", "init", "join", "ca"]]
-    ]);
-    exports2.CRONTAB_WRITE_FLAGS = ["-e"];
-    exports2.SHELL_PATTERNS = ["bash", "sh", "zsh", "csh", "ksh", "dash", "fish"];
-    exports2.REDIR_APPEND_RE = />>/;
-    exports2.REDIR_COMBINED_RE = /&>/;
-    exports2.REDIR_STDOUT_RE = /(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/g;
-    exports2.REDIR_STDERR_RE = /2>(?!\/dev\/(null|zero))(?!&\d)/;
-    exports2.TEE_PIPE_RE = /\|.*tee\b/;
-    exports2.WRITE_PROC_SUB_RE = />\(/;
-    exports2.XARGS_RE = /\bxargs\b/;
-    exports2.HERE_STRING_RE = /<<<\s/;
-    exports2.SED_INPLACE_RE = /\bsed\b.*-i[a-z]*\b/;
-    exports2.SED_INPLACE_LONG_RE = /\bsed\b.*--in-place/;
-    exports2.SED_WRITE_RE = /\bsed\b.*["']w\s+\/[^"']/;
-    exports2.FIND_EXEC_RE = /\bfind\b.*(-exec|-execdir)\b/;
-    exports2.CP_STDIN_RE = /\/dev\/stdin/;
-    exports2.CP_DASH_RE = /-\s*$/;
-    exports2.DD_OF_RE = /\bof\s*=\s*[^s]/;
-    exports2.TAR_CREATE_SHORT_RE = /\bc[a-zA-Z]*f/;
-    exports2.TAR_CREATE_LONG_RE = /--create/;
-    exports2.TAR_CF_RE = /-c\s+--file/;
-    exports2.INTERPRETER_RE = /\b(python3?|perl|ruby|node)\b/;
-    exports2.PYTHON_OPEN_RE = /\bopen\s*\(/;
-    exports2.PYTHON_OS_RE = /\bos\.(system|popen|write)\s*\(/;
-    exports2.PYTHON_SUBPROCESS_RE = /\bsubprocess\./;
-    exports2.RUBY_FILE_WRITE_RE = /\bFile\.write\s*\(/;
-    exports2.RUBY_IO_WRITE_RE = /\bIO\.write\s*\(/;
-    exports2.NODE_FS_WRITE_RE = /\bfs\.(writeFileSync|createWriteStream|write)\s*\(/;
-    exports2.REVERSE_SHELL_NET_RE = /\b(nc|ncat|netcat|socat)\b/;
-    exports2.REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
-    exports2.REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
-    exports2.REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
-  }
-});
-
 // node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
@@ -51900,6 +51676,7 @@ var DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
   ["service", ["rm", "create", "update", "scale", "rollback"]],
   ["swarm", ["leave", "unlock", "lock", "init", "join", "ca"]]
 ]);
+var SHELL_PATTERNS = ["bash", "sh", "zsh", "csh", "ksh", "dash", "fish"];
 var REDIR_APPEND_RE = />>/;
 var REDIR_COMBINED_RE = /&>/;
 var REDIR_STDOUT_RE = /(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/;
@@ -52429,7 +52206,6 @@ function checkSubstitutions(command, check2) {
 }
 
 // src/readonly-checker/command-checker.ts
-var import_readonly_rules7 = __toESM(require_readonly_rules());
 var SEGMENT_SEPARATORS = ["&&", "||", ";"];
 var PIPE_SEPARATOR = "|";
 var SEGMENT_OPTIONS = {
@@ -52556,7 +52332,7 @@ var CommandChecker = class {
     const rest = cmd.substring(4).trimStart();
     if (!rest) return null;
     const target = getFirstToken5(rest);
-    if (import_readonly_rules7.SHELL_PATTERNS.includes(target)) return { allowed: false, reason: "Shell replacement detected" };
+    if (SHELL_PATTERNS.includes(target)) return { allowed: false, reason: "Shell replacement detected" };
     if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: "Shell path detected" };
     return null;
   }

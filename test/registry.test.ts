@@ -9,7 +9,7 @@ const TEST_REGISTRY = path.join(TEST_REGISTRY_DIR, "hosts.json");
 // Set env var BEFORE importing registry
 process.env.MCP_SSH_REGISTRY_PATH = TEST_REGISTRY;
 
-const { addServer, listServers, getServer, updateServer, deleteServer, resolveCredentials } = await import("./registry.js");
+const { addServer, listServers, getServer, updateServer, deleteServer, resolveCredentials } = await import("../src/registry.js");
 
 describe("Registry", () => {
   afterEach(() => {
