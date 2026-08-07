@@ -11,6 +11,7 @@ import { crontabHasWriteArg } from './write-handlers/crontab-handler.js';
 import { firewallCmdHasWriteArg } from './write-handlers/firewall-cmd-handler.js';
 import { rsyncHasWriteArg } from './write-handlers/rsync-handler.js';
 import { mktempHasWriteArg } from './write-handlers/mktemp-handler.js';
+import { fail2banHasWriteArg } from './write-handlers/fail2ban-handler.js';
 import { WritePatternDetector } from './write-patterns/write-pattern-detector.js';
 import { resolveCommand, getFirstToken as resolverGetFirstToken } from './resolution/command-resolver.js';
 import { extractLoopBody } from './parsing/loop-extractor.js';
@@ -66,6 +67,7 @@ export class CommandChecker {
       ['firewall-cmd', firewallCmdHasWriteArg],
       ['rsync', rsyncHasWriteArg],
       ['mktemp', mktempHasWriteArg],
+      ['fail2ban-client', fail2banHasWriteArg],
     ]);
 
     this.patternDetector = new WritePatternDetector();

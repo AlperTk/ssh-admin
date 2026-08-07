@@ -478,6 +478,7 @@
     "mdstat",
     "mdcheck",
     "docker",
+    "fail2ban-client",
     "firewall-cmd",
     "apt",
     "getenforce",

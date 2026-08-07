@@ -66,7 +66,8 @@ src/readonly-checker/
 │   ├── crontab-handler.ts           ← -e flag (yazma)
 │   ├── firewall-cmd-handler.ts      ← --list-* / --get-* hariç hepsi yazma
 │   ├── rsync-handler.ts             ← her zaman yazma
-│   └── mktemp-handler.ts            ← her zaman yazma
+│   ├── mktemp-handler.ts            ← her zaman yazma
+│   └── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
 ├── write-patterns/
 │   └── write-pattern-detector.ts    ← redirection, interpreter writes, reverse shell
 ├── resolution/
@@ -75,7 +76,7 @@ src/readonly-checker/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (491 komut)
+├── readonly-whitelist.json          ← whitelist komut listesi (492 komut)
 └── readonly-rules.ts                ← GIT_WRITE_COMMANDS, DOCKER_READ_ONLY vb. sabitler
 ```
 
@@ -115,7 +116,7 @@ check(command)
 
 ### Testler
 ```bash
-npm test              # 330 test
+npm test              # 341 test
 ```
 
 #### Test Yapısı
@@ -135,7 +136,8 @@ test/
     │   ├── crontab-handler.test.ts      ← crontabHasWriteArg (-e flag tespiti)
     │   ├── firewall-cmd-handler.test.ts ← firewallCmdHasWriteArg (--list-* / --get-* hariç)
     │   ├── rsync-handler.test.ts        ← her zaman write (true döner)
-    │   └── mktemp-handler.test.ts       ← her zaman write (true döner)
+    │   ├── mktemp-handler.test.ts       ← her zaman write (true döner)
+│   └── fail2ban-handler.test.ts     ← status/gettag read-only, diğerleri write
     ├── write-patterns/
     │   └── write-pattern-detector.test.ts ← redirection, interpreter writes, reverse shell
     ├── parsing/
@@ -147,8 +149,8 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (330)
-npm test -- test/readonly-checker/    # readonly-checker modülü (297 test)
+npm test                              # tüm testler (341)
+npm test -- test/readonly-checker/    # readonly-checker modülü (323 test)
 npm test -- test/pool.test.ts         # ConnectionPool (6 test)
 npm test -- test/registry.test.ts     # Registry (12 test)
 npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git handler (31 test)

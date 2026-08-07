@@ -52022,6 +52022,19 @@ function mktempHasWriteArg() {
   return true;
 }
 
+// src/readonly-checker/write-handlers/fail2ban-handler.ts
+function fail2banHasWriteArg(cmd) {
+  const idx = cmd.toLowerCase().indexOf("fail2ban-client");
+  if (idx === -1) return false;
+  let rest = cmd.substring(idx + 15).trimStart();
+  if (!rest || rest.startsWith("-")) return false;
+  const spaceIdx = rest.indexOf(" ");
+  const subcmd = spaceIdx === -1 ? rest : rest.substring(0, spaceIdx);
+  const readOnlySubcmds = ["status", "gettag"];
+  if (readOnlySubcmds.includes(subcmd.toLowerCase())) return false;
+  return true;
+}
+
 // src/readonly-checker/write-patterns/write-pattern-detector.ts
 function stripDoubleQuotes(cmd) {
   let result = "";
@@ -52239,7 +52252,8 @@ var CommandChecker = class {
       ["crontab", crontabHasWriteArg],
       ["firewall-cmd", firewallCmdHasWriteArg],
       ["rsync", rsyncHasWriteArg],
-      ["mktemp", mktempHasWriteArg]
+      ["mktemp", mktempHasWriteArg],
+      ["fail2ban-client", fail2banHasWriteArg]
     ]);
     this.patternDetector = new WritePatternDetector();
   }
