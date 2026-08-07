@@ -23,20 +23,26 @@ function stripDoubleQuotes(cmd: string): string {
 }
 
 export class WritePatternDetector {
-  detect(segment: string): boolean {
+  detect(segment: string): { ok: boolean; debug?: { rule: string; text: string } } {
     const unquoted = stripDoubleQuotes(segment);
 
     // 1. Temel redirection pattern'ları
-    if (REDIR_APPEND_RE.test(unquoted)) return true;
-    if (REDIR_COMBINED_RE.test(unquoted)) return true;
-    if (REDIR_STDOUT_RE.test(unquoted)) return true;
-    if (REDIR_STDERR_RE.test(unquoted)) return true;
+    if (REDIR_APPEND_RE.test(unquoted)) return { ok: true, debug: { rule: 'REDIR_APPEND_RE', text: '>>' } };
+    if (REDIR_COMBINED_RE.test(unquoted)) return { ok: true, debug: { rule: 'REDIR_COMBINED_RE', text: '&>' } };
+    if (REDIR_STDOUT_RE.test(unquoted)) {
+      const m = unquoted.match(REDIR_STDOUT_RE);
+      return { ok: true, debug: { rule: 'REDIR_STDOUT_RE', text: m ? m[0] : '>' } };
+    }
+    if (REDIR_STDERR_RE.test(unquoted)) {
+      const m = unquoted.match(REDIR_STDERR_RE);
+      return { ok: true, debug: { rule: 'REDIR_STDERR_RE', text: m ? m[0] : '2>' } };
+    }
 
     // 2. Pipe ile tee kullanımı
-    if (TEE_PIPE_RE.test(unquoted)) return true;
+    if (TEE_PIPE_RE.test(unquoted)) return { ok: true, debug: { rule: 'TEE_PIPE_RE', text: '| tee' } };
 
     // 3. Write process substitution
-    if (WRITE_PROC_SUB_RE.test(unquoted)) return true;
+    if (WRITE_PROC_SUB_RE.test(unquoted)) return { ok: true, debug: { rule: 'WRITE_PROC_SUB_RE', text: '>()' } };
 
     // 4. xargs — read-only komutlarla kullanılanları izin ver
     if (XARGS_RE.test(unquoted)) {
@@ -60,66 +66,66 @@ export class WritePatternDetector {
       ]);
       // xargs'tan sonraki ilk kelimeyi al (pipeline içindeki doğru konum)
       const xargsMatch = unquoted.match(/\bxargs\b\s+(\S+)/);
-      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return false;
-      return true;
+      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return { ok: false };
+      return { ok: true, debug: { rule: 'XARGS_RE', text: 'xargs' } };
     }
 
     // 5. Here-string / here-doc
-    if (HERE_STRING_RE.test(segment)) return true;
+    if (HERE_STRING_RE.test(segment)) return { ok: true, debug: { rule: 'HERE_STRING_RE', text: '<<<' } };
 
     // 6. sed write komutları
     if (/\bsed\b/.test(unquoted)) {
-      if (SED_INPLACE_RE.test(unquoted)) return true;
-      if (SED_INPLACE_LONG_RE.test(unquoted)) return true;
-      if (SED_WRITE_RE.test(unquoted)) return true;
+      if (SED_INPLACE_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_INPLACE_RE', text: 'sed -i' } };
+      if (SED_INPLACE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_INPLACE_LONG_RE', text: 'sed --in-place' } };
+      if (SED_WRITE_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_WRITE_RE', text: 'sed -n w' } };
     }
 
     // 7. find -exec / -execdir
-    if (FIND_EXEC_RE.test(unquoted)) return true;
+    if (FIND_EXEC_RE.test(unquoted)) return { ok: true, debug: { rule: 'FIND_EXEC_RE', text: '-exec' } };
 
     // 8. cp with stdin/dev/stdin
     if (/\bcp\b/.test(unquoted)) {
-      if (CP_STDIN_RE.test(unquoted)) return true;
-      if (CP_DASH_RE.test(unquoted)) return true;
+      if (CP_STDIN_RE.test(unquoted)) return { ok: true, debug: { rule: 'CP_STDIN_RE', text: '/dev/stdin' } };
+      if (CP_DASH_RE.test(unquoted)) return { ok: true, debug: { rule: 'CP_DASH_RE', text: 'cp -' } };
     }
 
     // 9. dd with output file
-    if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return true;
+    if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return { ok: true, debug: { rule: 'DD_OF_RE', text: 'dd of=' } };
 
     // 10. tar create mode
     if (/\btar\b/.test(unquoted)) {
-      if (TAR_CREATE_SHORT_RE.test(unquoted)) return true;
-      if (TAR_CREATE_LONG_RE.test(unquoted)) return true;
-      if (TAR_CF_RE.test(unquoted)) return true;
+      if (TAR_CREATE_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_CREATE_SHORT_RE', text: 'tar cf' } };
+      if (TAR_CREATE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_CREATE_LONG_RE', text: 'tar --create' } };
+      if (TAR_CF_RE.test(unquoted)) return { ok: true, debug: { rule: 'TAR_CF_RE', text: 'tar -c --file' } };
     }
 
     // 11. Interpreter writes
-    if (this.detectInterpreterWrites(unquoted)) return true;
+    const interpResult = this.detectInterpreterWrites(unquoted);
+    if (interpResult.ok) return interpResult;
 
     // 12. Reverse shell
-    if (this.detectReverseShell(unquoted)) return true;
+    const reverseShellResult = this.detectReverseShell(unquoted);
+    if (reverseShellResult.ok) return reverseShellResult;
 
-    return false;
+    return { ok: false };
   }
 
-  private detectInterpreterWrites(s: string): boolean {
-    if (!INTERPRETER_RE.test(s)) return false;
-    return (
-      PYTHON_OPEN_RE.test(s) ||
-      PYTHON_OS_RE.test(s) ||
-      PYTHON_SUBPROCESS_RE.test(s) ||
-      RUBY_FILE_WRITE_RE.test(s) ||
-      RUBY_IO_WRITE_RE.test(s) ||
-      NODE_FS_WRITE_RE.test(s)
-    );
+  private detectInterpreterWrites(s: string): { ok: boolean; debug?: { rule: string; text: string } } {
+    if (!INTERPRETER_RE.test(s)) return { ok: false };
+    if (PYTHON_OPEN_RE.test(s)) return { ok: true, debug: { rule: 'PYTHON_OPEN_RE', text: 'open()' } };
+    if (PYTHON_OS_RE.test(s)) return { ok: true, debug: { rule: 'PYTHON_OS_RE', text: 'os.system/popen' } };
+    if (PYTHON_SUBPROCESS_RE.test(s)) return { ok: true, debug: { rule: 'PYTHON_SUBPROCESS_RE', text: 'subprocess.' } };
+    if (RUBY_FILE_WRITE_RE.test(s)) return { ok: true, debug: { rule: 'RUBY_FILE_WRITE_RE', text: 'File.write' } };
+    if (RUBY_IO_WRITE_RE.test(s)) return { ok: true, debug: { rule: 'RUBY_IO_WRITE_RE', text: 'IO.write' } };
+    if (NODE_FS_WRITE_RE.test(s)) return { ok: true, debug: { rule: 'NODE_FS_WRITE_RE', text: 'fs.write' } };
+    return { ok: false };
   }
 
-  private detectReverseShell(s: string): boolean {
-    if (!REVERSE_SHELL_NET_RE.test(s)) return false;
-    return (
-      REVERSE_SHELL_NC_RE.test(s) ||
-      REVERSE_SHELL_SOCAT_RE.test(s) ||
-      REVERSE_SHELL_TCP_RE.test(s)
-    );
+  private detectReverseShell(s: string): { ok: boolean; debug?: { rule: string; text: string } } {
+    if (!REVERSE_SHELL_NET_RE.test(s)) return { ok: false };
+    if (REVERSE_SHELL_NC_RE.test(s)) return { ok: true, debug: { rule: 'REVERSE_SHELL_NC_RE', text: 'nc -e' } };
+    if (REVERSE_SHELL_SOCAT_RE.test(s)) return { ok: true, debug: { rule: 'REVERSE_SHELL_SOCAT_RE', text: 'socat exec:' } };
+    if (REVERSE_SHELL_TCP_RE.test(s)) return { ok: true, debug: { rule: 'REVERSE_SHELL_TCP_RE', text: 'tcp:port' } };
+    return { ok: false };
   }
 }

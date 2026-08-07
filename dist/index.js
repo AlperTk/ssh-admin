@@ -165,7 +165,16 @@ server.registerTool("command_execute", {
     if ((0, readonly_guard_js_1.isReadonlyMode)()) {
         const result = checker.check(args.command);
         if (!result.allowed) {
-            return (0, response_js_1.errorResponse)(`Write operation detected: ${result.reason}`);
+            const parts = [`Write operation detected: ${result.reason}`];
+            if (result.blockedCommand)
+                parts.push(`[blocked_command=${result.blockedCommand}]`);
+            if (result.matchedRule)
+                parts.push(`[matched_rule=${result.matchedRule}]`);
+            if (result.matchedText)
+                parts.push(`[matched_text=${result.matchedText}]`);
+            if (result.segmentIndex !== undefined)
+                parts.push(`[segment=${result.segmentIndex}]`);
+            return (0, response_js_1.errorResponse)(parts.join(' '));
         }
     }
     try {

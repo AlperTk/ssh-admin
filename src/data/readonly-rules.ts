@@ -98,8 +98,8 @@ export const SHELL_PATTERNS = ['bash', 'sh', 'zsh', 'csh', 'ksh', 'dash', 'fish'
 // Compiled regex for write pattern detection (pre-compiled for performance)
 export const REDIR_APPEND_RE = />>/;
 export const REDIR_COMBINED_RE = /&>/;
-export const REDIR_STDOUT_RE = /(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/;
-export const REDIR_STDERR_RE = /2>(?!\/dev\/(null|zero))(?!&\d)/;
+export const REDIR_STDOUT_RE = /(?<![-])>(?!>|=)(?!(\/dev\/(null|zero)))(?!&\d)/;
+export const REDIR_STDERR_RE = /2>(?!=)(?!\/dev\/(null|zero))(?!&\d)/;
 export const TEE_PIPE_RE = /\|.*tee\b/;
 export const WRITE_PROC_SUB_RE = />\(/;
 export const XARGS_RE = /\bxargs\b/;
@@ -125,3 +125,14 @@ export const REVERSE_SHELL_NET_RE = /\b(nc|ncat|netcat|socat)\b/;
 export const REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
 export const REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
 export const REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
+
+// awk: write pattern'lar (awk program içindeki print/printf redirection, system(), getline)
+export const AWK_WRITE_PATTERNS = [
+  /print\s+.*>\s*\/[^n]/,
+  /print\s+.*>>\s*\/[^n]/,
+  /printf\s+.*>\s*\/[^n]/,
+  /printf\s+.*>>\s*\/[^n]/,
+  /\bsystem\s*\(/,
+  /\bgetline\s*<\s*\/[^n]/,
+  /\bgetline\s*\|\//,
+] as const;

@@ -201,7 +201,12 @@ server.registerTool(
     if (isReadonlyMode()) {
       const result = checker.check(args.command);
       if (!result.allowed) {
-        return errorResponse(`Write operation detected: ${result.reason}`);
+        const parts: string[] = [`Write operation detected: ${result.reason}`];
+        if (result.blockedCommand) parts.push(`[blocked_command=${result.blockedCommand}]`);
+        if (result.matchedRule) parts.push(`[matched_rule=${result.matchedRule}]`);
+        if (result.matchedText) parts.push(`[matched_text=${result.matchedText}]`);
+        if (result.segmentIndex !== undefined) parts.push(`[segment=${result.segmentIndex}]`);
+        return errorResponse(parts.join(' '));
       }
     }
     try {

@@ -51695,8 +51695,8 @@ var DOCKER_NAMESPACE_WRITE = /* @__PURE__ */ new Map([
 var SHELL_PATTERNS = ["bash", "sh", "zsh", "csh", "ksh", "dash", "fish"];
 var REDIR_APPEND_RE = />>/;
 var REDIR_COMBINED_RE = /&>/;
-var REDIR_STDOUT_RE = /(?<![-])>(?!>)(?!(\/dev\/(null|zero)))(?!&\d)/;
-var REDIR_STDERR_RE = /2>(?!\/dev\/(null|zero))(?!&\d)/;
+var REDIR_STDOUT_RE = /(?<![-])>(?!>|=)(?!(\/dev\/(null|zero)))(?!&\d)/;
+var REDIR_STDERR_RE = /2>(?!=)(?!\/dev\/(null|zero))(?!&\d)/;
 var TEE_PIPE_RE = /\|.*tee\b/;
 var WRITE_PROC_SUB_RE = />\(/;
 var XARGS_RE = /\bxargs\b/;
@@ -51722,6 +51722,15 @@ var REVERSE_SHELL_NET_RE = /\b(nc|ncat|netcat|socat)\b/;
 var REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
 var REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
 var REVERSE_SHELL_TCP_RE = /tcp:.*:\d+/;
+var AWK_WRITE_PATTERNS = [
+  /print\s+.*>\s*\/[^n]/,
+  /print\s+.*>>\s*\/[^n]/,
+  /printf\s+.*>\s*\/[^n]/,
+  /printf\s+.*>>\s*\/[^n]/,
+  /\bsystem\s*\(/,
+  /\bgetline\s*<\s*\/[^n]/,
+  /\bgetline\s*\|\//
+];
 
 // src/readonly-checker/write-handlers/git-handler.ts
 function gitHasWriteArg(cmd) {
@@ -52064,6 +52073,28 @@ function journalctlHasWriteArg(cmd) {
   return false;
 }
 
+// src/readonly-checker/write-handlers/awk-handler.ts
+function awkHasWriteArg(cmd) {
+  const rest = cmd.substring(4).trimStart();
+  let inSingleQuote = false;
+  let program = "";
+  for (let i = 0; i < rest.length; i++) {
+    const ch = rest[i];
+    if (ch === "'") {
+      inSingleQuote = !inSingleQuote;
+    } else if (ch === '"' && !inSingleQuote) {
+    } else if (inSingleQuote) {
+      program += ch;
+    } else if (!inSingleQuote) {
+      if (ch === " " || ch === "	" || ch === ";") break;
+    }
+  }
+  for (const pattern of AWK_WRITE_PATTERNS) {
+    if (pattern.test(program)) return true;
+  }
+  return false;
+}
+
 // src/readonly-checker/write-patterns/write-pattern-detector.ts
 function stripDoubleQuotes(cmd) {
   let result = "";
@@ -52079,12 +52110,18 @@ function stripDoubleQuotes(cmd) {
 var WritePatternDetector = class {
   detect(segment) {
     const unquoted = stripDoubleQuotes(segment);
-    if (REDIR_APPEND_RE.test(unquoted)) return true;
-    if (REDIR_COMBINED_RE.test(unquoted)) return true;
-    if (REDIR_STDOUT_RE.test(unquoted)) return true;
-    if (REDIR_STDERR_RE.test(unquoted)) return true;
-    if (TEE_PIPE_RE.test(unquoted)) return true;
-    if (WRITE_PROC_SUB_RE.test(unquoted)) return true;
+    if (REDIR_APPEND_RE.test(unquoted)) return { ok: true, debug: { rule: "REDIR_APPEND_RE", text: ">>" } };
+    if (REDIR_COMBINED_RE.test(unquoted)) return { ok: true, debug: { rule: "REDIR_COMBINED_RE", text: "&>" } };
+    if (REDIR_STDOUT_RE.test(unquoted)) {
+      const m = unquoted.match(REDIR_STDOUT_RE);
+      return { ok: true, debug: { rule: "REDIR_STDOUT_RE", text: m ? m[0] : ">" } };
+    }
+    if (REDIR_STDERR_RE.test(unquoted)) {
+      const m = unquoted.match(REDIR_STDERR_RE);
+      return { ok: true, debug: { rule: "REDIR_STDERR_RE", text: m ? m[0] : "2>" } };
+    }
+    if (TEE_PIPE_RE.test(unquoted)) return { ok: true, debug: { rule: "TEE_PIPE_RE", text: "| tee" } };
+    if (WRITE_PROC_SUB_RE.test(unquoted)) return { ok: true, debug: { rule: "WRITE_PROC_SUB_RE", text: ">()" } };
     if (XARGS_RE.test(unquoted)) {
       const XARGS_READ_ONLY_CMDS = /* @__PURE__ */ new Set([
         "cat",
@@ -52188,37 +52225,48 @@ var WritePatternDetector = class {
         "lastb"
       ]);
       const xargsMatch = unquoted.match(/\bxargs\b\s+(\S+)/);
-      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return false;
-      return true;
+      if (xargsMatch && XARGS_READ_ONLY_CMDS.has(xargsMatch[1])) return { ok: false };
+      return { ok: true, debug: { rule: "XARGS_RE", text: "xargs" } };
     }
-    if (HERE_STRING_RE.test(segment)) return true;
+    if (HERE_STRING_RE.test(segment)) return { ok: true, debug: { rule: "HERE_STRING_RE", text: "<<<" } };
     if (/\bsed\b/.test(unquoted)) {
-      if (SED_INPLACE_RE.test(unquoted)) return true;
-      if (SED_INPLACE_LONG_RE.test(unquoted)) return true;
-      if (SED_WRITE_RE.test(unquoted)) return true;
+      if (SED_INPLACE_RE.test(unquoted)) return { ok: true, debug: { rule: "SED_INPLACE_RE", text: "sed -i" } };
+      if (SED_INPLACE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: "SED_INPLACE_LONG_RE", text: "sed --in-place" } };
+      if (SED_WRITE_RE.test(unquoted)) return { ok: true, debug: { rule: "SED_WRITE_RE", text: "sed -n w" } };
     }
-    if (FIND_EXEC_RE.test(unquoted)) return true;
+    if (FIND_EXEC_RE.test(unquoted)) return { ok: true, debug: { rule: "FIND_EXEC_RE", text: "-exec" } };
     if (/\bcp\b/.test(unquoted)) {
-      if (CP_STDIN_RE.test(unquoted)) return true;
-      if (CP_DASH_RE.test(unquoted)) return true;
+      if (CP_STDIN_RE.test(unquoted)) return { ok: true, debug: { rule: "CP_STDIN_RE", text: "/dev/stdin" } };
+      if (CP_DASH_RE.test(unquoted)) return { ok: true, debug: { rule: "CP_DASH_RE", text: "cp -" } };
     }
-    if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return true;
+    if (/\bdd\b/.test(unquoted) && DD_OF_RE.test(unquoted)) return { ok: true, debug: { rule: "DD_OF_RE", text: "dd of=" } };
     if (/\btar\b/.test(unquoted)) {
-      if (TAR_CREATE_SHORT_RE.test(unquoted)) return true;
-      if (TAR_CREATE_LONG_RE.test(unquoted)) return true;
-      if (TAR_CF_RE.test(unquoted)) return true;
+      if (TAR_CREATE_SHORT_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CREATE_SHORT_RE", text: "tar cf" } };
+      if (TAR_CREATE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CREATE_LONG_RE", text: "tar --create" } };
+      if (TAR_CF_RE.test(unquoted)) return { ok: true, debug: { rule: "TAR_CF_RE", text: "tar -c --file" } };
     }
-    if (this.detectInterpreterWrites(unquoted)) return true;
-    if (this.detectReverseShell(unquoted)) return true;
-    return false;
+    const interpResult = this.detectInterpreterWrites(unquoted);
+    if (interpResult.ok) return interpResult;
+    const reverseShellResult = this.detectReverseShell(unquoted);
+    if (reverseShellResult.ok) return reverseShellResult;
+    return { ok: false };
   }
   detectInterpreterWrites(s) {
-    if (!INTERPRETER_RE.test(s)) return false;
-    return PYTHON_OPEN_RE.test(s) || PYTHON_OS_RE.test(s) || PYTHON_SUBPROCESS_RE.test(s) || RUBY_FILE_WRITE_RE.test(s) || RUBY_IO_WRITE_RE.test(s) || NODE_FS_WRITE_RE.test(s);
+    if (!INTERPRETER_RE.test(s)) return { ok: false };
+    if (PYTHON_OPEN_RE.test(s)) return { ok: true, debug: { rule: "PYTHON_OPEN_RE", text: "open()" } };
+    if (PYTHON_OS_RE.test(s)) return { ok: true, debug: { rule: "PYTHON_OS_RE", text: "os.system/popen" } };
+    if (PYTHON_SUBPROCESS_RE.test(s)) return { ok: true, debug: { rule: "PYTHON_SUBPROCESS_RE", text: "subprocess." } };
+    if (RUBY_FILE_WRITE_RE.test(s)) return { ok: true, debug: { rule: "RUBY_FILE_WRITE_RE", text: "File.write" } };
+    if (RUBY_IO_WRITE_RE.test(s)) return { ok: true, debug: { rule: "RUBY_IO_WRITE_RE", text: "IO.write" } };
+    if (NODE_FS_WRITE_RE.test(s)) return { ok: true, debug: { rule: "NODE_FS_WRITE_RE", text: "fs.write" } };
+    return { ok: false };
   }
   detectReverseShell(s) {
-    if (!REVERSE_SHELL_NET_RE.test(s)) return false;
-    return REVERSE_SHELL_NC_RE.test(s) || REVERSE_SHELL_SOCAT_RE.test(s) || REVERSE_SHELL_TCP_RE.test(s);
+    if (!REVERSE_SHELL_NET_RE.test(s)) return { ok: false };
+    if (REVERSE_SHELL_NC_RE.test(s)) return { ok: true, debug: { rule: "REVERSE_SHELL_NC_RE", text: "nc -e" } };
+    if (REVERSE_SHELL_SOCAT_RE.test(s)) return { ok: true, debug: { rule: "REVERSE_SHELL_SOCAT_RE", text: "socat exec:" } };
+    if (REVERSE_SHELL_TCP_RE.test(s)) return { ok: true, debug: { rule: "REVERSE_SHELL_TCP_RE", text: "tcp:port" } };
+    return { ok: false };
   }
 };
 
@@ -52388,7 +52436,8 @@ var CommandChecker = class {
       ["rsync", rsyncHasWriteArg],
       ["mktemp", mktempHasWriteArg],
       ["fail2ban-client", fail2banHasWriteArg],
-      ["journalctl", journalctlHasWriteArg]
+      ["journalctl", journalctlHasWriteArg],
+      ["awk", awkHasWriteArg]
     ]);
     this.patternDetector = new WritePatternDetector();
   }
@@ -52415,7 +52464,9 @@ var CommandChecker = class {
         continue;
       }
       const pipeSegments = tokenize(trimmed, PIPE_OPTIONS);
+      let segIdx = 0;
       for (const pipeSeg of pipeSegments) {
+        segIdx++;
         const pTrimmed = pipeSeg.trim();
         if (!pTrimmed) continue;
         const psResult = this.checkProcessSubstitution(pTrimmed);
@@ -52423,7 +52474,7 @@ var CommandChecker = class {
         const resolved = resolveCommand(pTrimmed);
         const cmd = getFirstToken5(resolved);
         if (!this.whitelist.has(cmd)) {
-          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist` };
+          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist`, blockedCommand: cmd, segmentIndex: segIdx };
         }
         if (cmd === "eval") {
           const evalResult = this.validateEvalArgs(pTrimmed);
@@ -52435,10 +52486,11 @@ var CommandChecker = class {
         }
         const handler = this.handlers.get(cmd);
         if (handler && handler(pTrimmed)) {
-          return { allowed: false, reason: `Write argument detected in command` };
+          return { allowed: false, reason: `Write argument detected in command`, blockedCommand: cmd, matchedRule: `${cmd} write arg`, segmentIndex: segIdx };
         }
-        if (this.patternDetector.detect(pTrimmed)) {
-          return { allowed: false, reason: `Write pattern detected in command` };
+        const patternResult = this.patternDetector.detect(pTrimmed);
+        if (patternResult.ok) {
+          return { allowed: false, reason: `Write pattern detected in command`, blockedCommand: cmd, matchedRule: patternResult.debug?.rule, matchedText: patternResult.debug?.text, segmentIndex: segIdx };
         }
       }
     }
@@ -52481,8 +52533,8 @@ var CommandChecker = class {
     const rest = cmd.substring(4).trimStart();
     if (!rest) return null;
     const target = getFirstToken5(rest);
-    if (SHELL_PATTERNS.includes(target)) return { allowed: false, reason: "Shell replacement detected" };
-    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: "Shell path detected" };
+    if (SHELL_PATTERNS.includes(target)) return { allowed: false, reason: "Shell replacement detected", blockedCommand: target };
+    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: "Shell path detected", blockedCommand: target };
     return null;
   }
 };
@@ -52690,7 +52742,12 @@ server.registerTool(
     if (isReadonlyMode()) {
       const result = checker2.check(args.command);
       if (!result.allowed) {
-        return errorResponse(`Write operation detected: ${result.reason}`);
+        const parts = [`Write operation detected: ${result.reason}`];
+        if (result.blockedCommand) parts.push(`[blocked_command=${result.blockedCommand}]`);
+        if (result.matchedRule) parts.push(`[matched_rule=${result.matchedRule}]`);
+        if (result.matchedText) parts.push(`[matched_text=${result.matchedText}]`);
+        if (result.segmentIndex !== void 0) parts.push(`[segment=${result.segmentIndex}]`);
+        return errorResponse(parts.join(" "));
       }
     }
     try {

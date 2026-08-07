@@ -68,7 +68,8 @@ src/readonly-checker/
 │   ├── rsync-handler.ts             ← her zaman yazma
 │   ├── mktemp-handler.ts            ← her zaman yazma
 │   ├── fail2ban-handler.ts          ← status/gettag read-only, diğerleri write
-│   └── journalctl-handler.ts        ← --vacuum-size/--rotate/--flush vb. write flag tespiti
+│   ├── journalctl-handler.ts        ← --vacuum-size/--rotate/--flush vb. write flag tespiti
+│   └── awk-handler.ts               ← awk write pattern (print > file, system(), getline)
 ├── write-patterns/
 │   └── write-pattern-detector.ts    ← redirection, interpreter writes, reverse shell, xargs read-only detection
 ├── resolution/
@@ -95,6 +96,21 @@ check(command)
   → ✅ izin
 ```
 
+### Hata Mesajı Formatı (Debug Info)
+```json
+{
+  "success": false,
+  "error": "Write operation detected: Write pattern detected in command [blocked_command=awk] [matched_rule=REDIR_STDOUT_RE] [matched_text=>] [segment=2]"
+}
+```
+
+| Field | Açıklama |
+|---|---|
+| `blocked_command` | Engellenen komut (örn: `awk`, `git`) |
+| `matched_rule` | Tetiklenen kural adı (örn: `REDIR_STDOUT_RE`, `system()` call) |
+| `matched_text` | Eşleşen metin (örn: `>`, `>>`, `system(`) |
+| `segment` | Pipe chain'deki segment numarası |
+
 ### Hızlı Referans
 
 #### Whitelist'e Komut Ekleme
@@ -104,6 +120,11 @@ check(command)
 1. `src/readonly-checker/write-handlers/<name>-handler.ts` oluştur
 2. Export: `export function hasWriteArg(cmd: string): boolean`
 3. `command-checker.ts` Map'e kaydet
+
+#### Yeni Write Pattern Ekleme
+1. `src/data/readonly-rules.ts` → yeni regex ekle
+2. `src/readonly-checker/write-patterns/write-pattern-detector.ts` → detect() metoduna ekle
+3. `test/readonly-checker/write-patterns/write-pattern-detector.test.ts` → test ekle
 
 #### Hangi Dosyaya Bakmalı?
 | İhtiyaç | Dosya |

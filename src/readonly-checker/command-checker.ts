@@ -13,6 +13,7 @@ import { rsyncHasWriteArg } from './write-handlers/rsync-handler.js';
 import { mktempHasWriteArg } from './write-handlers/mktemp-handler.js';
 import { fail2banHasWriteArg } from './write-handlers/fail2ban-handler.js';
 import { journalctlHasWriteArg } from './write-handlers/journalctl-handler.js';
+import { awkHasWriteArg } from './write-handlers/awk-handler.js';
 import { WritePatternDetector } from './write-patterns/write-pattern-detector.js';
 import { resolveCommand, getFirstToken as resolverGetFirstToken } from './resolution/command-resolver.js';
 import { extractLoopBody } from './parsing/loop-extractor.js';
@@ -22,6 +23,10 @@ import { SHELL_PATTERNS } from '../data/readonly-rules.js';
 export interface CheckResult {
   allowed: boolean;
   reason?: string;
+  blockedCommand?: string;
+  matchedRule?: string;
+  matchedText?: string;
+  segmentIndex?: number;
 }
 
 type WriteHandlerFn = (cmd: string) => boolean;
@@ -70,6 +75,7 @@ export class CommandChecker {
       ['mktemp', mktempHasWriteArg],
       ['fail2ban-client', fail2banHasWriteArg],
       ['journalctl', journalctlHasWriteArg],
+      ['awk', awkHasWriteArg],
     ]);
 
     this.patternDetector = new WritePatternDetector();
@@ -110,7 +116,9 @@ export class CommandChecker {
 
       // 3b. Pipe segment parsing
       const pipeSegments = tokenize(trimmed, PIPE_OPTIONS);
+      let segIdx = 0;
       for (const pipeSeg of pipeSegments) {
+        segIdx++;
         const pTrimmed = pipeSeg.trim();
         if (!pTrimmed) continue;
 
@@ -124,7 +132,7 @@ export class CommandChecker {
 
         // 3c. WHITELIST CHECK — O(1), early exit
         if (!this.whitelist.has(cmd)) {
-          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist` };
+          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist`, blockedCommand: cmd, segmentIndex: segIdx };
         }
 
         // 3d. eval/exec özel validation
@@ -140,12 +148,13 @@ export class CommandChecker {
         // 3e. DIRECT DISPATCH — O(1), no iteration
         const handler = this.handlers.get(cmd);
         if (handler && handler(pTrimmed)) {
-          return { allowed: false, reason: `Write argument detected in command` };
+          return { allowed: false, reason: `Write argument detected in command`, blockedCommand: cmd, matchedRule: `${cmd} write arg`, segmentIndex: segIdx };
         }
 
         // 3f. Write pattern detection
-        if (this.patternDetector.detect(pTrimmed)) {
-          return { allowed: false, reason: `Write pattern detected in command` };
+        const patternResult = this.patternDetector.detect(pTrimmed);
+        if (patternResult.ok) {
+          return { allowed: false, reason: `Write pattern detected in command`, blockedCommand: cmd, matchedRule: patternResult.debug?.rule, matchedText: patternResult.debug?.text, segmentIndex: segIdx };
         }
       }
     }
@@ -194,8 +203,8 @@ export class CommandChecker {
     const rest = cmd.substring(4).trimStart();
     if (!rest) return null;
     const target = resolverGetFirstToken(rest);
-    if (SHELL_PATTERNS.includes(target as any)) return { allowed: false, reason: 'Shell replacement detected' };
-    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: 'Shell path detected' };
+    if (SHELL_PATTERNS.includes(target as any)) return { allowed: false, reason: 'Shell replacement detected', blockedCommand: target };
+    if (/^\/bin\//.test(target) || /^\/usr\/bin\//.test(target)) return { allowed: false, reason: 'Shell path detected', blockedCommand: target };
     return null;
   }
 }
