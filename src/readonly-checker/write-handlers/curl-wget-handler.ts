@@ -6,15 +6,7 @@ const CURL_SAFE_FLAGS = new Set([
   '--globoff', '--progress-bar', '--remote-name-all', '--silent',
   '--verbose', '--head', '--write-out', '--user-agent', '--referer',
   '--header', '--cookie', '--cookie-jar', '--get', '--ipv4',
-  '--ipv6', '--location', '--insecure', '--max-time',
-]);
-
-// curl: file-writing long flags (whitelist'da yoksa engelle)
-const CURL_WRITE_LONG_FLAGS = new Set([
-  'output', 'dump-header', 'trace', 'trace-ascii', 'libcurl',
-  'stderr', 'config', 'egd-file', 'log-file', 'random-file',
-  'output-dir', 'compressed-session-file', 'tlsautofingerprint',
-  'tlspinnedkey', 'unix-socket', 'proxy-service-name', 'service-name',
+  '--ipv6', '--location', '--insecure',
 ]);
 
 export function curlWgetHasWriteArg(cmd: string): boolean {
@@ -26,7 +18,6 @@ export function curlWgetHasWriteArg(cmd: string): boolean {
 
   const tokens = cmd.split(/\s+/);
   let hasUnknownFlag = false;
-  let hasWriteFlag = false;
 
   for (let i = 1; i < tokens.length; i++) {
     const token = tokens[i];
@@ -34,9 +25,7 @@ export function curlWgetHasWriteArg(cmd: string): boolean {
     // Long flag: --flag=value veya --flag value
     if (token.startsWith('--')) {
       const flagName = token.split('=')[0];
-      if (CURL_WRITE_LONG_FLAGS.has(flagName)) {
-        hasWriteFlag = true;
-      } else if (!CURL_SAFE_FLAGS.has(flagName)) {
+      if (!CURL_SAFE_FLAGS.has(flagName)) {
         hasUnknownFlag = true;
       }
       continue;
@@ -56,9 +45,5 @@ export function curlWgetHasWriteArg(cmd: string): boolean {
   }
 
   // Bilinmeyen flag varsa → engelle
-  if (hasUnknownFlag) return true;
-  // Write flag varsa → engelle
-  if (hasWriteFlag) return true;
-
-  return false;
+  return hasUnknownFlag;
 }

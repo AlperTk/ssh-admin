@@ -26,13 +26,6 @@ export function tarHasWriteArg(cmd: string): boolean {
     return true;
   }
 
-  // Long flags: --create, --extract, --list
-  for (const token of tokens) {
-    if (token === '--create' || token === '--replace') return true;
-    if (token === '--extract' || token === '--get') return true;
-    if (token === '--list' || token === '--list-newer') return false;
-  }
-
   // Whitelist: sadece safe flags izinli
   return !TAR_SAFE_FLAGS.has(firstToken);
 }
