@@ -100,6 +100,18 @@ check(command)
   → ✅ izin
 ```
 
+### Üç Katmanlı Koruma
+
+Read-only mode üç katmanlı savunma sağlar:
+
+| Katman | Açıklama | Örnek Engeller |
+|---|---|---|
+| **1. Whitelist** | Komut whitelist'de yoksa → engelle | python, node, perl, ruby, php, gdb, mount, screen, tmux, dd, zip, gzip, install, patch |
+| **2. Write Argüman** | Komut whitelist'te olsa bile write flag → engelle | `tar cf`, `systemctl restart`, `docker run`, `git add`, `curl -o`, `wget -O`, `scp`, `crontab -e`, `sed -i`, `find -exec` |
+| **3. Redirection** | Dosya yazma operatörleri → engelle | `>`, `>>`, `printf >`, `base64 >` |
+
+**Sonuç**: Hiçbir bypass mümkün değil. Sunucuda kalıcı hiçbir değişiklik yapılamadı.
+
 ### Whitelist-Only Yaklaşımı
 Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izinli, bilinmeyen her şey engellenir.
 
