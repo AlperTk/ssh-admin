@@ -77,7 +77,7 @@ src/readonly-checker/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (489 komut)
+├── readonly-whitelist.json          ← whitelist komut listesi (355 komut)
 └── readonly-rules.ts                ← GIT_WRITE_COMMANDS, DOCKER_READ_ONLY vb. sabitler
 ```
 

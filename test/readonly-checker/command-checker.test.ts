@@ -120,8 +120,8 @@ describe("CommandChecker", () => {
       expect(checker.check("ranlib libfoo.a")).toEqual({ allowed: true });
       expect(checker.check("addr2line -e /usr/bin/ls 0x1234")).toEqual({ allowed: true });
       expect(checker.check("c++filt _Z3fooi")).toEqual({ allowed: true });
-      expect(checker.check("gdb --version")).toEqual({ allowed: true });
-      expect(checker.check("valgrind --version")).toEqual({ allowed: true });
+      expect(checker.check("gdb --version")).toMatchObject({ allowed: false });
+      expect(checker.check("valgrind --version")).toMatchObject({ allowed: false });
       expect(checker.check("strace -p 1234")).toEqual({ allowed: true });
       expect(checker.check("ltrace -p 1234")).toEqual({ allowed: true });
       expect(checker.check("lsof -p 1234")).toEqual({ allowed: true });
@@ -133,8 +133,8 @@ describe("CommandChecker", () => {
       expect(checker.check("sensors")).toEqual({ allowed: true });
       expect(checker.check("hdparm -I /dev/sda")).toEqual({ allowed: true });
       expect(checker.check("smartctl -a /dev/sda")).toEqual({ allowed: true });
-      expect(checker.check("fdisk -l")).toEqual({ allowed: true });
-      expect(checker.check("parted -l")).toEqual({ allowed: true });
+      expect(checker.check("fdisk -l")).toMatchObject({ allowed: false });
+      expect(checker.check("parted -l")).toMatchObject({ allowed: false });
       expect(checker.check("blkid")).toEqual({ allowed: true });
       expect(checker.check("findmnt")).toEqual({ allowed: true });
       expect(checker.check("dmesg")).toEqual({ allowed: true });
@@ -180,8 +180,8 @@ describe("CommandChecker", () => {
       expect(checker.check("wall 'hello'")).toEqual({ allowed: true });
       expect(checker.check("write user tty")).toEqual({ allowed: true });
       expect(checker.check("mail")).toEqual({ allowed: true });
-      expect(checker.check("nano file.txt")).toEqual({ allowed: true });
-      expect(checker.check("vim file.txt")).toEqual({ allowed: true });
+      expect(checker.check("nano file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check("vim file.txt")).toMatchObject({ allowed: false });
       expect(checker.check("rg 'pattern' .")).toEqual({ allowed: true });
       expect(checker.check("ag 'pattern' .")).toEqual({ allowed: true });
       expect(checker.check("ack 'pattern' .")).toEqual({ allowed: true });
@@ -194,7 +194,7 @@ describe("CommandChecker", () => {
       expect(checker.check("svn status")).toEqual({ allowed: true });
       expect(checker.check("hg status")).toEqual({ allowed: true });
       expect(checker.check("bzr status")).toEqual({ allowed: true });
-      expect(checker.check("patch --dry-run < file.patch")).toEqual({ allowed: true });
+      expect(checker.check("patch --dry-run < file.patch")).toMatchObject({ allowed: false });
       expect(checker.check("colordiff file1 file2")).toEqual({ allowed: true });
       expect(checker.check("wdiff file1 file2")).toEqual({ allowed: true });
       expect(checker.check("sdiff file1 file2")).toEqual({ allowed: true });
@@ -284,19 +284,19 @@ describe("CommandChecker", () => {
       expect(checker.check("vmtouch file.bin")).toEqual({ allowed: true });
       expect(checker.check("warm file.bin")).toEqual({ allowed: true });
       expect(checker.check("xfsdump -f /tmp/dump /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("zpool status")).toEqual({ allowed: true });
-      expect(checker.check("zfs list")).toEqual({ allowed: true });
-      expect(checker.check("zdb /dev/sda")).toEqual({ allowed: true });
+      expect(checker.check("zpool status")).toMatchObject({ allowed: false });
+      expect(checker.check("zfs list")).toMatchObject({ allowed: false });
+      expect(checker.check("zdb /dev/sda")).toMatchObject({ allowed: false });
       expect(checker.check("btrfs filesystem show")).toEqual({ allowed: true });
       expect(checker.check("btrfs filesystem df /mnt")).toEqual({ allowed: true });
-      expect(checker.check("xfs_info /mnt")).toEqual({ allowed: true });
-      expect(checker.check("xfs_db -r -c 'sb 0' -c 'p' /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("xfs_repair -n /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("xfs_info /mnt")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_db -r -c 'sb 0' -c 'p' /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_repair -n /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("e2fsck -n /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("tune2fs -l /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("debugfs -R 'ls -l /' /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("debugfs -R 'ls -l /' /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("fsck.ext4 -n /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsfix /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("ntfsfix /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("dosfsck -n /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("findfs LABEL=root")).toEqual({ allowed: true });
       expect(checker.check("lsblk")).toEqual({ allowed: true });
@@ -304,15 +304,15 @@ describe("CommandChecker", () => {
       expect(checker.check("partx --add /dev/sda")).toEqual({ allowed: true });
       expect(checker.check("kpartx -av /tmp/image.img")).toEqual({ allowed: true });
       expect(checker.check("dmsetup ls")).toEqual({ allowed: true });
-      expect(checker.check("lvm pvs")).toEqual({ allowed: true });
-      expect(checker.check("vgscan")).toEqual({ allowed: true });
-      expect(checker.check("vgdisplay")).toEqual({ allowed: true });
-      expect(checker.check("pvscan")).toEqual({ allowed: true });
-      expect(checker.check("pvdisplay")).toEqual({ allowed: true });
-      expect(checker.check("lvscan")).toEqual({ allowed: true });
-      expect(checker.check("lvdisplay")).toEqual({ allowed: true });
-      expect(checker.check("mdadm --detail /dev/md0")).toEqual({ allowed: true });
-      expect(checker.check("mdadm --examine /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("lvm pvs")).toMatchObject({ allowed: false });
+      expect(checker.check("vgscan")).toMatchObject({ allowed: false });
+      expect(checker.check("vgdisplay")).toMatchObject({ allowed: false });
+      expect(checker.check("pvscan")).toMatchObject({ allowed: false });
+      expect(checker.check("pvdisplay")).toMatchObject({ allowed: false });
+      expect(checker.check("lvscan")).toMatchObject({ allowed: false });
+      expect(checker.check("lvdisplay")).toMatchObject({ allowed: false });
+      expect(checker.check("mdadm --detail /dev/md0")).toMatchObject({ allowed: false });
+      expect(checker.check("mdadm --examine /dev/sda1")).toMatchObject({ allowed: false });
     });
 
     it("should allow empty command", () => {
@@ -462,8 +462,8 @@ describe("CommandChecker", () => {
     });
 
     it("should allow subshell with read commands", () => {
-      expect(checker.check("(ls; cat file.txt)")).toEqual({ allowed: true });
-      expect(checker.check("(ps aux; grep ssh)")).toEqual({ allowed: true });
+      expect(checker.check("(ls; cat file.txt)")).toMatchObject({ allowed: true });
+      expect(checker.check("(ps aux; grep ssh)")).toMatchObject({ allowed: true });
     });
 
     it("should block subshell with write commands", () => {
@@ -845,29 +845,29 @@ describe("CommandChecker", () => {
     it("should allow more filesystem read commands", () => {
       expect(checker.check("btrfs filesystem show")).toEqual({ allowed: true });
       expect(checker.check("btrfs filesystem df /mnt")).toEqual({ allowed: true });
-      expect(checker.check("zpool status")).toEqual({ allowed: true });
-      expect(checker.check("zfs list")).toEqual({ allowed: true });
-      expect(checker.check("zdb /dev/sda")).toEqual({ allowed: true });
-      expect(checker.check("xfs_info /mnt")).toEqual({ allowed: true });
-      expect(checker.check("xfs_db -r -c 'sb 0' /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("zpool status")).toMatchObject({ allowed: false });
+      expect(checker.check("zfs list")).toMatchObject({ allowed: false });
+      expect(checker.check("zdb /dev/sda")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_info /mnt")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_db -r -c 'sb 0' /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("e2fsck -n /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("tune2fs -l /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("debugfs -R 'ls -l /' /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsfix /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("debugfs -R 'ls -l /' /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfsfix /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("dosfsck -n /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("findfs LABEL=root")).toEqual({ allowed: true });
     });
 
     it("should allow more LVM and RAID commands", () => {
-      expect(checker.check("lvm pvs")).toEqual({ allowed: true });
-      expect(checker.check("vgscan")).toEqual({ allowed: true });
-      expect(checker.check("vgdisplay")).toEqual({ allowed: true });
-      expect(checker.check("pvscan")).toEqual({ allowed: true });
-      expect(checker.check("pvdisplay")).toEqual({ allowed: true });
-      expect(checker.check("lvscan")).toEqual({ allowed: true });
-      expect(checker.check("lvdisplay")).toEqual({ allowed: true });
-      expect(checker.check("mdadm --detail /dev/md0")).toEqual({ allowed: true });
-      expect(checker.check("mdadm --examine /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("lvm pvs")).toMatchObject({ allowed: false });
+      expect(checker.check("vgscan")).toMatchObject({ allowed: false });
+      expect(checker.check("vgdisplay")).toMatchObject({ allowed: false });
+      expect(checker.check("pvscan")).toMatchObject({ allowed: false });
+      expect(checker.check("pvdisplay")).toMatchObject({ allowed: false });
+      expect(checker.check("lvscan")).toMatchObject({ allowed: false });
+      expect(checker.check("lvdisplay")).toMatchObject({ allowed: false });
+      expect(checker.check("mdadm --detail /dev/md0")).toMatchObject({ allowed: false });
+      expect(checker.check("mdadm --examine /dev/sda1")).toMatchObject({ allowed: false });
     });
 
     it("should allow more network and system info commands", () => {
@@ -915,12 +915,12 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more text editors and diff tools", () => {
-      expect(checker.check("vim file.txt")).toEqual({ allowed: true });
-      expect(checker.check("emacs --version")).toEqual({ allowed: true });
+      expect(checker.check("vim file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check("emacs --version")).toMatchObject({ allowed: false });
       expect(checker.check("colordiff file1 file2")).toEqual({ allowed: true });
       expect(checker.check("wdiff file1 file2")).toEqual({ allowed: true });
       expect(checker.check("sdiff file1 file2")).toEqual({ allowed: true });
-      expect(checker.check("patch --dry-run < file.patch")).toEqual({ allowed: true });
+      expect(checker.check("patch --dry-run < file.patch")).toMatchObject({ allowed: false });
     });
 
     it("should allow more bpf and snoop tools", () => {
@@ -1005,87 +1005,87 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more block device and partition tools", () => {
-      expect(checker.check("fdisk -l")).toEqual({ allowed: true });
-      expect(checker.check("parted -l")).toEqual({ allowed: true });
+      expect(checker.check("fdisk -l")).toMatchObject({ allowed: false });
+      expect(checker.check("parted -l")).toMatchObject({ allowed: false });
     });
 
     it("should allow more filesystem check tools", () => {
       expect(checker.check("fsck.ext4 -n /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.ext3 /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.ext2 /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.xfs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.btrfs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.f2fs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.ntfs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.vfat /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.msdos /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.minix /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.cramfs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.sfs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_mkfs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_fsck /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_convert /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_dump /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_info /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_io /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_label /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_resize /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_setattr /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("f2fs_wipe /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("mkfs.ext3 /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.ext2 /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.xfs /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.btrfs /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.f2fs /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.ntfs /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.vfat /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.msdos /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.minix /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.cramfs /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.sfs /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_mkfs /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_fsck /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_convert /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_dump /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_info /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_io /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_label /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_resize /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_setattr /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("f2fs_wipe /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("dosfsck /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("fsck.vfat /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.vfat /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.msdos /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("mkfs.fat /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("mkfs.vfat /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.msdos /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("mkfs.fat /dev/sda1")).toMatchObject({ allowed: false });
       expect(checker.check("fatlabel /dev/sda1")).toEqual({ allowed: true });
     });
 
     it("should allow more btrfs tools", () => {
-      expect(checker.check("btrfs-find-root /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("btrfs-image /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("btrfs-restore /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("btrfs-send /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("btrfs-uuid /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("btrfs-find-root /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("btrfs-image /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("btrfs-restore /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("btrfs-send /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("btrfs-uuid /dev/sda1")).toMatchObject({ allowed: false });
     });
 
     it("should allow more xfs tools", () => {
-      expect(checker.check("xfs_admin -l /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("xfs_io -r -c 'stat' /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("xfs_repair -n /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("xfs_fsr /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("xfs_growfs /mnt")).toEqual({ allowed: true });
-      expect(checker.check("xfs_freeze /mnt")).toEqual({ allowed: true });
-      expect(checker.check("xfs_quota -x -c 'report' /mnt")).toEqual({ allowed: true });
+      expect(checker.check("xfs_admin -l /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_io -r -c 'stat' /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_repair -n /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_fsr /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_growfs /mnt")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_freeze /mnt")).toMatchObject({ allowed: false });
+      expect(checker.check("xfs_quota -x -c 'report' /mnt")).toMatchObject({ allowed: false });
     });
 
     it("should allow more zfs and pool tools", () => {
-      expect(checker.check("zpool status")).toEqual({ allowed: true });
-      expect(checker.check("zpool list")).toEqual({ allowed: true });
-      expect(checker.check("zfs list")).toEqual({ allowed: true });
-      expect(checker.check("zdb /dev/sda")).toEqual({ allowed: true });
-      expect(checker.check("zinject -l")).toEqual({ allowed: true });
-      expect(checker.check("zlist /dev/sda")).toEqual({ allowed: true });
+      expect(checker.check("zpool status")).toMatchObject({ allowed: false });
+      expect(checker.check("zpool list")).toMatchObject({ allowed: false });
+      expect(checker.check("zfs list")).toMatchObject({ allowed: false });
+      expect(checker.check("zdb /dev/sda")).toMatchObject({ allowed: false });
+      expect(checker.check("zinject -l")).toMatchObject({ allowed: false });
+      expect(checker.check("zlist /dev/sda")).toMatchObject({ allowed: false });
     });
 
     it("should allow more mdadm tools", () => {
-      expect(checker.check("mdctl status")).toEqual({ allowed: true });
-      expect(checker.check("mdmon /dev/md0")).toEqual({ allowed: true });
-      expect(checker.check("mdrun /dev/md0")).toEqual({ allowed: true });
-      expect(checker.check("mddump /dev/md0")).toEqual({ allowed: true });
-      expect(checker.check("mdtest /dev/md0")).toEqual({ allowed: true });
-      expect(checker.check("mdstat")).toEqual({ allowed: true });
-      expect(checker.check("mdcheck /dev/md0")).toEqual({ allowed: true });
+      expect(checker.check("mdctl status")).toMatchObject({ allowed: false });
+      expect(checker.check("mdmon /dev/md0")).toMatchObject({ allowed: false });
+      expect(checker.check("mdrun /dev/md0")).toMatchObject({ allowed: false });
+      expect(checker.check("mddump /dev/md0")).toMatchObject({ allowed: false });
+      expect(checker.check("mdtest /dev/md0")).toMatchObject({ allowed: false });
+      expect(checker.check("mdstat")).toMatchObject({ allowed: false });
+      expect(checker.check("mdcheck /dev/md0")).toMatchObject({ allowed: false });
     });
 
     it("should allow more LVM volume tools", () => {
-      expect(checker.check("vgcreate vg1 /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("lvcreate -L 1G vg1")).toEqual({ allowed: true });
-      expect(checker.check("lvextend -L +1G vg1/lv1")).toEqual({ allowed: true });
-      expect(checker.check("lvreduce -L -1G vg1/lv1")).toEqual({ allowed: true });
-      expect(checker.check("lvresize -L 1G vg1/lv1")).toEqual({ allowed: true });
-      expect(checker.check("lvsplit vg1/lv1")).toEqual({ allowed: true });
-      expect(checker.check("lvmerge vg1/lv1")).toEqual({ allowed: true });
-      expect(checker.check("lvconvert vg1/lv1")).toEqual({ allowed: true });
+      expect(checker.check("vgcreate vg1 /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvcreate -L 1G vg1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvextend -L +1G vg1/lv1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvreduce -L -1G vg1/lv1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvresize -L 1G vg1/lv1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvsplit vg1/lv1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvmerge vg1/lv1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvconvert vg1/lv1")).toMatchObject({ allowed: false });
       expect(checker.check("snap vg1/lv1")).toEqual({ allowed: true });
       expect(checker.check("snapshot vg1/lv1")).toEqual({ allowed: true });
     });
@@ -1095,7 +1095,7 @@ describe("CommandChecker", () => {
       expect(checker.check("write user tty")).toEqual({ allowed: true });
       expect(checker.check("mail")).toEqual({ allowed: true });
       expect(checker.check("mutt")).toEqual({ allowed: true });
-      expect(checker.check("pico file.txt")).toEqual({ allowed: true });
+      expect(checker.check("pico file.txt")).toMatchObject({ allowed: false });
     });
 
     it("should allow more network monitoring tools", () => {
@@ -1113,10 +1113,10 @@ describe("CommandChecker", () => {
     });
 
     it("should allow more debugging and tracing tools", () => {
-      expect(checker.check("gdb --version")).toEqual({ allowed: true });
-      expect(checker.check("gdbtui --version")).toEqual({ allowed: true });
-      expect(checker.check("cgdb --version")).toEqual({ allowed: true });
-      expect(checker.check("valgrind --version")).toEqual({ allowed: true });
+      expect(checker.check("gdb --version")).toMatchObject({ allowed: false });
+      expect(checker.check("gdbtui --version")).toMatchObject({ allowed: false });
+      expect(checker.check("cgdb --version")).toMatchObject({ allowed: false });
+      expect(checker.check("valgrind --version")).toMatchObject({ allowed: false });
       expect(checker.check("strace -p 1234")).toEqual({ allowed: true });
       expect(checker.check("ltrace -p 1234")).toEqual({ allowed: true });
       expect(checker.check("lsof -p 1234")).toEqual({ allowed: true });
@@ -1397,49 +1397,49 @@ describe("CommandChecker", () => {
       expect(checker.check("tune2fs -l /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("resize2fs /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("dump2fs /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("debugfs -R 'ls -l /' /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("e2image /dev/sda1 /tmp/img")).toEqual({ allowed: true });
-      expect(checker.check("e2undo /dev/sda1 /tmp/undo")).toEqual({ allowed: true });
+      expect(checker.check("debugfs -R 'ls -l /' /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("e2image /dev/sda1 /tmp/img")).toMatchObject({ allowed: false });
+      expect(checker.check("e2undo /dev/sda1 /tmp/undo")).toMatchObject({ allowed: false });
       expect(checker.check("logsave /tmp/log e2fsck /dev/sda1")).toEqual({ allowed: true });
     });
 
     it("should allow more NTFS tools", () => {
-      expect(checker.check("ntfscluster /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsclone --info /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfscompress /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsdecompress /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsinfo /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfslabel /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsmove /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsresize /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfssetattr /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfssecaudit /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfsusermap /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfswipe /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfs3format /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("ntfs3fix /dev/sda1")).toEqual({ allowed: true });
+      expect(checker.check("ntfscluster /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfsclone --info /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfscompress /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfsdecompress /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfsinfo /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfslabel /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfsmove /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfsresize /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfssetattr /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfssecaudit /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfsusermap /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfswipe /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfs3format /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("ntfs3fix /dev/sda1")).toMatchObject({ allowed: false });
     });
 
     it("should allow more LVM scan and display tools", () => {
-      expect(checker.check("vgs")).toEqual({ allowed: true });
-      expect(checker.check("pvs")).toEqual({ allowed: true });
-      expect(checker.check("lvs")).toEqual({ allowed: true });
+      expect(checker.check("vgs")).toMatchObject({ allowed: false });
+      expect(checker.check("pvs")).toMatchObject({ allowed: false });
+      expect(checker.check("lvs")).toMatchObject({ allowed: false });
     });
 
     it("should allow more LVM change tools", () => {
-      expect(checker.check("vgchange -a y vg1")).toEqual({ allowed: true });
-      expect(checker.check("pvchange /dev/sda1")).toEqual({ allowed: true });
-      expect(checker.check("lvchange -ay vg1/lv1")).toEqual({ allowed: true });
+      expect(checker.check("vgchange -a y vg1")).toMatchObject({ allowed: false });
+      expect(checker.check("pvchange /dev/sda1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvchange -ay vg1/lv1")).toMatchObject({ allowed: false });
     });
 
     it("should allow more LVM rename tools", () => {
-      expect(checker.check("vgrename vg1 vg2")).toEqual({ allowed: true });
-      expect(checker.check("lvrename vg1 old_lv new_lv")).toEqual({ allowed: true });
+      expect(checker.check("vgrename vg1 vg2")).toMatchObject({ allowed: false });
+      expect(checker.check("lvrename vg1 old_lv new_lv")).toMatchObject({ allowed: false });
     });
 
     it("should allow more LVM convert tools", () => {
-      expect(checker.check("vgconvert vg1")).toEqual({ allowed: true });
-      expect(checker.check("lvconvert vg1/lv1")).toEqual({ allowed: true });
+      expect(checker.check("vgconvert vg1")).toMatchObject({ allowed: false });
+      expect(checker.check("lvconvert vg1/lv1")).toMatchObject({ allowed: false });
     });
 
     it("should allow more service management commands", () => {
