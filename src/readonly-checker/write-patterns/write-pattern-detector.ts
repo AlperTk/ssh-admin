@@ -41,17 +41,17 @@ export class WritePatternDetector {
     // 3. Here-string / here-doc
     if (HERE_STRING_RE.test(segment)) return { ok: true, debug: { rule: 'HERE_STRING_RE', text: '<<<' } };
 
-    // 6. sed write komutları
+    // 4. sed write komutları
     if (/\bsed\b/.test(unquoted)) {
       if (SED_INPLACE_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_INPLACE_RE', text: 'sed -i' } };
       if (SED_INPLACE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_INPLACE_LONG_RE', text: 'sed --in-place' } };
       if (SED_WRITE_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_WRITE_RE', text: 'sed -n w' } };
     }
 
-    // 7. find -exec / -execdir
+    // 5. find -exec / -execdir
     if (FIND_EXEC_RE.test(unquoted)) return { ok: true, debug: { rule: 'FIND_EXEC_RE', text: '-exec' } };
 
-    // 8. Reverse shell
+    // 6. Reverse shell
     const reverseShellResult = this.detectReverseShell(unquoted);
     if (reverseShellResult.ok) return reverseShellResult;
 

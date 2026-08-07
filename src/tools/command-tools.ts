@@ -25,15 +25,20 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
         const result = checker.check(args.command);
         if (!result.allowed) {
           const parts: string[] = [`Write operation detected: ${result.reason}`];
+          if (result.checkLayer) parts.push(`[check_layer=${result.checkLayer}]`);
+          if (result.resolvedCommand) parts.push(`[resolved_command=${result.resolvedCommand}]`);
+          if (result.originalCommand) parts.push(`[original_command=${result.originalCommand}]`);
+          if (result.handlerName) parts.push(`[handler=${result.handlerName}]`);
           if (result.blockedCommand) parts.push(`[blocked_command=${result.blockedCommand}]`);
           if (result.matchedRule) parts.push(`[matched_rule=${result.matchedRule}]`);
           if (result.matchedText) parts.push(`[matched_text=${result.matchedText}]`);
           if (result.segmentIndex !== undefined) parts.push(`[segment=${result.segmentIndex}]`);
+          if (result.pipeSegments) parts.push(`[pipe_segments=[${result.pipeSegments.join(', ')}]]`);
           return errorResponse(parts.join(' '));
         }
       }
       try {
-        const result = await pool.executeCommand(args.sessionId, args.command, args.timeout ?? 60000);
+        const result = await pool.executeCommand(args.sessionId, args.command, args.timeout);
         return successResponse(result);
       } catch (err: unknown) {
         const { message } = formatError(err);

@@ -31,7 +31,7 @@ index.ts (entry point)
 │   │   ├── base-handler.ts      ← shared parser utilities (getFirstToken, skipFlags)
 │   │   ├── git-handler.ts       ← git READ_ONLY whitelist + config --global/--system/-f detection
 │   │   ├── docker-handler.ts    ← docker DOCKER_READ_ONLY whitelist
-│   │   ├── docker-exec-checker.ts ← docker exec içi write pattern + shell spawn detection
+│   │   ├── docker-exec-checker.ts ← docker exec içi write pattern + shell spawn detection (handler değil, checker modülü)
 │   │   ├── systemctl-handler.ts ← systemctl SYSTEMCTL_READ_ONLY whitelist
 │   │   ├── curl-wget-handler.ts ← curl safe flag whitelist, wget tüm HTTP/FTP engelle
 │   │   ├── ip-handler.ts        ← ip IP_READ_ONLY + IP_READ_ONLY_SUBCOMMANDS whitelist
@@ -115,7 +115,7 @@ index.ts (entry point)
 ```
 src/readonly-checker.ts              ← export { CommandChecker, checker }
 src/readonly-checker/
-├── command-checker.ts               ← CommandChecker singleton (206 satır)
+├── command-checker.ts               ← CommandChecker singleton (214 satır)
 │   ├── check(command)               ← ana kontrol akışı
 │   ├── whitelist: Set<string>       ← O(1) lookup
 │   ├── handlers: Map<string, Fn>    ← O(1) direct dispatch
@@ -123,7 +123,7 @@ src/readonly-checker/
 ├── write-handlers/                  ← her komut tipi için whitelist kontrolü
 │   ├── git-handler.ts               ← git READ_ONLY whitelist + config --global/--system/-f detection
 │   ├── docker-handler.ts            ← docker DOCKER_READ_ONLY whitelist
-│   ├── docker-exec-checker.ts       ← docker exec içi write pattern + shell spawn detection
+│   ├── docker-exec-checker.ts       ← docker exec içi write pattern + shell spawn detection (handler değil, checker modülü)
 │   ├── systemctl-handler.ts         ← systemctl SYSTEMCTL_READ_ONLY whitelist
 │   ├── curl-wget-handler.ts         ← curl safe flag whitelist, wget tüm HTTP/FTP engelle
 │   ├── ip-handler.ts                ← ip IP_READ_ONLY + IP_READ_ONLY_SUBCOMMANDS whitelist
@@ -220,16 +220,21 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 ```json
 {
   "success": false,
-  "error": "Write operation detected: Write pattern detected in command [blocked_command=awk] [matched_rule=REDIR_STDOUT_RE] [matched_text=>] [segment=2]"
+  "error": "Write operation detected: Write pattern detected in command [check_layer=pattern] [resolved_command=awk] [original_command=awk '{print $1}' > /tmp/out] [handler=awk] [blocked_command=awk] [matched_rule=REDIR_STDOUT_RE] [matched_text=>] [segment=2] [pipe_segments=[awk '{print $1}', '> /tmp/out']]"
 }
 ```
 
 | Field | Açıklama |
 |---|---|
+| `check_layer` | Engelleme katmanı (`substitution`, `loop`, `whitelist`, `handler`, `pattern`) |
+| `resolved_command` | `sudo/su/ssh` peel sonrası gerçek komut |
+| `original_command` | Orijinal komut (recursive check için) |
+| `handler` | Handler adı (örn: `git`, `docker`, `awk`) |
 | `blocked_command` | Engellenen komut (örn: `awk`, `git`) |
 | `matched_rule` | Tetiklenen kural adı (örn: `REDIR_STDOUT_RE`, `system()` call) |
 | `matched_text` | Eşleşen metin (örn: `>`, `>>`, `system(`) |
 | `segment` | Pipe chain'deki segment numarası |
+| `pipe_segments` | Pipe zincirindeki tüm segment'ler |
 
 ### Hızlı Referans
 
@@ -291,8 +296,7 @@ test/
     │   ├── objcopy-handler.test.ts      ← her zaman write (true döner)
     │   ├── fail2ban-handler.test.ts   ← fail2ban-client read-only subcommand whitelist
     │   ├── journalctl-handler.test.ts ← JOURNALCTL_SAFE_FLAGS whitelist
-    │   ├── scp-handler.test.ts        ← scp user@host:/path pattern tespiti
-    │   └── tar-handler.test.ts        ← tar create/extract/write/r/u detection + --warning= bypass tespiti
+    │   ├── scp-handler.test.ts        ← scp user@host:/path pattern tespiti        ← tar create/extract/write/r/u detection + --warning= bypass tespiti
     ├── write-patterns/
     │   └── write-pattern-detector.test.ts ← redirection, interpreter writes, reverse shell
     ├── parsing/
@@ -305,13 +309,13 @@ test/
 #### Test Çalıştırma
 ```bash
 npm test                              # tüm testler (414)
-npm test -- test/readonly-checker/    # readonly-checker modülü (352 test)
-npm test -- test/pool.test.ts         # ConnectionPool (6 test: close, list, executeCommand, getSessionCount, closeAll)
+npm test -- test/readonly-checker/    # readonly-checker modülü (341 test)
+npm test -- test/pool.test.ts         # ConnectionPool (8 test: close, list, executeCommand, getSessionCount, closeAll)
 npm test -- test/registry.test.ts     # Registry (12 test)
 npm test -- test/response.test.ts     # response helpers (18 test)
 npm test -- test/readonly-guard.test.ts # readonly guard (17 test)
 npm test -- test/tools/               # tools modülleri (18 test)
-npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git handler (31 test)
+npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git handler (35 test)
 ```
 
 #### Test Stratejisi

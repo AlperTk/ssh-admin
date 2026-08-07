@@ -1592,10 +1592,10 @@ describe("CommandChecker", () => {
 
   describe("for loop support", () => {
     it("should allow for loop with read commands", () => {
-      expect(checker.check("for user in $(cut -f1 -d: /etc/passwd); do crontab -l -u \"$user\"; done")).toEqual({ allowed: true });
-      expect(checker.check("for f in /var/spool/cron/crontabs/*; do cat \"$f\"; done")).toEqual({ allowed: true });
-      expect(checker.check("for i in 1 2 3; do echo $i; done")).toEqual({ allowed: true });
-      expect(checker.check("for f in *.txt; do grep 'pattern' \"$f\"; done")).toEqual({ allowed: true });
+      expect(checker.check("for user in $(cut -f1 -d: /etc/passwd); do crontab -l -u \"$user\"; done").allowed).toBe(true);
+      expect(checker.check("for f in /var/spool/cron/crontabs/*; do cat \"$f\"; done").allowed).toBe(true);
+      expect(checker.check("for i in 1 2 3; do echo $i; done").allowed).toBe(true);
+      expect(checker.check("for f in *.txt; do grep 'pattern' \"$f\"; done").allowed).toBe(true);
     });
 
     it("should block for loop with write commands", () => {
@@ -1607,8 +1607,8 @@ describe("CommandChecker", () => {
 
   describe("while loop support", () => {
     it("should allow while loop with read commands", () => {
-      expect(checker.check("while read line; do echo \"$line\"; done < /etc/passwd")).toEqual({ allowed: true });
-      expect(checker.check("while true; do uptime; sleep 1; done")).toEqual({ allowed: true });
+      expect(checker.check("while read line; do echo \"$line\"; done < /etc/passwd").allowed).toBe(true);
+      expect(checker.check("while true; do uptime; sleep 1; done").allowed).toBe(true);
     });
 
     it("should block while loop with write commands", () => {

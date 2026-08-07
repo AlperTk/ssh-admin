@@ -40,6 +40,11 @@ export interface CheckResult {
   matchedRule?: string;
   matchedText?: string;
   segmentIndex?: number;
+  checkLayer?: 'substitution' | 'loop' | 'whitelist' | 'handler' | 'pattern';
+  resolvedCommand?: string;
+  originalCommand?: string;
+  handlerName?: string;
+  pipeSegments?: string[];
 }
 
 type WriteHandlerFn = (cmd: string) => boolean;
@@ -112,11 +117,16 @@ export class CommandChecker {
 
     // 1. Substitution detection → recursive check
     const subResult = checkSubstitutions(command, (inner) => this.check(inner));
-    if (subResult && !subResult.allowed) return subResult;
+    if (subResult && !subResult.allowed) {
+      return { ...subResult, checkLayer: 'substitution' as const, originalCommand: command };
+    }
 
     // 2. Loop extraction → recursive check
     const loopBody = extractLoopBody(command);
-    if (loopBody !== null) return this.check(loopBody);
+    if (loopBody !== null) {
+      const loopResult = this.check(loopBody);
+      return { ...loopResult, checkLayer: 'loop' as const, originalCommand: command };
+    }
 
     // 3. Segment parsing
     const segments = tokenize(command, SEGMENT_OPTIONS);
@@ -156,23 +166,21 @@ export class CommandChecker {
         const resolved = resolveCommand(pTrimmed);
         const cmd = resolverGetFirstToken(resolved);
 
-        // 3c. WHITELIST CHECK — O(1), early exit
+        // 3d. WHITELIST CHECK — O(1), early exit
         if (!this.whitelist.has(cmd)) {
-          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist`, blockedCommand: cmd, segmentIndex: segIdx };
+          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist`, blockedCommand: cmd, segmentIndex: segIdx, checkLayer: 'whitelist' as const, resolvedCommand: resolved, pipeSegments: pipeSegments.map(s => s.trim()) };
         }
-
-
 
         // 3e. DIRECT DISPATCH — O(1), no iteration
         const handler = this.handlers.get(cmd);
         if (handler && handler(pTrimmed)) {
-          return { allowed: false, reason: `Write argument detected in command`, blockedCommand: cmd, matchedRule: `${cmd} write arg`, segmentIndex: segIdx };
+          return { allowed: false, reason: `Write argument detected in command`, blockedCommand: cmd, matchedRule: `${cmd} write arg`, segmentIndex: segIdx, checkLayer: 'handler' as const, resolvedCommand: resolved, handlerName: cmd, pipeSegments: pipeSegments.map(s => s.trim()) };
         }
 
         // 3f. Write pattern detection
         const patternResult = this.patternDetector.detect(pTrimmed);
         if (patternResult.ok) {
-          return { allowed: false, reason: `Write pattern detected in command`, blockedCommand: cmd, matchedRule: patternResult.debug?.rule, matchedText: patternResult.debug?.text, segmentIndex: segIdx };
+          return { allowed: false, reason: `Write pattern detected in command`, blockedCommand: cmd, matchedRule: patternResult.debug?.rule, matchedText: patternResult.debug?.text, segmentIndex: segIdx, checkLayer: 'pattern' as const, resolvedCommand: resolved, handlerName: cmd, pipeSegments: pipeSegments.map(s => s.trim()) };
         }
       }
     }
