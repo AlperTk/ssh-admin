@@ -1,4 +1,7 @@
-// curl için safe flag whitelist — bilinmeyen her şey engellenir
+// WGET: tüm HTTP/FTP çağrıları write olarak kabul edilir.
+// Neden: wget varsayılan olarak dosyaya yazar (-O hariç okuma modu yok).
+// -O flag ile stdout'a yazılabilir ama bu edge case olarak bırakıldı.
+// curl: safe flag whitelist yaklaşımı — sadece bilinen flags izinli.
 const CURL_SAFE_FLAGS = new Set([
   '-s', '-v', '-I', '-w', '-A', '-e', '-H', '-b', '-c', '-G',
   '-4', '-6', '-L', '-k', '-m', '--compressed', '--retry',
@@ -10,7 +13,8 @@ const CURL_SAFE_FLAGS = new Set([
 ]);
 
 export function curlWgetHasWriteArg(cmd: string): boolean {
-  // === WGET: tüm HTTP/FTP çağrıları write'dır ===
+  // WGET implicit blacklist: wget için whitelist yok, tüm çağrılar engellenir.
+  // wget'in read-only modu yoktur (her çağrı dosya yazar).
   if (/\bwget\b/.test(cmd)) return true;
 
   // === CURL: safe flag whitelist ===

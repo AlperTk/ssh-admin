@@ -28,21 +28,16 @@ export function skipShortFlags(rest: string): string {
   return rest;
 }
 
-export function skipLongFlags(rest: string): string {
-  while (rest.startsWith('--')) {
-    const spaceIdx = rest.indexOf(' ');
-    const eqIdx = rest.indexOf('=');
-    const endIdx = eqIdx !== -1 ? eqIdx : spaceIdx;
-    if (endIdx === -1) return '';
-    rest = rest.substring(endIdx).trimStart();
-  }
-  return rest;
-}
-
 export function skipFlags(rest: string): string {
   while (rest.startsWith('-')) {
     if (rest.startsWith('--')) {
-      rest = skipLongFlags(rest);
+      while (rest.startsWith('--')) {
+        const spaceIdx = rest.indexOf(' ');
+        const eqIdx = rest.indexOf('=');
+        const endIdx = eqIdx !== -1 ? eqIdx : spaceIdx;
+        if (endIdx === -1) return '';
+        rest = rest.substring(endIdx).trimStart();
+      }
     } else {
       rest = skipShortFlags(rest);
     }

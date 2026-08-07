@@ -1,33 +1,11 @@
-/** İlk token'ı çıkar (tırnak-aware) */
-export function getFirstToken(cmd: string): string {
-  let token = '';
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  for (let i = 0; i < cmd.length; i++) {
-    const ch = cmd[i];
-    if (ch === "'" && !inDoubleQuote) { inSingleQuote = !inSingleQuote; }
-    else if (ch === '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; }
-    else if (!inSingleQuote && !inDoubleQuote) {
-      if (ch === ' ' || ch === '\t' || ch === ';') break;
-      token += ch;
-    } else { token += ch; }
-  }
-  return token;
-}
+import { getFirstToken as baseGetFirstToken, skipShortFlags as baseSkipShortFlags } from '../write-handlers/base-handler.js';
 
-/** Short flag'leri atla (-x -y gibi, --long flag hariç) */
-export function skipShortFlags(rest: string): string {
-  while (rest.startsWith('-') && !rest.startsWith('--')) {
-    const spaceIdx = rest.indexOf(' ');
-    if (spaceIdx === -1) return '';
-    rest = rest.substring(spaceIdx).trimStart();
-  }
-  return rest;
-}
+export const getFirstToken = baseGetFirstToken;
+export const skipShortFlags = baseSkipShortFlags;
 
 /** Komutu çöz: sudo/su/ssh peel-through */
 export function resolveCommand(cmd: string): string {
-  const firstToken = getFirstToken(cmd);
+  const firstToken = baseGetFirstToken(cmd);
 
   if (firstToken === 'sudo') {
     let rest = cmd.substring(firstToken.length).trimStart();

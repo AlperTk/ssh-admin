@@ -1,4 +1,4 @@
-import { DOCKER_READ_ONLY, DOCKER_NAMESPACE_WRITE } from '../../data/readonly-rules.js';
+import { DOCKER_READ_ONLY, DOCKER_NAMESPACE_ACTIONS } from '../../data/readonly-rules.js';
 import { getFirstToken, skipFlags } from './base-handler.js';
 import { dockerExecHasWriteArg } from './docker-exec-checker.js';
 
@@ -8,10 +8,10 @@ export function dockerHasWriteArg(cmd: string): boolean {
   if (!subCmd) return false;
 
   // İki seviyeli alt komut kontrolü: docker {namespace} {action}
-  if (DOCKER_NAMESPACE_WRITE.has(subCmd)) {
+  if (DOCKER_NAMESPACE_ACTIONS.has(subCmd)) {
     let nsRest = skipFlags(rest.substring(subCmd.length).trimStart());
     const action = getFirstToken(nsRest);
-    if (action && DOCKER_NAMESPACE_WRITE.get(subCmd)?.includes(action)) return true;
+    if (action && DOCKER_NAMESPACE_ACTIONS.get(subCmd)?.includes(action)) return true;
   }
 
   // Whitelist: sadece DOCKER_READ_ONLY izinli

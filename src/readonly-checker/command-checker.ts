@@ -200,23 +200,6 @@ export class CommandChecker {
     return { allowed: true };
   }
 
-  private validateEvalArgs(cmd: string): CheckResult | null {
-    const rest = cmd.substring(4).trimStart();
-    let inner = '';
-    if (rest.startsWith("'") || rest.startsWith('"')) {
-      const quote = rest[0];
-      const endIdx = rest.indexOf(quote, 1);
-      if (endIdx > 1) inner = rest.slice(1, endIdx);
-    } else {
-      inner = rest;
-    }
-    if (inner.trim()) {
-      const result = this.check(inner);
-      if (!result.allowed) return result;
-    }
-    return null;
-  }
-
 }
 
 // Singleton instance — her yerde aynı referans

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { successResponse, errorResponse, formatError } from "../src/response.js";
-import { AppError, HostNotFoundError, ConnectionError, CredentialError } from "../src/errors.js";
+import { AppError } from "../src/errors.js";
 
 describe("successResponse", () => {
   it("should return a success response with data", () => {
@@ -62,21 +62,21 @@ describe("errorResponse", () => {
 
 describe("formatError", () => {
   it("should extract message and code from AppError subclass", () => {
-    const err = new HostNotFoundError("myhost");
+    const err = new AppError("Host 'myhost' not found in registry", "HOST_NOT_FOUND");
     const result = formatError(err);
     expect(result.message).toBe("Host 'myhost' not found in registry");
     expect(result.code).toBe("HOST_NOT_FOUND");
   });
 
-  it("should extract message and code from ConnectionError", () => {
-    const err = new ConnectionError("server1", "timeout");
+  it("should extract message and code from generic AppError", () => {
+    const err = new AppError("SSH connection failed for 'server1': timeout", "CONNECTION_FAILED");
     const result = formatError(err);
     expect(result.message).toBe("SSH connection failed for 'server1': timeout");
     expect(result.code).toBe("CONNECTION_FAILED");
   });
 
-  it("should extract message and code from CredentialError", () => {
-    const err = new CredentialError("server1", "no password");
+  it("should extract message and code from credential AppError", () => {
+    const err = new AppError("No credentials found for host 'server1': no password", "CREDENTIAL_ERROR");
     const result = formatError(err);
     expect(result.message).toBe("No credentials found for host 'server1': no password");
     expect(result.code).toBe("CREDENTIAL_ERROR");

@@ -1,12 +1,12 @@
 /** Komut substitution ($(), backtick) tespit ve recursive check tetikleme */
 const SUBSTITUTION_REGEX = /\$\(.*?\)|`[^`]+`/g;
 
-export interface SubstitutionResult {
+interface SubstitutionResult {
   allowed: boolean;
   reason?: string;
 }
 
-export type CheckFn = (cmd: string) => SubstitutionResult;
+type CheckFn = (cmd: string) => SubstitutionResult;
 
 /** Komut substitution içindeki komutları kontrol et */
 export function checkSubstitutions(command: string, check: CheckFn): SubstitutionResult | null {

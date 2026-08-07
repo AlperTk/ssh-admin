@@ -80,7 +80,7 @@ export const DOCKER_READ_ONLY = new Set([
 
 
 
-export const DOCKER_NAMESPACE_WRITE = new Map<string, string[]>([
+export const DOCKER_NAMESPACE_ACTIONS = new Map<string, string[]>([
   ['system', ['prune']],
   ['image', ['rm', 'push', 'save', 'load', 'history', 'tag']],
   ['container', ['rm', 'start', 'stop', 'restart', 'kill', 'exec', 'update', 'rename', 'cp', 'attach', 'wait', 'pause', 'unpause', 'resize']],
@@ -93,12 +93,6 @@ export const DOCKER_NAMESPACE_WRITE = new Map<string, string[]>([
   ['service', ['rm', 'create', 'update', 'scale', 'rollback']],
   ['swarm', ['leave', 'unlock', 'lock', 'init', 'join', 'ca']],
 ]);
-
-// crontab flags
-export const CRONTAB_WRITE_FLAGS = ['-e'] as const;
-
-// shell replacement patterns
-export const SHELL_PATTERNS = ['bash', 'sh', 'zsh', 'csh', 'ksh', 'dash', 'fish'] as const;
 
 // Compiled regex for write pattern detection (pre-compiled for performance)
 export const REDIR_APPEND_RE = />>/;
@@ -148,34 +142,24 @@ export const SNAP_READ_ONLY = new Set([
 // tune2fs: ext filesystem tuner — -l is read-only
 export const TUNE2FS_READ_ONLY = new Set(['-l']);
 
-// ufw: uncomplicated firewall — read-only subcommands
+// ufw: uncomplicated firewall - read-only subcommands
 export const UFW_READ_ONLY = new Set([
   'status', 'status numbered', 'show', 'list', 'app list',
-  'app info', 'app update', 'app rev', 'app default',
-  'reset', 'logging', 'deny', 'allow', 'reject', 'delete',
-  'route', 'route6', 'limit', 'rename', 'set', 'default',
-  'enable', 'disable', 'init', 'help',
+  'app info', 'logging', 'route', 'route6', 'limit', 'rename',
+  'help',
 ]);
 
-// iptables: packet filter — read-only flags
+// iptables: packet filter - read-only flags
 export const IPTABLES_READ_ONLY = new Set([
   '-L', '--list', '-S', '--list-rules', '-C', '--check',
-  '-Z', '--zero', '-N', '--new-chain', '-F', '--flush',
-  '-X', '--delete-chain', '-P', '--policy', '-E', '--rename-chain',
   '-h', '--help', '-n', '--line-numbers', '-v', '--verbose',
   '-vv', '-vvv', '-x', '--exact', '-a', '--packet-counters',
   '-k', '--byte-counters', '-g', '--goto', '-j', '--jump',
   '-c', '--counters', '-t', '--table', '-f', '--file',
-  '-w', '--wait', '-W', '--wait-interval', '-A', '--append',
-  '-D', '--delete', '-I', '--insert', '-R', '--replace',
+  '-w', '--wait', '-W', '--wait-interval',
   '-s', '--source', '-d', '--destination', '-p', '--protocol',
   '-i', '--in-interface', '-o', '--out-interface', '-m', '--match',
   '--state', '--tcp-flags', '--syn', '--icmp-type',
-]);
-
-// scriptreplay: terminal session replayer — always read-only
-export const SCRIPTREPLAY_READ_ONLY = new Set([
-  '-t', '-T', '-q', '-Q', '-a', '-d', '-u', '-h', '-V',
 ]);
 
 // partprobe: partition table probe — -s is read-only

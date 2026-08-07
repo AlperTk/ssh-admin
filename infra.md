@@ -23,7 +23,7 @@ index.ts (entry point)
 ├── registry.ts    → Host registry (~/.mcp-ssh/hosts.json, mtime-based cache)
 ├── readonly-guard.ts → Readonly mode flag (inject edilebilir)
 ├── response.ts    → successResponse, errorResponse, formatError
-├── errors.ts      → AppError + domain error sınıfları
+├── errors.ts      → AppError (tek custom error class)
 ├── readonly-checker.ts → Command whitelist + write pattern detection
 ├── readonly-checker/
 │   ├── command-checker.ts       ← CommandChecker singleton
@@ -64,7 +64,7 @@ index.ts (entry point)
 │       ├── loop-extractor.ts    ← for/while döngü gövdesi çıkarma
 │       └── substitution-detector.ts ← $() ve backtick recursive check
 └── data/
-    ├── readonly-whitelist.json  ← whitelist komut listesi (340 komut, exec/eval/source/chroot/script/nmap/masscan/ssh/sftp/ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
+    ├── readonly-whitelist.json  ← whitelist komut listesi (320 komut, dpkg/dpkg-query, mail/mailx/mutt/elm/pine, svn/hg/bzr, service/init/telinit/runlevel, bvi/hexedit, nc/ncat/netcat/socat kaldırıldı)
     └── readonly-rules.ts        ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS vb. whitelist sabitleri
 ```
 
@@ -115,7 +115,7 @@ index.ts (entry point)
 ```
 src/readonly-checker.ts              ← export { CommandChecker, checker }
 src/readonly-checker/
-├── command-checker.ts               ← CommandChecker singleton (~120 satır)
+├── command-checker.ts               ← CommandChecker singleton (206 satır)
 │   ├── check(command)               ← ana kontrol akışı
 │   ├── whitelist: Set<string>       ← O(1) lookup
 │   ├── handlers: Map<string, Fn>    ← O(1) direct dispatch
@@ -156,7 +156,7 @@ src/readonly-checker/
     ├── loop-extractor.ts            ← for/while döngü gövdesi çıkarma
     └── substitution-detector.ts     ← $() ve backtick recursive check
 src/data/
-├── readonly-whitelist.json          ← whitelist komut listesi (340 komut, exec/eval/source/chroot/script/nmap/masscan/ssh/sftp/ddrescue/mke2fs/resize2fs/btrfstune/snapshot/wall kaldırıldı)
+├── readonly-whitelist.json          ← whitelist komut listesi (320 komut, dpkg/dpkg-query, mail/mailx/mutt/elm/pine, svn/hg/bzr, service/init/telinit/runlevel, bvi/hexedit, nc/ncat/netcat/socat kaldırıldı)
 └── readonly-rules.ts                ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS, PARTX_READ_ONLY, KPARTX_READ_ONLY, DMSETUP_READ_ONLY, SNAP_READ_ONLY, TUNE2FS_READ_ONLY, UFW_READ_ONLY, IPTABLES_READ_ONLY, PARTPROBE_READ_ONLY vb. whitelist sabitleri
 ```
 
@@ -260,7 +260,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 ### Testler
 ```bash
-npm test              # 425 test
+npm test              # 414 test
 ```
 
 #### Test Yapısı
@@ -289,7 +289,7 @@ test/
     │   ├── ar-handler.test.ts           ← her zaman write (true döner)
     │   ├── strip-handler.test.ts        ← her zaman write (true döner)
     │   ├── objcopy-handler.test.ts      ← her zaman write (true döner)
-    │   ├── fail2ban-handler.test.ts   ← FAIL2BAN_READ_ONLY whitelist
+    │   ├── fail2ban-handler.test.ts   ← fail2ban-client read-only subcommand whitelist
     │   ├── journalctl-handler.test.ts ← JOURNALCTL_SAFE_FLAGS whitelist
     │   ├── scp-handler.test.ts        ← scp user@host:/path pattern tespiti
     │   └── tar-handler.test.ts        ← tar create/extract/write/r/u detection + --warning= bypass tespiti
@@ -304,7 +304,7 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (425)
+npm test                              # tüm testler (414)
 npm test -- test/readonly-checker/    # readonly-checker modülü (352 test)
 npm test -- test/pool.test.ts         # ConnectionPool (6 test: close, list, executeCommand, getSessionCount, closeAll)
 npm test -- test/registry.test.ts     # Registry (12 test)
@@ -363,7 +363,7 @@ kill -INT <pid>    # SIGINT → pool.closeAll() → process.exit(0)
 
 ## Error Handling
 - `response.ts` → `formatError(err)` helper — `AppError` subclass'lardan `code` çıkarır
-- `errors.ts` → `AppError`, `HostNotFoundError`, `SessionNotFoundError`, `ConnectionError`, `ReadOnlyViolationError`, `CredentialError`, `DuplicateHostError`, `InvalidUpdateError`
+- `errors.ts` → `AppError` (tek custom error class)
 
 ## Tools Modülleri
 Tool register'ları `src/tools/` altında modülerleştirildi:
@@ -392,3 +392,29 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - Registry file mode 0600 (sadece owner okuyabilir)
 - `HostConfig.forceIPv4` optional — default false (IPv6 destekli)
 - `command_execute` tool'unda sessionId UUID validation mevcut
+
+## Changelog
+
+### Dead Code Temizliği
+- `CRONTAB_WRITE_FLAGS`, `SHELL_PATTERNS`, `SCRIPTREPLAY_READ_ONLY` → `readonly-rules.ts`'den kaldırıldı (kullanılmıyordu)
+- `skipLongFlags()` → `base-handler.ts`'den kaldırıldı (sadece `skipFlags()` içinde kullanılıyordu)
+- `CheckFn`, `SubstitutionResult` → `substitution-detector.ts`'den export kaldırıldı (modül içi tip oldu)
+- `validateEvalArgs()` → `command-checker.ts`'den kaldırıldı (çağrılmıyordu)
+- 7 custom error sınıfı (`HostNotFoundError`, `SessionNotFoundError`, `ConnectionError`, `ReadOnlyViolationError`, `CredentialError`, `DuplicateHostError`, `InvalidUpdateError`) → `errors.ts`'den kaldırıldı (hiçbir yerde throw edilmiyordu)
+
+### Güvenlik Güncellemeleri
+- Whitelist'ten 20 tehlikeli komut kaldırıldı: `dpkg/dpkg-query`, `mail/mailx/mutt/elm/pine`, `svn/hg/bzr`, `service/init/telinit/runlevel`, `bvi/hexedit`, `nc/ncat/netcat/socat`
+- `IPTABLES_READ_ONLY` → yazma flag'leri kaldırıldı (`-Z`, `-N`, `-F`, `-X`, `-P`, `-E`, `-A`, `-D`, `-I`, `-R`)
+- `UFW_READ_ONLY` → yazma komutları kaldırıldı (`deny`, `allow`, `reject`, `delete`, `enable`, `disable`, `set`, `default`, `init`, `app update`, `app rev`)
+
+### Kod Kalitesi
+- `DOCKER_NAMESPACE_WRITE` → `DOCKER_NAMESPACE_ACTIONS` olarak yeniden adlandırıldı (isim yanıltıcıydı)
+- `getFirstToken()`, `skipShortFlags()`, `skipFlags()` → tek kaynak `base-handler.ts`'e taşındı (önce 4 farklı kopya vardı)
+- `journalctl-handler.ts` local `getFirstToken` silindi → `base-handler.ts`'den import
+- `crontab-handler.ts` local `skipFlags` silindi → `base-handler.ts`'den `skipShortFlags` import
+- `scriptreplayHasWriteArg(_cmd: string)` → argüman imzası düzeltildi (WriteHandlerFn tipi uyumu)
+- Wget handler'a implicit blacklist dokümantasyonu eklendi
+- ar/strip/objcopy handler'lara her zaman write nedeni dokümantasyonu eklendi
+
+### Test Sayısı
+- 425 → 414 (custom error sınıflarının testleri kaldırıldı)

