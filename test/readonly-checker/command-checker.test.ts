@@ -1513,7 +1513,6 @@ describe("CommandChecker", () => {
   describe("crontab commands", () => {
     it("should allow crontab read commands", () => {
       expect(checker.check("crontab -l")).toEqual({ allowed: true });
-      expect(checker.check("crontab -r")).toEqual({ allowed: true });
       expect(checker.check("crontab -i")).toEqual({ allowed: true });
       expect(checker.check("crontab -v")).toEqual({ allowed: true });
       expect(checker.check("crontab -l -u www-data")).toEqual({ allowed: true });
@@ -1522,6 +1521,9 @@ describe("CommandChecker", () => {
 
     it("should block crontab write commands", () => {
       expect(checker.check("crontab -e")).toMatchObject({ allowed: false });
+      expect(checker.check("crontab -r")).toMatchObject({ allowed: false });
+      expect(checker.check("crontab -R")).toMatchObject({ allowed: false });
+      expect(checker.check("crontab -")).toMatchObject({ allowed: false });
     });
   });
 

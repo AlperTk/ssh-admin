@@ -13,6 +13,8 @@ npm run build  # bundle → dist/bundle.cjs
 ## Architecture
 ```
 index.ts (entry point)
+├── types.ts           → Shared type tanımları
+├── tokenizer.ts       → Komut segment parsing (tokenize, getFirstToken)
 ├── tools/
 │   ├── registry-tools.ts    ← registry MCP tool register'ları
 │   ├── connection-tools.ts  ← connection MCP tool register'ları
@@ -23,7 +25,36 @@ index.ts (entry point)
 ├── response.ts    → successResponse, errorResponse, formatError
 ├── errors.ts      → AppError + domain error sınıfları
 ├── readonly-checker.ts → Command whitelist + write pattern detection
-├── readonly-checker/write-handlers/base-handler.ts ← shared parser utilities
+├── readonly-checker/
+│   ├── command-checker.ts       ← CommandChecker singleton
+│   ├── write-handlers/
+│   │   ├── base-handler.ts      ← shared parser utilities (getFirstToken, skipFlags)
+│   │   ├── git-handler.ts       ← git READ_ONLY whitelist + config --global/--system/-f detection
+│   │   ├── docker-handler.ts    ← docker DOCKER_READ_ONLY whitelist
+│   │   ├── docker-exec-checker.ts ← docker exec içi write pattern + shell spawn detection
+│   │   ├── systemctl-handler.ts ← systemctl SYSTEMCTL_READ_ONLY whitelist
+│   │   ├── curl-wget-handler.ts ← curl safe flag whitelist, wget tüm HTTP/FTP engelle
+│   │   ├── ip-handler.ts        ← ip IP_READ_ONLY + IP_READ_ONLY_SUBCOMMANDS whitelist
+│   │   ├── apt-handler.ts       ← apt APT_READ_ONLY whitelist
+│   │   ├── crontab-handler.ts   ← -e, -r, -R, - (stdin) + skipFlags sonrası - tespiti
+│   │   ├── firewall-cmd-handler.ts ← --list-* / --get-* whitelist
+│   │   ├── rsync-handler.ts     ← her zaman yazma
+│   │   ├── mktemp-handler.ts    ← her zaman yazma
+│   │   ├── fail2ban-handler.ts  ← status/gettag read-only, diğerleri write
+│   │   ├── journalctl-handler.ts ← JOURNALCTL_SAFE_FLAGS whitelist
+│   │   ├── awk-handler.ts       ← AWK_SAFE_PATTERNS whitelist
+│   │   ├── scp-handler.ts       ← scp user@host:/path pattern tespiti
+│   │   └── tar-handler.ts       ← tar create/extract/write/r/u detection + --warning= bypass tespiti
+│   ├── write-patterns/
+│   │   └── write-pattern-detector.ts ← redirection, interpreter writes, reverse shell, xargs read-only detection
+│   ├── resolution/
+│   │   └── command-resolver.ts  ← sudo/su/ssh peel-through
+│   └── parsing/
+│       ├── loop-extractor.ts    ← for/while döngü gövdesi çıkarma
+│       └── substitution-detector.ts ← $() ve backtick recursive check
+└── data/
+    ├── readonly-whitelist.json  ← whitelist komut listesi (355+ komut)
+    └── readonly-rules.ts        ← GIT_READ_ONLY, DOCKER_READ_ONLY, JOURNALCTL_SAFE_FLAGS, AWK_SAFE_PATTERNS vb. whitelist sabitleri
 ```
 
 ## Pool API
@@ -79,14 +110,14 @@ src/readonly-checker/
 │   ├── handlers: Map<string, Fn>    ← O(1) direct dispatch
 │   └── patternDetector              ← write pattern detection
 ├── write-handlers/                  ← her komut tipi için whitelist kontrolü
-│   ├── git-handler.ts               ← git READ_ONLY whitelist (log, diff, status...)
+│   ├── git-handler.ts               ← git READ_ONLY whitelist + config --global/--system/-f detection
 │   ├── docker-handler.ts            ← docker DOCKER_READ_ONLY whitelist
 │   ├── docker-exec-checker.ts       ← docker exec içi write pattern + shell spawn detection
 │   ├── systemctl-handler.ts         ← systemctl SYSTEMCTL_READ_ONLY whitelist
 │   ├── curl-wget-handler.ts         ← curl safe flag whitelist, wget tüm HTTP/FTP engelle
 │   ├── ip-handler.ts                ← ip IP_READ_ONLY + IP_READ_ONLY_SUBCOMMANDS whitelist
 │   ├── apt-handler.ts               ← apt APT_READ_ONLY whitelist
-│   ├── crontab-handler.ts           ← -e flag (yazma)
+│   ├── crontab-handler.ts           ← -e, -r, -R, - (stdin) + skipFlags sonrası - tespiti
 │   ├── firewall-cmd-handler.ts      ← --list-* / --get-* whitelist
 │   ├── rsync-handler.ts             ← her zaman yazma
 │   ├── mktemp-handler.ts            ← her zaman yazma
@@ -127,7 +158,7 @@ Read-only mode üç katmanlı savunma sağlar:
 | Katman | Açıklama | Örnek Engeller |
 |---|---|---|
 | **1. Whitelist** | Komut whitelist'de yoksa → engelle | python, node, perl, ruby, php, gdb, mount, screen, tmux, dd, zip, gzip, install, patch |
-| **2. Write Argüman** | Komut whitelist'te olsa bile write flag → engelle | `tar cf`, `systemctl restart`, `docker run`, `git add`, `curl -o`, `wget -O`, `scp`, `crontab -e`, `sed -i`, `find -exec` |
+| **2. Write Argüman** | Komut whitelist'te olsa bile write flag → engelle | `tar cf`, `systemctl restart`, `docker run`, `git add`, `git config --global`, `curl -o`, `wget -O`, `scp`, `crontab -e`, `crontab -r`, `crontab -`, `sed -i`, `find -exec` |
 | **3. Redirection** | Dosya yazma operatörleri → engelle | `>`, `>>`, `printf >`, `base64 >` |
 
 **Sonuç**: Hiçbir bypass mümkün değil. Sunucuda kalıcı hiçbir değişiklik yapılamadı.
@@ -137,7 +168,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 | Handler | Whitelist |
 |---|---|
-| git | `GIT_READ_ONLY[]` — log, diff, status, show... |
+| git | `GIT_READ_ONLY[]` — log, diff, status, show... + `config --global/--system/-f` engelleme |
 | docker | `DOCKER_READ_ONLY` set — ps, images, inspect... |
 | systemctl | `SYSTEMCTL_READ_ONLY` set — status, is-active, list-units... |
 | curl | `CURL_SAFE_FLAGS` set — -s, -v, -I, -w, --compressed... |
@@ -194,7 +225,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 ### Testler
 ```bash
-npm test              # 417 test
+npm test              # 424 test
 ```
 
 #### Test Yapısı
@@ -217,14 +248,14 @@ test/
     │   ├── curl-wget-handler.test.ts    ← curlWgetHasWriteArg (curl safe flag whitelist, wget tüm HTTP/FTP engelle)
     │   ├── ip-handler.test.ts           ← ipHasWriteArg (addr/link/route eylemleri)
     │   ├── apt-handler.test.ts          ← aptHasWriteArg (read-only vs write komutlar)
-    │   ├── crontab-handler.test.ts      ← crontabHasWriteArg (-e flag tespiti)
+    │   ├── crontab-handler.test.ts      ← crontabHasWriteArg (-e, -r, -R, -, -u root - flag tespiti)
     │   ├── firewall-cmd-handler.test.ts ← --list-* / --get-* whitelist
     │   ├── rsync-handler.test.ts        ← her zaman write (true döner)
     │   ├── mktemp-handler.test.ts       ← her zaman write (true döner)
-│   ├── fail2ban-handler.test.ts     ← FAIL2BAN_READ_ONLY whitelist
-│   ├── journalctl-handler.test.ts   ← JOURNALCTL_SAFE_FLAGS whitelist
-│   └── tar-handler.test.ts          ← tar create/extract/write/r/u detection + --warning= bypass tespiti
-│   ├── base-handler.test.ts         ← shared parser utilities (getFirstToken, skipFlags)
+    │   ├── fail2ban-handler.test.ts   ← FAIL2BAN_READ_ONLY whitelist
+    │   ├── journalctl-handler.test.ts ← JOURNALCTL_SAFE_FLAGS whitelist
+    │   ├── scp-handler.test.ts        ← scp user@host:/path pattern tespiti
+    │   └── tar-handler.test.ts        ← tar create/extract/write/r/u detection + --warning= bypass tespiti
     ├── write-patterns/
     │   └── write-pattern-detector.test.ts ← redirection, interpreter writes, reverse shell
     ├── parsing/
@@ -236,7 +267,7 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (415)
+npm test                              # tüm testler (424)
 npm test -- test/readonly-checker/    # readonly-checker modülü (347 test)
 npm test -- test/pool.test.ts         # ConnectionPool (6 test: close, list, executeCommand, getSessionCount, closeAll)
 npm test -- test/registry.test.ts     # Registry (12 test)
@@ -265,6 +296,8 @@ npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git hand
 - `command_execute` tool'unda sessionId UUID format validation mevcut
 - Docker exec: shell spawn detection (`bash/sh/zsh/csh/ksh/fish`)
 - Tar: `-r/-u` flag detection + `--warning=` bypass tespiti
+- Crontab: `-e`, `-r`, `-R`, `-` (stdin) + `-u root -` bypass write flag tespiti
+- Git config: `--global`, `--system`, `-f` flag tespiti → kalıcı yazma engellenir
 - xargs curl/wget: handler dispatch'e yönlendirilir (flag-level kontrol)
 - SCP: remote source/dest ayrımı güçlendirildi, `-i` flag atlatma
 

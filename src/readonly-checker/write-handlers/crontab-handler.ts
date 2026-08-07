@@ -14,8 +14,14 @@ export function crontabHasWriteArg(cmd: string): boolean {
 
   // İlk flag'i kontrol et (yazma flag'i olabilir)
   if (rest.startsWith('-e') && (rest.length === 2 || !/\w/.test(rest[2]))) return true;
+  if (rest.startsWith('-r') && (rest.length === 2 || !/\w/.test(rest[2]))) return true;
+  if (rest.startsWith('-R') && (rest.length === 2 || !/\w/.test(rest[2]))) return true;
+  if (rest === '-' || (rest.startsWith('- ') )) return true;
 
   rest = skipFlags(rest);
+
+  // skipFlags sonrası tüm metinde - flag kontrolü (stdin bypass)
+  if (hasStandaloneDash(rest)) return true;
 
   // -u user flag atla
   if (rest.startsWith('-u') || rest.startsWith('-U')) {
@@ -24,5 +30,17 @@ export function crontabHasWriteArg(cmd: string): boolean {
     else rest = '';
   }
 
+  // -u atladıktan sonra tekrar - kontrolü
+  if (hasStandaloneDash(rest)) return true;
+
+  return false;
+}
+
+function hasStandaloneDash(s: string): boolean {
+  if (s === '-') return true;
+  const parts = s.split(/\s+/);
+  for (const part of parts) {
+    if (part === '-') return true;
+  }
   return false;
 }

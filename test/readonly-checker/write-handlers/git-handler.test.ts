@@ -109,5 +109,17 @@ describe("gitHasWriteArg", () => {
       expect(gitHasWriteArg("git stash push")).toBe(false);
       expect(gitHasWriteArg("git stash pop")).toBe(true);
     });
+    it("should block git config --global", () => {
+      expect(gitHasWriteArg("git config --global user.name test")).toBe(true);
+    });
+    it("should block git config --system", () => {
+      expect(gitHasWriteArg("git config --system core.editor vim")).toBe(true);
+    });
+    it("should allow git config without global/system", () => {
+      expect(gitHasWriteArg("git config user.name")).toBe(false);
+    });
+    it("should block git config -f", () => {
+      expect(gitHasWriteArg("git config -f /etc/gitconfig core.editor vim")).toBe(true);
+    });
   });
 });

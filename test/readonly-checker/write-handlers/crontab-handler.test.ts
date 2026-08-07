@@ -6,8 +6,11 @@ describe("crontabHasWriteArg", () => {
     it("should allow crontab -l", () => {
       expect(crontabHasWriteArg("crontab -l")).toBe(false);
     });
-    it("should allow crontab -r (remove cron file, not editing)", () => {
-      expect(crontabHasWriteArg("crontab -r")).toBe(false);
+    it("should block crontab -r (remove cron file)", () => {
+      expect(crontabHasWriteArg("crontab -r")).toBe(true);
+    });
+    it("should block crontab -R (replace cron file)", () => {
+      expect(crontabHasWriteArg("crontab -R")).toBe(true);
     });
     it("should allow crontab -i", () => {
       expect(crontabHasWriteArg("crontab -i")).toBe(false);
@@ -24,6 +27,12 @@ describe("crontabHasWriteArg", () => {
   describe("write commands", () => {
     it("should block crontab -e", () => {
       expect(crontabHasWriteArg("crontab -e")).toBe(true);
+    });
+    it("should block crontab - (stdin write)", () => {
+      expect(crontabHasWriteArg("crontab -")).toBe(true);
+    });
+    it("should block crontab -u root - (stdin with user flag)", () => {
+      expect(crontabHasWriteArg("crontab -u root -")).toBe(true);
     });
   });
 });
