@@ -15,7 +15,7 @@ describe("buildChangelogCommand", () => {
     expect(result).toContain("host=192.168.1.1");
     expect(result).toContain("user=deploy");
     expect(result).toContain("cmd=");
-    expect(result).toContain(">> ~/server-info/logs/changelog.log");
+    expect(result).toContain(">> ~/server-info/changelog.log");
   });
 
   it("should escape single quotes in command", () => {
@@ -39,7 +39,7 @@ describe("buildChangelogCommand", () => {
   it("should produce valid chained command with && separators", () => {
     const result = buildChangelogCommand(mockSessionInfo, "git status");
     expect(result).toContain("mkdir -p ~/server-info/logs");
-    expect(result).toContain(">> ~/server-info/logs/changelog.log");
+    expect(result).toContain(">> ~/server-info/changelog.log");
     expect(result).toContain("tail -n 500");
   });
 });

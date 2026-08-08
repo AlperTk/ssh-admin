@@ -17,11 +17,11 @@ export function buildChangelogCommand(sessionInfo: SessionInfo | null, command: 
   const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
   const safeCommand = escapeSingleQuote(command.replace(/\r?\n/g, " "));
 
-  const rotationCmd = `[ -s ~/server-info/logs/changelog.log ] && [ $(wc -l < ~/server-info/logs/changelog.log) -gt ${MAX_LINES} ] && tail -n ${MAX_LINES} ~/server-info/logs/changelog.log > ~/server-info/logs/changelog.log.tmp && mv ~/server-info/logs/changelog.log.tmp ~/server-info/logs/changelog.log`;
+  const rotationCmd = `[ -s ~/server-info/changelog.log ] && [ $(wc -l < ~/server-info/changelog.log) -gt ${MAX_LINES} ] && tail -n ${MAX_LINES} ~/server-info/changelog.log > ~/server-info/changelog.log.tmp && mv ~/server-info/changelog.log.tmp ~/server-info/changelog.log`;
 
   return [
     "mkdir -p ~/server-info/logs",
-    `echo "[${timestamp}] alias=${alias} host=${host} user=${username} cmd='${safeCommand}'" >> ~/server-info/logs/changelog.log`,
+    `echo "[${timestamp}] alias=${alias} host=${host} user=${username} cmd='${safeCommand}'" >> ~/server-info/changelog.log`,
     rotationCmd,
   ].join(" && ");
 }

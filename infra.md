@@ -26,7 +26,7 @@ index.ts (entry point)
 ├── response.ts    → successResponse, errorResponse, formatError
 ├── errors.ts      → AppError (tek custom error class)
 ├── readonly-checker.ts → Command whitelist + write pattern detection
-├── log-changelog.ts → command_execute_raw changelog log (~/server-info/logs/changelog.log, max 500 satır)
+├── log-changelog.ts → command_execute_raw changelog log (~/server-info/changelog.log, max 500 satır)
 ├── readonly-checker/
 │   ├── command-checker.ts       ← CommandChecker singleton
 │   ├── write-handlers/
@@ -481,7 +481,7 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - 465 → 476 (log-changelog 5 test + command_execute_raw changelog 3 test + getSessionInfo 2 test)
 
 ### Raw Command Execute Changelog Logging
-- `command_execute_raw` her komutta `~/server-info/logs/changelog.log`'a kayıt yazar
+- `command_execute_raw` her komutta `~/server-info/changelog.log`'a kayıt yazar
 - Format: `[YYYY-MM-DD HH:mm:ss] alias=<X> host=<Y> user=<Z> cmd='<komut>'`
 - Tek satır format — komut içindeki newline karakterleri boşlukla değiştirilir
 - Max 500 satır rotasyonu — `tail -n 500` ile eski kayıtlar otomatik temizlenir
