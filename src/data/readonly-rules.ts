@@ -146,7 +146,7 @@ export const TUNE2FS_READ_ONLY = new Set(['-l']);
 export const UFW_READ_ONLY = new Set([
   'status', 'status numbered', 'show', 'list', 'app list',
   'app info', 'logging', 'route', 'route6', 'limit', 'rename',
-  'help',
+  'help', 'version',
 ]);
 
 // iptables: packet filter - read-only flags

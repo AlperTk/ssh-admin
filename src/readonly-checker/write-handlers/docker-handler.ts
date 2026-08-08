@@ -4,7 +4,13 @@ import { dockerExecHasWriteArg } from './docker-exec-checker.js';
 
 export function dockerHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(6).trimStart();
-  const subCmd = getFirstToken(skipFlags(rest));
+  // docker --version gibi sadece flag içeren komutlar read-only
+  const afterFlags = skipFlags(rest);
+  const trimmedAfterFlags = afterFlags.trim();
+  if (!trimmedAfterFlags || trimmedAfterFlags.match(/^[\s]*[>|&]/)) {
+    return false;
+  }
+  const subCmd = getFirstToken(trimmedAfterFlags);
   if (!subCmd) return false;
 
   // İki seviyeli alt komut kontrolü: docker {namespace} {action}

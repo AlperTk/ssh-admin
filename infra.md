@@ -420,6 +420,12 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - `CheckResult` interface'e debug alanları eklendi: `checkLayer`, `resolvedCommand`, `originalCommand`, `handlerName`, `pipeSegments`
 - `command-tools.ts` gereksiz `?? 60000` fallback kaldırıldı (Zod `.default(60000)` yeterli)
 
+### False Positive Düzeltmeleri (Devam)
+- `ufw version` false positive düzeltildi — UFW_READ_ONLY'a `version` eklendi
+- `containerd --version` false positive düzeltildi — `containerd` ve `ctr` whitelist'e eklendi
+- `docker --version` false positive düzeltildi — handler'da sadece flag içeren komutlar read-only kabul edildi
+- `iptables -L -n 2>/dev/null` false positive düzeltildi — handler'da redirection atlatma eklendi
+
 ### Dead Code Temizliği
 - `CRONTAB_WRITE_FLAGS`, `SHELL_PATTERNS`, `SCRIPTREPLAY_READ_ONLY` → `readonly-rules.ts`'den kaldırıldı (kullanılmıyordu)
 - `skipLongFlags()` → `base-handler.ts`'den kaldırıldı (sadece `skipFlags()` içinde kullanılıyordu)
