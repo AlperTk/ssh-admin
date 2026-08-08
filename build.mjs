@@ -19,11 +19,6 @@ if (fs.existsSync(srcDataDir)) {
   }
 }
 
-// Copy instruction.md to dist
-if (fs.existsSync("instruction.md")) {
-  fs.copyFileSync("instruction.md", path.join("dist", "instruction.md"));
-}
-
 await esbuild.build({
   entryPoints: ["src/index.ts"],
   bundle: true,

@@ -1,9 +1,30 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import * as fs from "fs/promises";
-import * as path from "path";
+import { setInstructionCalled } from "../instruction-guard.js";
 
-const BUNDLE_DIR = path.dirname(process.argv[1] || ".");
-const INSTRUCTION_PATH = path.resolve(BUNDLE_DIR, "instruction.md");
+const INSTRUCTION_CONTENT = `# Agent Instructions
+
+This MCP server is used to manage SSH servers.
+
+## ~/server-info/ Structure
+
+Each server has persistent information stored in its \`~/server-info/\` directory. These files are updated and read by the AI.
+
+### Files
+
+- **services.md** — Installed services and their status
+- **packages.md** — Installed critical packages
+- **rules.md** — Server constraints and rules
+- **decisions.md** — Decisions made and their rationale
+- **architecture.md** — Architecture notes and configuration details
+- **changelog.log** — Commands executed via command_execute_raw (auto-append)
+
+### Usage Rules
+
+- **Read operations:** Use \`command_execute\` (protected by whitelist + write pattern detection)
+- **Permanent changes:** Use \`command_execute_raw\` (unfiltered + user approval required)
+- Files are updated by AI when system changes occur
+- AI reads these files to get server information when needed
+`;
 
 export function registerInstructionTool(server: McpServer): void {
   server.registerTool(
@@ -14,9 +35,9 @@ export function registerInstructionTool(server: McpServer): void {
       inputSchema: {},
     },
     async () => {
-      const content = await fs.readFile(INSTRUCTION_PATH, "utf-8");
+      setInstructionCalled();
       return {
-        content: [{ type: "text", text: content }],
+        content: [{ type: "text", text: INSTRUCTION_CONTENT }],
       };
     }
   );

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerConnectionTools } from "../../src/tools/connection-tools.js";
+import { setInstructionCalled, resetInstructionCalled } from "../../src/instruction-guard.js";
 
 const createMockServer = () => {
   const registeredTools = new Map<string, { schema: unknown; handler: Function }>();
@@ -30,6 +31,8 @@ describe("registerConnectionTools", () => {
   beforeEach(() => {
     mockServer = createMockServer();
     mockPool = createMockPool();
+    resetInstructionCalled();
+    setInstructionCalled();
   });
 
   it("should register all 3 connection tools", () => {

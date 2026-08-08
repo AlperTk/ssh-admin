@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerCommandTool } from "../../src/tools/command-tools.js";
+import { setInstructionCalled, resetInstructionCalled } from "../../src/instruction-guard.js";
 
 const createMockServer = () => {
   const registeredTools = new Map<string, { schema: unknown; handler: Function }>();
@@ -28,6 +29,8 @@ describe("registerCommandTool", () => {
   beforeEach(() => {
     mockServer = createMockServer();
     mockPool = createMockPool();
+    resetInstructionCalled();
+    setInstructionCalled();
   });
 
   it("should register command_execute and command_execute_raw tools", () => {

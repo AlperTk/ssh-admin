@@ -13,10 +13,12 @@ if (isReadonlyMode()) {
   console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
 }
 
-const server = new McpServer({
-  name: "mcp-ssh",
-  version: "1.0.0",
-});
+const server = new McpServer(
+  { name: "mcp-ssh", version: "1.0.0" },
+  {
+    instructions: "Bağlandığınızda ilk olarak 'instruction' aracını çağırın. Sistem talimatlarını döndürür.",
+  }
+);
 
 registerRegistryTools(server, pool);
 registerConnectionTools(server, pool);

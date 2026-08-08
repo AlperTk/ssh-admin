@@ -4,6 +4,7 @@ import { addServer, listServers, getServer, updateServer, deleteServer } from ".
 import { ConnectionPool } from "../pool.js";
 import { successResponse, errorResponse, formatError } from "../response.js";
 import { requireWrite } from "../readonly-guard.js";
+import { requireInstruction } from "../instruction-guard.js";
 
 export function registerRegistryTools(server: McpServer, pool: ConnectionPool): void {
   server.registerTool(
@@ -25,8 +26,10 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
       },
     },
     async (args: { alias: string; host: string; port: number; username: string; authMethod: "key" | "password"; keyPath?: string }) => {
-      const blocked = requireWrite();
+      const blocked = requireInstruction();
       if (blocked) return blocked;
+      const writeBlocked = requireWrite();
+      if (writeBlocked) return writeBlocked;
       try {
         const result = addServer(args);
         return successResponse(result);
@@ -41,6 +44,8 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
     "registry_list_servers",
     "List all registered SSH servers (credentials hidden)",
     async () => {
+      const blocked = requireInstruction();
+      if (blocked) return blocked;
       const hosts = listServers();
       return {
         content: [{ type: "text", text: JSON.stringify({ servers: hosts }, null, 2) }],
@@ -58,6 +63,8 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
       },
     },
     async (args: { alias: string }) => {
+      const blocked = requireInstruction();
+      if (blocked) return blocked;
       try {
         const host = getServer(args.alias);
         return successResponse(host);
@@ -81,8 +88,10 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
       },
     },
     async (args: { alias: string; username?: string; authMethod?: "key" | "password"; keyPath?: string }) => {
-      const blocked = requireWrite();
+      const blocked = requireInstruction();
       if (blocked) return blocked;
+      const writeBlocked = requireWrite();
+      if (writeBlocked) return writeBlocked;
       try {
         const updates: Partial<{ username: string; authMethod: "key" | "password"; keyPath: string }> = {};
         if (args.username !== undefined) updates.username = args.username;
@@ -107,8 +116,10 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
       },
     },
     async (args: { alias: string }) => {
-      const blocked = requireWrite();
+      const blocked = requireInstruction();
       if (blocked) return blocked;
+      const writeBlocked = requireWrite();
+      if (writeBlocked) return writeBlocked;
       try {
         deleteServer(args.alias);
         return successResponse({ message: `Server '${args.alias}' deleted` });

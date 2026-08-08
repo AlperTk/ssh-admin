@@ -5,6 +5,7 @@ import { checker } from "../readonly-checker.js";
 import { buildChangelogCommand } from "../log-changelog.js";
 
 import { successResponse, errorResponse, formatError } from "../response.js";
+import { requireInstruction } from "../instruction-guard.js";
 
 export function registerCommandTool(server: McpServer, pool: ConnectionPool): void {
   server.registerTool(
@@ -19,6 +20,8 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       },
     },
     async (args: { sessionId: string; command: string; timeout?: number }) => {
+      const blocked = requireInstruction();
+      if (blocked) return blocked;
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
         return errorResponse("Invalid sessionId format");
       }
@@ -58,6 +61,8 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       },
     },
     async (args: { sessionId: string; command: string; timeout?: number }) => {
+      const blocked = requireInstruction();
+      if (blocked) return blocked;
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
         return errorResponse("Invalid sessionId format");
       }

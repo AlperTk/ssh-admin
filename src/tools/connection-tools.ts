@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConnectionPool } from "../pool.js";
 import { successResponse, errorResponse, formatError } from "../response.js";
+import { requireInstruction } from "../instruction-guard.js";
 
 export function registerConnectionTools(server: McpServer, pool: ConnectionPool): void {
   server.registerTool(
@@ -15,6 +16,8 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
       },
     },
     async (args: { alias: string; timeout?: number }) => {
+      const blocked = requireInstruction();
+      if (blocked) return blocked;
       try {
         const result = await pool.open(args.alias, args.timeout);
         return successResponse(result);
@@ -35,6 +38,8 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
       },
     },
     async (args: { sessionId: string }) => {
+      const blocked = requireInstruction();
+      if (blocked) return blocked;
       const result = pool.close(args.sessionId);
       if (!result.success) {
         return errorResponse(result.message);
@@ -47,6 +52,8 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
     "connection_list",
     "List all active SSH sessions",
     async () => {
+      const blocked = requireInstruction();
+      if (blocked) return blocked;
       const sessions = pool.list();
       return {
         content: [{ type: "text", text: JSON.stringify({ sessions, count: sessions.length }, null, 2) }],
