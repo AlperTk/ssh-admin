@@ -6,6 +6,9 @@ export function iptablesHasWriteArg(cmd: string): boolean {
   if (idx === -1) return false;
   let rest = cmd.substring(idx + 8).trimStart();
 
+  // Redirection'ları temizle (2>/dev/null, >file, >>file, | cmd vb.)
+  rest = rest.replace(/\s*[|&]\s*\S|\s*[21]>[>&]?/g, '').trimStart();
+
   // Önce tüm short flag'ları kontrol et — hepsi read-only ise izin ver
   let tempRest = rest;
   while (tempRest.startsWith('-') && !tempRest.startsWith('--')) {
@@ -20,11 +23,6 @@ export function iptablesHasWriteArg(cmd: string): boolean {
 
   // Short flag'lar bitti, long flag'lara geç
   rest = skipShortFlags(rest);
-  // Redirection'ları atla (2>/dev/null, >file, >>file vb.)
-  const redirIdx = rest.search(/[>|&]\s*\/|>[>&]?\s*$/);
-  if (redirIdx !== -1) {
-    rest = rest.substring(0, redirIdx).trimEnd();
-  }
   const flag = getFirstToken(rest);
   if (!flag) return false;
   if (flag.startsWith('-')) {
