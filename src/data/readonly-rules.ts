@@ -152,7 +152,7 @@ export const UFW_READ_ONLY = new Set([
 // iptables: packet filter - read-only flags
 export const IPTABLES_READ_ONLY = new Set([
   '-L', '--list', '-S', '--list-rules', '-C', '--check',
-  '-h', '--help', '-n', '--line-numbers', '-v', '--verbose',
+  '-h', '--help', '-V', '--version', '-n', '--line-numbers', '-v', '--verbose',
   '-vv', '-vvv', '-x', '--exact', '-a', '--packet-counters',
   '-k', '--byte-counters', '-g', '--goto', '-j', '--jump',
   '-c', '--counters', '-t', '--table', '-f', '--file',
@@ -160,6 +160,9 @@ export const IPTABLES_READ_ONLY = new Set([
   '-s', '--source', '-d', '--destination', '-p', '--protocol',
   '-i', '--in-interface', '-o', '--out-interface', '-m', '--match',
   '--state', '--tcp-flags', '--syn', '--icmp-type',
+  '--proto', '--dport', '--sport', '--destination-port', '--source-port',
+  '--log-prefix', '--log-level', '--log-tcp-options', '--log-ip-options',
+  '--comment',
 ]);
 
 // partprobe: partition table probe — -s is read-only
