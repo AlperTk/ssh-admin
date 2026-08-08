@@ -376,7 +376,7 @@ Tool register'ları `src/tools/` altında modülerleştirildi:
 |---|---|
 | `tools/registry-tools.ts` | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` |
 | `tools/connection-tools.ts` | `connection_open`, `connection_close`, `connection_list` |
-| `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü) |
+| `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü), `command_execute_raw` (filtresiz komut çalıştırma) |
 
 Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` sadece wire-up yapar.
 
@@ -404,6 +404,12 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - `command_execute` whitelist + write pattern kontrolü **her zaman aktiftir** — `MCP_SSH_READONLY` env değişkenine bağımlı değil
 - `src/tools/command-tools.ts` → `isReadonlyMode()` kontrolü kaldırıldı, `checker.check()` her komut için çalışır
 - `MCP_SSH_READONLY` artık sadece registry yazma tool'larını (`registry_add_server`, `registry_update_server`, `registry_delete_server`) engeller
+
+### Raw Command Execute Tool
+- `command_execute_raw` — whitelist ve write pattern kontrolleri olmadan komut çalıştırma
+- Aynı parametreler: `sessionId`, `command`, `timeout`
+- Açıklama: "Execute a command on an open SSH session without any whitelist or pattern filtering. Use with caution — this bypasses all security checks."
+- `checker.check()` çağrılmıyor, direkt `pool.executeCommand()`
 
 ### False Positive Düzeltmeleri
 - `iptables -L -n` false positive düzeltildi — handler'a short flag whitelist kontrolü eklendi

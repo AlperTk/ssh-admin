@@ -29,12 +29,13 @@ describe("registerCommandTool", () => {
     mockPool = createMockPool();
   });
 
-  it("should register exactly one tool (command_execute)", () => {
+  it("should register command_execute and command_execute_raw tools", () => {
     registerCommandTool(mockServer as any, mockPool as any);
 
     const names = mockServer.getRegisteredNames();
     expect(names).toContain("command_execute");
-    expect(names).toHaveLength(1);
+    expect(names).toContain("command_execute_raw");
+    expect(names).toHaveLength(2);
   });
 
   it("command_execute should have sessionId, command, and timeout parameters", () => {
@@ -59,6 +60,14 @@ describe("registerCommandTool", () => {
     const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute");
     expect(tool).toBeDefined();
     expect(tool![1].description).toContain("SSH session");
+  });
+
+  it("command_execute_raw should have correct title and description", () => {
+    registerCommandTool(mockServer as any, mockPool as any);
+    const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute_raw");
+    expect(tool).toBeDefined();
+    expect(tool![1].title).toBe("Execute Command Raw");
+    expect(tool![1].description).toContain("without any whitelist or pattern filtering");
   });
 
   it("should not register any extra tools", () => {

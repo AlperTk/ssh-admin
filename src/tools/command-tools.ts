@@ -44,4 +44,29 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       }
     }
   );
+
+  server.registerTool(
+    "command_execute_raw",
+    {
+      title: "Execute Command Raw",
+      description: "Execute a command on an open SSH session without any whitelist or pattern filtering. Use with caution — this bypasses all security checks.",
+      inputSchema: {
+        sessionId: z.string().describe("Session ID from connection_open"),
+        command: z.string().describe("Shell command to execute"),
+        timeout: z.number().optional().default(60000).describe("Timeout in milliseconds (default: 60000)"),
+      },
+    },
+    async (args: { sessionId: string; command: string; timeout?: number }) => {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
+        return errorResponse("Invalid sessionId format");
+      }
+      try {
+        const result = await pool.executeCommand(args.sessionId, args.command, args.timeout);
+        return successResponse(result);
+      } catch (err: unknown) {
+        const { message } = formatError(err);
+        return errorResponse(message);
+      }
+    }
+  );
 }
