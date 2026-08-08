@@ -384,7 +384,7 @@ Her sunucunun `~/server-info/` dizininde kalıcı bilgiler tutulur. Bu dosyalar 
 - **rules.md** — Sunucu kısıtlamaları ve kuralları
 - **decisions.md** — Alınan kararlar ve gerekçeleri
 - **architecture.md** — Mimari notlar, yapılandırma detayları
-- **logs/changelog.log** — command_execute_raw ile çalıştırılan komutlar (otomatik append)
+- **changelog.log** — command_execute_raw ile çalıştırılan komutlar (otomatik append)
 
 ### Kullanım Kuralları
 
@@ -492,6 +492,6 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 ### Instruction Tool ve ~/server-info/ Yapısı
 - `instruction` tool eklendi — `instruction.md` içeriğini döndürür
 - `instruction.md` proje kökünde, build sırasında `dist/`'ye kopyalanır
-- `~/server-info/` yapısı dokümante edildi (services.md, packages.md, rules.md, decisions.md, architecture.md, logs/changelog.log)
+- `~/server-info/` yapısı dokümante edildi (services.md, packages.md, rules.md, decisions.md, architecture.md, changelog.log)
 - Kullanım kuralları belirlendi: okuma için `command_execute`, kalıcı değişiklik için `command_execute_raw` (user approval required)
 - `build.mjs` — `instruction.md` kopyalama eklendi
