@@ -7,7 +7,7 @@ export function iptablesHasWriteArg(cmd: string): boolean {
   let rest = cmd.substring(idx + 8).trimStart();
 
   // Redirection'ları temizle (2>/dev/null, >file, >>file, | cmd vb.)
-  rest = rest.replace(/\s*[|&]\s*\S|\s*[21]>[>&]?/g, '').trimStart();
+  rest = rest.replace(/\s*[|&]\s*\S|\s*[21]>[>&]?\s*\S+/g, '').trimStart();
 
   // Önce tüm short flag'ları kontrol et — hepsi read-only ise izin ver
   let tempRest = rest;
