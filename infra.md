@@ -408,7 +408,7 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 ### Raw Command Execute Tool
 - `command_execute_raw` — whitelist ve write pattern kontrolleri olmadan komut çalıştırma
 - Aynı parametreler: `sessionId`, `command`, `timeout`
-- Açıklama: "Execute a command on an open SSH session without any whitelist or pattern filtering. Use with caution — this bypasses all security checks."
+- Açıklama: "Execute commands that modify the system — starting/stopping services, installing packages, modifying configs, creating files, etc. Use for any write or execute operation. For read-only operations (status checks, listing, viewing), use 'command_execute' instead."
 - `checker.check()` çağrılmıyor, direkt `pool.executeCommand()`
 
 ### False Positive Düzeltmeleri
@@ -423,8 +423,11 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 ### False Positive Düzeltmeleri (Devam)
 - `ufw version` false positive düzeltildi — UFW_READ_ONLY'a `version` eklendi
 - `containerd --version` false positive düzeltildi — `containerd` ve `ctr` whitelist'e eklendi
-- `docker --version` false positive düzeltildi — handler'da sadece flag içeren komutlar read-only kabul edildi
-- `iptables -L -n 2>/dev/null` false positive düzeltildi — handler'da redirection atlatma eklendi
+- `docker --version` false positive düzeltildi — handler'da sadece flag içenen komutlar read-only kabul edildi
+- `iptables -L -n 2>/dev/null` false positive düzeltildi — handler'da redirection temizleme eklendi
+- `iptables -L CHAIN` false positive düzeltildi — handler `-L/-S/-C` sonrası chain ismini kabul ediyor
+- `iptables -t filter -L -n` false positive düzeltildi — handler `-t TABLE` sonrası devam ediyor
+- IPTABLES_READ_ONLY'a yeni flag'lar eklendi: `-V/--version`, `--proto`, `--dport`, `--sport`, `--destination-port`, `--source-port`, `--log-prefix`, `--log-level`, `--log-tcp-options`, `--log-ip-options`, `--comment`
 
 ### Dead Code Temizliği
 - `CRONTAB_WRITE_FLAGS`, `SHELL_PATTERNS`, `SCRIPTREPLAY_READ_ONLY` → `readonly-rules.ts`'den kaldırıldı (kullanılmıyordu)
@@ -449,3 +452,4 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 
 ### Test Sayısı
 - 425 → 414 (custom error sınıflarının testleri kaldırıldı)
+- 414 → 465 (iptables handler 50 test + command_execute_raw 1 test)
