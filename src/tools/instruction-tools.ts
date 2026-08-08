@@ -18,6 +18,12 @@ Each server has persistent information stored in its \`~/server-info/\` director
 - **architecture.md** — Architecture notes and configuration details
 - **changelog.log** — Commands executed via command_execute_raw (auto-append)
 
+### Directories
+
+- **knowledge/** — Knowledge files (.md) created and maintained by the AI
+  - Each .md file represents a topic or knowledge domain
+  - AI adds or updates files as it learns new server information
+
 ### Usage Rules
 
 - **Read operations:** Use \`command_execute\` (protected by whitelist + write pattern detection)

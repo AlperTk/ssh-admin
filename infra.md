@@ -387,6 +387,12 @@ Her sunucunun `~/server-info/` dizininde kalıcı bilgiler tutulur. Bu dosyalar 
 - **architecture.md** — Mimari notlar, yapılandırma detayları
 - **changelog.log** — command_execute_raw ile çalıştırılan komutlar (otomatik append)
 
+### Dizinler
+
+- **knowledge/** — AI tarafından oluşturulan ve güncellenen bilgi dosyaları (.md)
+  - Her .md dosyası bir konu/bilgi alanı temsil eder
+  - AI, sunucu hakkında yeni bilgiler öğrendiğinde bu klasöre dosya ekler/günceller
+
 ### Kullanım Kuralları
 
 - **Okuma işlemleri:** `command_execute` kullanılır (whitelist + write pattern korumalı)
