@@ -16,9 +16,10 @@ index.ts (entry point)
 ├── types.ts           → Shared type tanımları
 ├── tokenizer.ts       → Komut segment parsing (tokenize, getFirstToken)
 ├── tools/
-│   ├── registry-tools.ts    ← registry MCP tool register'ları
-│   ├── connection-tools.ts  ← connection MCP tool register'ları
-│   └── command-tools.ts     ← command_execute tool register'ı
+│   ├── registry-tools.ts       ← registry MCP tool register'ları
+│   ├── connection-tools.ts     ← connection MCP tool register'ları
+│   ├── command-tools.ts        ← command_execute tool register'ı
+│   └── instruction-tools.ts    ← instruction tool (instruction.md döndürür)
 ├── pool.ts        → SSH session pool (ssh2 Client)
 ├── registry.ts    → Host registry (~/.mcp-ssh/hosts.json, mtime-based cache)
 ├── readonly-guard.ts → Readonly mode flag (inject edilebilir)
@@ -372,6 +373,26 @@ kill -INT <pid>    # SIGINT → pool.closeAll() → process.exit(0)
 - `response.ts` → `formatError(err)` helper — `AppError` subclass'lardan `code` çıkarır
 - `errors.ts` → `AppError` (tek custom error class)
 
+## ~/server-info/ Yapısı
+
+Her sunucunun `~/server-info/` dizininde kalıcı bilgiler tutulur. Bu dosyalar AI tarafından güncellenir ve okunur.
+
+### Dosyalar
+
+- **services.md** — Kurulu servisler ve durumları
+- **packages.md** — Kurulu kritik paketler
+- **rules.md** — Sunucu kısıtlamaları ve kuralları
+- **decisions.md** — Alınan kararlar ve gerekçeleri
+- **architecture.md** — Mimari notlar, yapılandırma detayları
+- **logs/changelog.log** — command_execute_raw ile çalıştırılan komutlar (otomatik append)
+
+### Kullanım Kuralları
+
+- **Okuma işlemleri:** `command_execute` kullanılır (whitelist + write pattern korumalı)
+- **Kalıcı değişiklikler:** `command_execute_raw` kullanılır (filtresiz + user approval required)
+- Dosyalar sistemde değişiklik olduğunda AI tarafından güncellenir
+- AI, ihtiyaç duyduğunda bu dosyaları okuyarak sunucu hakkında bilgi alır
+
 ## Tools Modülleri
 Tool register'ları `src/tools/` altında modülerleştirildi:
 
@@ -380,6 +401,7 @@ Tool register'ları `src/tools/` altında modülerleştirildi:
 | `tools/registry-tools.ts` | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` |
 | `tools/connection-tools.ts` | `connection_open`, `connection_close`, `connection_list` |
 | `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü), `command_execute_raw` (filtresiz komut çalıştırma, changelog log) |
+| `tools/instruction-tools.ts` | `instruction` (instruction.md döndürür) |
 
 Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` sadece wire-up yapar.
 
@@ -466,3 +488,10 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - Non-blocking log — başarısız olsa bile komut çalışmaya devam eder
 - Yeni dosyalar: `src/log-changelog.ts`, `test/log-changelog.test.ts`
 - `pool.getSessionInfo(sessionId)` metodu eklendi — session alias/host/username döndürür
+
+### Instruction Tool ve ~/server-info/ Yapısı
+- `instruction` tool eklendi — `instruction.md` içeriğini döndürür
+- `instruction.md` proje kökünde, build sırasında `dist/`'ye kopyalanır
+- `~/server-info/` yapısı dokümante edildi (services.md, packages.md, rules.md, decisions.md, architecture.md, logs/changelog.log)
+- Kullanım kuralları belirlendi: okuma için `command_execute`, kalıcı değişiklik için `command_execute_raw` (user approval required)
+- `build.mjs` — `instruction.md` kopyalama eklendi
