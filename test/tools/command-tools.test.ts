@@ -67,7 +67,7 @@ describe("registerCommandTool", () => {
     const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute_raw");
     expect(tool).toBeDefined();
     expect(tool![1].title).toBe("Execute Command Raw");
-    expect(tool![1].description).toContain("without any whitelist or pattern filtering");
+    expect(tool![1].description).toContain("write or execute operation");
   });
 
   it("should not register any extra tools", () => {

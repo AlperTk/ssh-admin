@@ -49,7 +49,7 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
     "command_execute_raw",
     {
       title: "Execute Command Raw",
-      description: "Execute a command on an open SSH session without any whitelist or pattern filtering. Use with caution — this bypasses all security checks.",
+      description: "Execute commands that modify the system — starting/stopping services, installing packages, modifying configs, creating files, etc. Use for any write or execute operation. For read-only operations (status checks, listing, viewing), use 'command_execute' instead.",
       inputSchema: {
         sessionId: z.string().describe("Session ID from connection_open"),
         command: z.string().describe("Shell command to execute"),
