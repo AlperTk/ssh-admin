@@ -135,4 +135,19 @@ describe("ConnectionPool", () => {
       expect(() => ConnectionPool.closeAll()).not.toThrow();
     });
   });
+
+  describe("getSessionInfo", () => {
+    it("should return session info for existing session", () => {
+      const s1 = createMockSession({ sessionId: "info-s1", alias: "prod", host: "10.0.0.1", username: "deploy" });
+      (ConnectionPool as any).sessions.set("info-s1", s1);
+
+      const info = ConnectionPool.getSessionInfo("info-s1");
+      expect(info).toEqual({ alias: "prod", host: "10.0.0.1", username: "deploy" });
+    });
+
+    it("should return null for non-existent session", () => {
+      const info = ConnectionPool.getSessionInfo("ghost-session");
+      expect(info).toBeNull();
+    });
+  });
 });

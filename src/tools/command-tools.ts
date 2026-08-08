@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConnectionPool } from "../pool.js";
 import { checker } from "../readonly-checker.js";
+import { buildChangelogCommand } from "../log-changelog.js";
 
 import { successResponse, errorResponse, formatError } from "../response.js";
 
@@ -59,6 +60,11 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
     async (args: { sessionId: string; command: string; timeout?: number }) => {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
         return errorResponse("Invalid sessionId format");
+      }
+      const sessionInfo = pool.getSessionInfo(args.sessionId);
+      const changelogCmd = buildChangelogCommand(sessionInfo, args.command);
+      if (changelogCmd) {
+        pool.executeCommand(args.sessionId, changelogCmd, 5000).catch(() => {});
       }
       try {
         const result = await pool.executeCommand(args.sessionId, args.command, args.timeout);

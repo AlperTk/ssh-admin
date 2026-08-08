@@ -249,6 +249,14 @@ export class ConnectionPool {
     });
   }
 
+  getSessionInfo(sessionId: string): { alias: string; host: string; username: string } | null {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return null;
+    }
+    return { alias: session.alias, host: session.host, username: session.username };
+  }
+
   getSessionCount(): number {
     return this.sessions.size;
   }

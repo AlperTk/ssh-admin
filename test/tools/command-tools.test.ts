@@ -18,6 +18,7 @@ const createMockPool = () => ({
   list: vi.fn(),
   executeCommand: vi.fn(),
   getSessionCount: vi.fn(),
+  getSessionInfo: vi.fn(),
 });
 
 describe("registerCommandTool", () => {
@@ -75,5 +76,47 @@ describe("registerCommandTool", () => {
     const names = mockServer.getRegisteredNames();
     expect(names).not.toContain("registry_add_server");
     expect(names).not.toContain("connection_open");
+  });
+
+  describe("command_execute_raw handler", () => {
+    it("should call getSessionInfo before executing command", async () => {
+      registerCommandTool(mockServer as any, mockPool as any);
+      const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute_raw");
+      const handler = tool![2];
+      (mockPool.getSessionInfo as any).mockReturnValue({ alias: "test", host: "10.0.0.1", username: "user" });
+      (mockPool.executeCommand as any).mockResolvedValue({ stdout: "", stderr: "", exitCode: 0, durationMs: 100 });
+
+      await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "ls -la" });
+
+      expect(mockPool.getSessionInfo).toHaveBeenCalledWith("550e8400-e29b-41d4-a716-446655440000");
+    });
+
+    it("should call executeCommand twice — once for changelog, once for the actual command", async () => {
+      registerCommandTool(mockServer as any, mockPool as any);
+      const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute_raw");
+      const handler = tool![2];
+      (mockPool.getSessionInfo as any).mockReturnValue({ alias: "prod", host: "1.2.3.4", username: "deploy" });
+      (mockPool.executeCommand as any).mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0, durationMs: 50 });
+
+      await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "systemctl restart nginx" });
+
+      expect(mockPool.executeCommand).toHaveBeenCalledTimes(2);
+      const firstCall = (mockPool.executeCommand as any).mock.calls[0];
+      expect(firstCall[1]).toContain("mkdir -p ~/server-info/logs");
+      expect(firstCall[1]).toContain("alias=prod");
+      expect(firstCall[1]).toContain("cmd='systemctl restart nginx'");
+    });
+
+    it("should not call executeCommand for changelog when sessionInfo is null", async () => {
+      registerCommandTool(mockServer as any, mockPool as any);
+      const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute_raw");
+      const handler = tool![2];
+      (mockPool.getSessionInfo as any).mockReturnValue(null);
+      (mockPool.executeCommand as any).mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0, durationMs: 50 });
+
+      await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "ls" });
+
+      expect(mockPool.executeCommand).toHaveBeenCalledTimes(1);
+    });
   });
 });

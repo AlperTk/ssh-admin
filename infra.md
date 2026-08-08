@@ -25,6 +25,7 @@ index.ts (entry point)
 ├── response.ts    → successResponse, errorResponse, formatError
 ├── errors.ts      → AppError (tek custom error class)
 ├── readonly-checker.ts → Command whitelist + write pattern detection
+├── log-changelog.ts → command_execute_raw changelog log (~/server-info/logs/changelog.log, max 500 satır)
 ├── readonly-checker/
 │   ├── command-checker.ts       ← CommandChecker singleton
 │   ├── write-handlers/
@@ -75,6 +76,7 @@ index.ts (entry point)
 - `pool.close(sessionId)` → `{ success, message }`
 - `pool.list()` → `SessionInfo[]`
 - `pool.executeCommand(sessionId, command, timeout?)` → `{ stdout, stderr, exitCode, durationMs }` (async)
+- `pool.getSessionInfo(sessionId)` → `{ alias, host, username } | null`
 - `pool.getSessionCount()` → `number`
 - `pool.closeAll()` → tüm session'ları kapatır (graceful shutdown için)
 
@@ -265,7 +267,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 ### Testler
 ```bash
-npm test              # 414 test
+npm test              # 476 test
 ```
 
 #### Test Yapısı
@@ -274,7 +276,8 @@ test/
 ├── response.test.ts                    ← successResponse, errorResponse, formatError (AppError/Error/unknown)
 ├── readonly-guard.test.ts              ← setReadonlyMode, resetReadonlyMode, requireWrite/isReadonlyMode override
 ├── registry.test.ts                    ← registry API (add, list, get, update, delete, resolveCredentials)
-├── pool.test.ts                        ← ConnectionPool (close, list, executeCommand, getSessionCount)
+├── pool.test.ts                        ← ConnectionPool (close, list, executeCommand, getSessionCount, getSessionInfo)
+├── log-changelog.test.ts               ← buildChangelogCommand (timestamp, escaping, rotation, single-line)
 ├── tools/
 │   ├── registry-tools.test.ts          ← 5 tool registration + schema doğrulama
 │   ├── connection-tools.test.ts        ← 3 tool registration + schema doğrulama
@@ -308,9 +311,9 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (414)
+npm test                              # tüm testler (476)
 npm test -- test/readonly-checker/    # readonly-checker modülü (341 test)
-npm test -- test/pool.test.ts         # ConnectionPool (8 test: close, list, executeCommand, getSessionCount, closeAll)
+npm test -- test/pool.test.ts         # ConnectionPool (10 test: close, list, executeCommand, getSessionCount, closeAll, getSessionInfo)
 npm test -- test/registry.test.ts     # Registry (12 test)
 npm test -- test/response.test.ts     # response helpers (18 test)
 npm test -- test/readonly-guard.test.ts # readonly guard (17 test)
@@ -376,7 +379,7 @@ Tool register'ları `src/tools/` altında modülerleştirildi:
 |---|---|
 | `tools/registry-tools.ts` | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` |
 | `tools/connection-tools.ts` | `connection_open`, `connection_close`, `connection_list` |
-| `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü), `command_execute_raw` (filtresiz komut çalıştırma) |
+| `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü), `command_execute_raw` (filtresiz komut çalıştırma, changelog log) |
 
 Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` sadece wire-up yapar.
 
@@ -453,3 +456,13 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 ### Test Sayısı
 - 425 → 414 (custom error sınıflarının testleri kaldırıldı)
 - 414 → 465 (iptables handler 50 test + command_execute_raw 1 test)
+- 465 → 476 (log-changelog 5 test + command_execute_raw changelog 3 test + getSessionInfo 2 test)
+
+### Raw Command Execute Changelog Logging
+- `command_execute_raw` her komutta `~/server-info/logs/changelog.log`'a kayıt yazar
+- Format: `[YYYY-MM-DD HH:mm:ss] alias=<X> host=<Y> user=<Z> cmd='<komut>'`
+- Tek satır format — komut içindeki newline karakterleri boşlukla değiştirilir
+- Max 500 satır rotasyonu — `tail -n 500` ile eski kayıtlar otomatik temizlenir
+- Non-blocking log — başarısız olsa bile komut çalışmaya devam eder
+- Yeni dosyalar: `src/log-changelog.ts`, `test/log-changelog.test.ts`
+- `pool.getSessionInfo(sessionId)` metodu eklendi — session alias/host/username döndürür

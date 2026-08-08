@@ -202,6 +202,13 @@ export class ConnectionPool {
             }
         });
     }
+    getSessionInfo(sessionId) {
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return null;
+        }
+        return { alias: session.alias, host: session.host, username: session.username };
+    }
     getSessionCount() {
         return this.sessions.size;
     }

@@ -13,6 +13,11 @@ export declare class ConnectionPool {
     };
     list(): SessionInfo[];
     executeCommand(sessionId: string, command: string, timeout?: number): Promise<CommandResult>;
+    getSessionInfo(sessionId: string): {
+        alias: string;
+        host: string;
+        username: string;
+    } | null;
     getSessionCount(): number;
     closeAll(): void;
 }
