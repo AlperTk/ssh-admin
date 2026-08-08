@@ -292,7 +292,7 @@ import { HostConfig, ServerRegistry } from "./types.js";
 &nbsp;
 const REGISTRY_DIR = process.env.MCP_SSH_REGISTRY_PATH
   ? path.dirname(process.env.MCP_SSH_REGISTRY_PATH)
-  : <span class="branch-1 cbranch-no" title="branch not covered" >path.join(os.homedir(), ".mcp-ssh");</span>
+  : <span class="branch-1 cbranch-no" title="branch not covered" >path.join(os.homedir(), ".ssh-admin");</span>
 const REGISTRY_FILE = process.env.MCP_SSH_REGISTRY_PATH || <span class="branch-1 cbranch-no" title="branch not covered" >path.join(REGISTRY_DIR, "hosts.json");</span>
 &nbsp;
 function ensureRegistryDir() {

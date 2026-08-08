@@ -14,7 +14,7 @@ if (isReadonlyMode()) {
 }
 
 const server = new McpServer(
-  { name: "mcp-ssh", version: "1.0.0" },
+  { name: "ssh-admin", version: "1.0.0" },
   {
     instructions: "Bağlandığınızda ilk olarak 'instruction' aracını çağırın. Sistem talimatlarını döndürür.",
   }
@@ -28,11 +28,11 @@ registerInstructionTool(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("mcp-ssh server running on stdio");
+  console.error("ssh-admin server running on stdio");
 }
 
 main().catch((err) => {
-  console.error("Failed to start mcp-ssh server:", err);
+  console.error("Failed to start ssh-admin server:", err);
   process.exit(1);
 });
 

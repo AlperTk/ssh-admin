@@ -1,4 +1,4 @@
-# mcp-ssh
+# ssh-admin
 
 MCP (Model Context Protocol) server for managing SSH connections to remote servers. Provides host registry, session pool, and secure command execution with read-only protection.
 
@@ -166,7 +166,7 @@ When `MCP_SSH_READONLY=true`:
 - Passwords are **never** stored in the registry
 - Use environment variables: `SSH_PASSWORD_<ALIAS>` (uppercase alias)
 - Key-based auth is recommended for production use
-- Registry directory: `~/.mcp-ssh/` with mode `0700`
+- Registry directory: `~/.ssh-admin/` with mode `0700`
 - Registry file: `hosts.json` with mode `0600`
 - Password memory is wiped immediately after credential verification
 

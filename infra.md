@@ -1,4 +1,4 @@
-# mcp-ssh — Development Info
+# ssh-admin — Development Info
 
 MCP server for managing SSH servers. Provides host registry, session pool, and command execution tools.
 
@@ -22,7 +22,7 @@ index.ts (entry point)
 │   └── instruction-tools.ts    ← instruction tool (hardcoded content)
 ├── instruction-guard.ts      ← instruction tool enforcement (flag + requireInstruction)
 ├── pool.ts        → SSH session pool (ssh2 Client)
-├── registry.ts    → Host registry (~/.mcp-ssh/hosts.json, mtime-based cache)
+├── registry.ts    → Host registry (~/.ssh-admin/hosts.json, mtime-based cache)
 ├── readonly-guard.ts → Readonly mode flag (inject edilebilir)
 ├── response.ts    → successResponse, errorResponse, formatError
 ├── errors.ts      → AppError (tek custom error class)
@@ -429,7 +429,7 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - Keepalive: interval = max(10s, timeout/3), count = 10
 - Verification timeout: max(30s, timeout)
 - Default command timeout: 60000ms
-- Registry dir auto-created at `~/.mcp-ssh/` (mode 0700)
+- Registry dir auto-created at `~/.ssh-admin/` (mode 0700)
 - Registry file mode 0600 (sadece owner okuyabilir)
 - `HostConfig.forceIPv4` optional — default false (IPv6 destekli)
 - `command_execute` tool'unda sessionId UUID validation mevcut

@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-const TEST_REGISTRY_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-ssh-test-"));
+const TEST_REGISTRY_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "ssh-admin-test-"));
 const TEST_REGISTRY = path.join(TEST_REGISTRY_DIR, "hosts.json");
 
 // Set env var BEFORE importing registry

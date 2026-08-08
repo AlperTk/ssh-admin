@@ -3,7 +3,7 @@ import * as os from "os";
 import * as path from "path";
 const REGISTRY_DIR = process.env.MCP_SSH_REGISTRY_PATH
     ? path.dirname(process.env.MCP_SSH_REGISTRY_PATH)
-    : path.join(os.homedir(), ".mcp-ssh");
+    : path.join(os.homedir(), ".ssh-admin");
 const REGISTRY_FILE = process.env.MCP_SSH_REGISTRY_PATH || path.join(REGISTRY_DIR, "hosts.json");
 function ensureRegistryDir() {
     if (!fs.existsSync(REGISTRY_DIR)) {

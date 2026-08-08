@@ -12,7 +12,7 @@ if (isReadonlyMode()) {
 else {
     console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
 }
-const server = new McpServer({ name: "mcp-ssh", version: "1.0.0" }, {
+const server = new McpServer({ name: "ssh-admin", version: "1.0.0" }, {
     instructions: "Bağlandığınızda ilk olarak 'instruction' aracını çağırın. Sistem talimatlarını döndürür.",
 });
 registerRegistryTools(server, pool);
@@ -22,10 +22,10 @@ registerInstructionTool(server);
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("mcp-ssh server running on stdio");
+    console.error("ssh-admin server running on stdio");
 }
 main().catch((err) => {
-    console.error("Failed to start mcp-ssh server:", err);
+    console.error("Failed to start ssh-admin server:", err);
     process.exit(1);
 });
 process.on('SIGTERM', () => {
