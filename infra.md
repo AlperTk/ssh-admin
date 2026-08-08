@@ -392,6 +392,9 @@ Her sunucunun `~/server-info/` dizininde kalıcı bilgiler tutulur. Bu dosyalar 
 - **knowledge/** — AI tarafından oluşturulan ve güncellenen bilgi dosyaları (.md)
   - Her .md dosyası bir konu/bilgi alanı temsil eder
   - AI, sunucu hakkında yeni bilgiler öğrendiğinde bu klasöre dosya ekler/günceller
+- **scripts/** — Sık yapılan operasyonlar için yeniden kullanılabilir script'ler
+  - Tekrarlayan görevleri hızlandırmak için otomasyon script'leri burada saklanır
+  - AI, tekrarlanan operasyon kalıplarına göre script oluşturur ve günceller
 
 ### Kullanım Kuralları
 

@@ -23,6 +23,9 @@ Each server has persistent information stored in its \`~/server-info/\` director
 - **knowledge/** — Knowledge files (.md) created and maintained by the AI
   - Each .md file represents a topic or knowledge domain
   - AI adds or updates files as it learns new server information
+- **scripts/** — Reusable scripts for frequently performed operations
+  - Store automation scripts here to speed up common tasks
+  - AI creates and maintains scripts based on recurring operational patterns
 
 ### Usage Rules
 
