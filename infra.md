@@ -18,8 +18,9 @@ index.ts (entry point)
 ├── tools/
 │   ├── registry-tools.ts       ← registry MCP tool register'ları
 │   ├── connection-tools.ts     ← connection MCP tool register'ları
-│   ├── command-tools.ts        ← command_execute tool register'ı
-│   └── instruction-tools.ts    ← instruction tool (instruction.md döndürür)
+│   ├── command-tools.ts        ← command_execute + command_execute_raw tool register'ları
+│   └── instruction-tools.ts    ← instruction tool (hardcoded content)
+├── instruction-guard.ts      ← instruction tool enforcement (flag + requireInstruction)
 ├── pool.ts        → SSH session pool (ssh2 Client)
 ├── registry.ts    → Host registry (~/.mcp-ssh/hosts.json, mtime-based cache)
 ├── readonly-guard.ts → Readonly mode flag (inject edilebilir)
@@ -268,7 +269,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 ### Testler
 ```bash
-npm test              # 476 test
+npm test              # 477 test
 ```
 
 #### Test Yapısı
@@ -282,7 +283,7 @@ test/
 ├── tools/
 │   ├── registry-tools.test.ts          ← 5 tool registration + schema doğrulama
 │   ├── connection-tools.test.ts        ← 3 tool registration + schema doğrulama
-│   └── command-tools.test.ts           ← command_execute registration + schema doğrulama
+│   └── command-tools.test.ts           ← command_execute + command_execute_raw registration, schema, read-only redirect test
 └── readonly-checker/
     ├── command-checker.test.ts          ← ana check() akışı (whitelist, combined commands, write patterns)
     ├── write-handlers/
@@ -390,8 +391,10 @@ Her sunucunun `~/server-info/` dizininde kalıcı bilgiler tutulur. Bu dosyalar 
 
 - **Okuma işlemleri:** `command_execute` kullanılır (whitelist + write pattern korumalı)
 - **Kalıcı değişiklikler:** `command_execute_raw` kullanılır (filtresiz + user approval required)
+  - Read-only komutlar `command_execute_raw` ile engellenir → `command_execute` kullanılmalı
 - Dosyalar sistemde değişiklik olduğunda AI tarafından güncellenir
 - AI, ihtiyaç duyduğunda bu dosyaları okuyarak sunucu hakkında bilgi alır
+- **İlk adım:** Sunucuya bağlanıldığında `instruction` tool'u çağrılmalı
 
 ## Tools Modülleri
 Tool register'ları `src/tools/` altında modülerleştirildi:
@@ -400,8 +403,8 @@ Tool register'ları `src/tools/` altında modülerleştirildi:
 |---|---|
 | `tools/registry-tools.ts` | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` |
 | `tools/connection-tools.ts` | `connection_open`, `connection_close`, `connection_list` |
-| `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü), `command_execute_raw` (filtresiz komut çalıştırma, changelog log) |
-| `tools/instruction-tools.ts` | `instruction` (instruction.md döndürür) |
+| `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü), `command_execute_raw` (write komutlar, readonly check ile engelleme, changelog log) |
+| `tools/instruction-tools.ts` | `instruction` (hardcoded content, instruction guard flag set) |
 
 Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` sadece wire-up yapar.
 
@@ -479,6 +482,7 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - 425 → 414 (custom error sınıflarının testleri kaldırıldı)
 - 414 → 465 (iptables handler 50 test + command_execute_raw 1 test)
 - 465 → 476 (log-changelog 5 test + command_execute_raw changelog 3 test + getSessionInfo 2 test)
+- 476 → 477 (command_execute_raw read-only redirect test)
 
 ### Raw Command Execute Changelog Logging
 - `command_execute_raw` her komutta `~/server-info/changelog.log`'a kayıt yazar
@@ -495,3 +499,40 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - `~/server-info/` yapısı dokümante edildi (services.md, packages.md, rules.md, decisions.md, architecture.md, changelog.log)
 - Kullanım kuralları belirlendi: okuma için `command_execute`, kalıcı değişiklik için `command_execute_raw` (user approval required)
 - `build.mjs` — `instruction.md` kopyalama eklendi
+
+### Instruction Enforcement
+- `src/instruction-guard.ts` — yeni guard modülü
+  - `_instructionCalled` flag (default false)
+  - `setInstructionCalled()` — instruction tool çağrıldığında true yapar
+  - `requireInstruction()` — false ise errorResponse döner, true ise null
+- Tüm tool handler'lara `requireInstruction()` kontrolü eklendi:
+  - `command_execute` — engeller
+  - `command_execute_raw` — engeller
+  - `registry_add_server` — engeller
+  - `registry_list_servers` — engeller
+  - `registry_get_server` — engeller
+  - `registry_update_server` — engeller
+  - `registry_delete_server` — engeller
+  - `connection_open` — engeller
+  - `connection_close` — engeller
+  - `connection_list` — engeller
+- `instruction` tool çağrıldığında flag true olur, sonraki tüm tool çağrıları geçer
+- Testlere `resetInstructionCalled()` + `setInstructionCalled()` eklendi (beforeEach)
+
+### Hardcoded Instruction Content
+- `src/tools/instruction-tools.ts` — `instruction.md` dosyası yerine hardcoded template literal
+- `fs` ve `path` importları kaldırıldı
+- `INSTRUCTION_CONTENT` sabiti doğrudan içerik döndürür
+- `build.mjs` — `instruction.md` kopyalama kaldırıldı
+- `instruction.md` dosyası silindi
+
+### command_execute_raw Read-Only Check
+- `command_execute_raw` handler'a `checker.check(command)` eklendi
+- Eğer komut read-only ise → "This is a read-only command. Please use 'command_execute' instead of 'command_execute_raw'." hatası
+- Write komutlar → changelog log + execute devam eder
+- Amaç: read-only işlemler için `command_execute_raw` kullanımını engelleme
+
+### McpServer Instructions Field
+- `McpServer` constructor'a `instructions` field eklendi
+- Client initialization response'ında iletilir
+- Client'lar bu instructions'ı okuyup otomatik action önerir

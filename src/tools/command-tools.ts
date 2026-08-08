@@ -66,6 +66,10 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
         return errorResponse("Invalid sessionId format");
       }
+      const checkResult = checker.check(args.command);
+      if (checkResult.allowed) {
+        return errorResponse("This is a read-only command. Please use 'command_execute' instead of 'command_execute_raw'.");
+      }
       const sessionInfo = pool.getSessionInfo(args.sessionId);
       const changelogCmd = buildChangelogCommand(sessionInfo, args.command);
       if (changelogCmd) {

@@ -89,7 +89,7 @@ describe("registerCommandTool", () => {
       (mockPool.getSessionInfo as any).mockReturnValue({ alias: "test", host: "10.0.0.1", username: "user" });
       (mockPool.executeCommand as any).mockResolvedValue({ stdout: "", stderr: "", exitCode: 0, durationMs: 100 });
 
-      await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "ls -la" });
+      await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "systemctl restart nginx" });
 
       expect(mockPool.getSessionInfo).toHaveBeenCalledWith("550e8400-e29b-41d4-a716-446655440000");
     });
@@ -117,9 +117,23 @@ describe("registerCommandTool", () => {
       (mockPool.getSessionInfo as any).mockReturnValue(null);
       (mockPool.executeCommand as any).mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0, durationMs: 50 });
 
-      await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "ls" });
+      await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "systemctl restart nginx" });
 
       expect(mockPool.executeCommand).toHaveBeenCalledTimes(1);
+    });
+
+    it("should block read-only commands and redirect to command_execute", async () => {
+      registerCommandTool(mockServer as any, mockPool as any);
+      const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute_raw");
+      const handler = tool![2];
+
+      const result = await handler({ sessionId: "550e8400-e29b-41d4-a716-446655440000", command: "ls -la" });
+
+      expect(result).toHaveProperty("isError", true);
+      const parsed = JSON.parse((result.content[0] as any).text);
+      expect(parsed.success).toBe(false);
+      expect(parsed.error).toContain("read-only command");
+      expect(parsed.error).toContain("command_execute");
     });
   });
 });
