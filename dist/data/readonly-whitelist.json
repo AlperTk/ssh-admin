@@ -313,6 +313,8 @@
     "dmsetup",
     "snap",
     "docker",
+    "containerd",
+    "ctr",
     "fail2ban-client",
     "firewall-cmd",
     "apt",
