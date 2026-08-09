@@ -33,6 +33,17 @@ Each server has persistent information stored in its \`~/server-info/\` director
 - **Permanent changes:** Use \`command_execute_raw\` (unfiltered + user approval required)
 - Files are updated by AI when system changes occur
 - AI reads these files to get server information when needed
+
+## Command Execution Guidelines
+
+Before calling \`command_execute\` or \`command_execute_raw\**, always tell the user what you are about to do:
+
+- **Read-only**: "I will read X file", "I will check Y service status" etc.
+- **Write**: "I will modify Z file", "I will install W package" etc.
+
+## File Editing Guidelines
+
+For large files, use targeted edits (sed, awk, etc.) instead of rewriting the entire file.
 `;
 
 export function registerInstructionTool(server: McpServer): void {
