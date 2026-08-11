@@ -73,6 +73,7 @@ index.ts (entry point)
 
 ## Pool API
 - `pool.open(alias, timeout?)` → `{ sessionId, status, verified }` (async)
+  - sessionId formatı: `<alias>-<uuid>` (örn: `prod-server-a1b2c3d4-e5f6-...`)
   - Password memory wipe: credentials.password immediate null yapılır
   - HostConfig.forceIPv4 desteklenir (default: false)
 - `pool.close(sessionId)` → `{ success, message }`
@@ -339,7 +340,7 @@ npm test -- test/readonly-checker/write-handlers/git-handler.test.ts  # git hand
 - Registry file (`hosts.json`): `0600` (sadece owner okuyabilir/yazabilir)
 
 ### Command Validation
-- `command_execute` tool'unda sessionId UUID format validation mevcut
+- `command_execute` tool'unda sessionId format validation (`<alias>-<uuid>` formatı)
 - Docker exec: shell spawn detection (`bash/sh/zsh/csh/ksh/fish`)
 - Tar: `-r/-u` flag detection + `--warning=` bypass tespiti
 - Crontab: `-e`, `-r`, `-R`, `-` (stdin) + `-u root -` bypass write flag tespiti
@@ -432,10 +433,17 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - Registry dir auto-created at `~/.ssh-admin/` (mode 0700)
 - Registry file mode 0600 (sadece owner okuyabilir)
 - `HostConfig.forceIPv4` optional — default false (IPv6 destekli)
-- `command_execute` tool'unda sessionId UUID validation mevcut
+- `command_execute` tool'unda sessionId format validation (`<alias>-<uuid>` formatı)
 - `command_execute` whitelist + write pattern kontrolü **her zaman aktiftir** (MCP_SSH_READONLY env değişkenine bağımlı değildir)
 
 ## Changelog
+
+### Session ID Formatı
+- `pool.open()` → sessionId artık `<alias>-<uuid>` formatında (örn: `prod-server-a1b2c3d4-e5f6-...`)
+- `src/pool.ts` → `crypto.randomUUID()` → `${alias}-${crypto.randomUUID()}`
+- `src/tools/command-tools.ts` → UUID regex güncellendi: `^[a-zA-Z0-9_-]+-[0-9a-f]{8}-...` (prefix destekli)
+- Test sessionId'leri prefix'li formata güncellendi
+- Amaç: session prefix'i ile sunucu adı görünsün, debug ve izlenebilirlik artar
 
 ### Her Zaman Aktif Whitelist
 - `command_execute` whitelist + write pattern kontrolü **her zaman aktiftir** — `MCP_SSH_READONLY` env değişkenine bağımlı değil

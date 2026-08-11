@@ -20,6 +20,10 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
       if (blocked) return blocked;
       try {
         const result = await pool.open(args.alias, args.timeout);
+        if (result.status === "connected" || result.status === "already_connected") {
+          const dirResult = await pool.executeCommand(result.sessionId, `(cd ~/server-info && echo "$(pwd)" && find . -mindepth 1 -maxdepth 2 | sed -e "s/[^-][^\\/]*\\//  |/g" -e "s/|\\([^ ]\\)/|-- \\1/")`, 10000);
+          return successResponse({ ...result, serverInfoStructure: dirResult.stdout });
+        }
         return successResponse(result);
       } catch (err: unknown) {
         const { message } = formatError(err);
