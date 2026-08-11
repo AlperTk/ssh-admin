@@ -19,6 +19,54 @@ npm install
 npm run build
 ```
 
+## OpenCode Configuration
+
+Example `opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "ssh-admin",
+  "permission": {},
+  "agent": {
+    "linuxadmin": {
+      "permission": {
+        "edit": "deny",
+        "bash": "deny",
+        "glob": "deny",
+        "grep": "deny",
+        "list": "deny",
+        "read": "deny",
+        "task": "deny",
+        "external_directory": "deny",
+        "todowrite": "allow",
+        "question": "allow",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "lsp": "deny",
+        "skill": "deny",
+        "ssh-admin_*": "ask",
+        "ssh-admin_command_execute": "allow",
+        "ssh-admin_command_execute_raw": "ask",
+        "ssh-admin_registry_list_servers": "allow",
+        "ssh-admin_connection_close": "allow",
+        "ssh-admin_instruction": "allow",
+        "ssh-admin_registry_get_server": "allow",
+        "ssh-admin_connection_list": "allow"
+      }
+    }
+  },
+  "mcp": {
+    "ssh-admin": {
+      "type": "local",
+      "command": ["node", "./ssh-admin/dist/bundle.cjs"],
+      "enabled": true,
+      "env": {}
+    }
+  }
+}
+```
+
 ## Configuration
 
 ### Adding Servers
