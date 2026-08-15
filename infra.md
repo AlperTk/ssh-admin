@@ -19,6 +19,7 @@ index.ts (entry point)
 │   ├── registry-tools.ts       ← registry MCP tool register'ları
 │   ├── connection-tools.ts     ← connection MCP tool register'ları
 │   ├── command-tools.ts        ← command_execute + command_execute_raw tool register'ları
+│   ├── file-edit-tools.ts      ← file_edit tool (replace/range, temp yedek, diff, dryRun)
 │   └── instruction-tools.ts    ← instruction tool (hardcoded content)
 ├── instruction-guard.ts      ← instruction tool enforcement (flag + requireInstruction)
 ├── pool.ts        → SSH session pool (ssh2 Client)
@@ -28,6 +29,7 @@ index.ts (entry point)
 ├── errors.ts      → AppError (tek custom error class)
 ├── readonly-checker.ts → Command whitelist + write pattern detection
 ├── log-changelog.ts → command_execute_raw changelog log (~/server-info/changelog.log, max 500 satır)
+├── file-edit.ts     → file_edit shell komutu builder + envelope parser (replace/range, temp yedek)
 ├── readonly-checker/
 │   ├── command-checker.ts       ← CommandChecker singleton
 │   ├── write-handlers/
@@ -97,6 +99,17 @@ index.ts (entry point)
 > `ServerInfo` tipi `alias`, `host`, `port`, `username`, `authMethod` alanlarını içerir — `keyPath` gizlidir.
 
 > `registry.ts` mtime-based cache kullanır — dosya değişmeden tekrar okuma yapmaz.
+
+## File Edit API
+`file_edit` tool — hedefli dosya düzenleme (tüm dosyayı yeniden yazmadan). `src/file-edit.ts` (builder + parser) + `src/tools/file-edit-tools.ts` (registration).
+
+- **`mode="replace"`** — `find` → `replace` (tek satır, literal substring). `all=false` (default) ise tam 1 eşleşme ister; `all=true` tümünü değiştirir.
+- **`mode="range"`** — `startLine..endLine` aralığını yeni `replace` içeriğiyle değiştirir (boş `replace` = satırları siler).
+- **`dryRun=true`** — diff önizler, dosyaya yazmaz.
+- **Yedek** — `$(mktemp -d)/<basename>.<ts>` (temp dizin; çalışma/knowledge dizinini kirletmez). Tam yol response'ta `backup` alanında döner.
+- **Dönüş** — `{ changed, dryRun, count, backup, diff }`.
+- **Güvenlik** — `requireInstruction()` guard, changelog log (`command_execute_raw` ile aynı model), user approval (write tool).
+- **Mekanizma** — değerler base64 ile shell'e geçirilir (quote/escape güvenli); replace `perl \Q..\E` + `$ENV` ile literal yapılır; range `sed` head + `tail` splice ile inode koruyucu (`cat tmp > path`).
 
 ## Readonly Checker
 
@@ -270,7 +283,7 @@ Her handler **whitelist** kullanır: sadece bilinen safe flag/subcommand'lar izi
 
 ### Testler
 ```bash
-npm test              # 477 test
+npm test              # 509 test
 ```
 
 #### Test Yapısı
@@ -281,10 +294,12 @@ test/
 ├── registry.test.ts                    ← registry API (add, list, get, update, delete, resolveCredentials)
 ├── pool.test.ts                        ← ConnectionPool (close, list, executeCommand, getSessionCount, getSessionInfo)
 ├── log-changelog.test.ts               ← buildChangelogCommand (timestamp, escaping, rotation, single-line)
+├── file-edit.test.ts                   ← buildFileEditCommand (replace/range) + parseFileEditOutput (envelope)
 ├── tools/
 │   ├── registry-tools.test.ts          ← 5 tool registration + schema doğrulama
 │   ├── connection-tools.test.ts        ← 3 tool registration + schema doğrulama
-│   └── command-tools.test.ts           ← command_execute + command_execute_raw registration, schema, read-only redirect test
+│   ├── command-tools.test.ts           ← command_execute + command_execute_raw registration, schema, read-only redirect test
+│   └── file-edit-tools.test.ts         ← file_edit registration, schema, guard, validation, changelog
 └── readonly-checker/
     ├── command-checker.test.ts          ← ana check() akışı (whitelist, combined commands, write patterns)
     ├── write-handlers/
@@ -314,7 +329,7 @@ test/
 
 #### Test Çalıştırma
 ```bash
-npm test                              # tüm testler (476)
+npm test                              # tüm testler (509)
 npm test -- test/readonly-checker/    # readonly-checker modülü (341 test)
 npm test -- test/pool.test.ts         # ConnectionPool (10 test: close, list, executeCommand, getSessionCount, closeAll, getSessionInfo)
 npm test -- test/registry.test.ts     # Registry (12 test)
@@ -397,6 +412,19 @@ Her sunucunun `~/server-info/` dizininde kalıcı bilgiler tutulur. Bu dosyalar 
   - Tekrarlayan görevleri hızlandırmak için otomasyon script'leri burada saklanır
   - AI, tekrarlanan operasyon kalıplarına göre script oluşturur ve günceller
 
+### Maintain Kuralları (knowledge/ & scripts/)
+Connect'te AI'a `~/server-info/`'un tree view'i verilir → **dosya isimleri keşif indeksidir**, anlamlı olmalı.
+
+- **knowledge/**
+  - Dosyayı konu/servise göre adlandır (Good: `postgres-pg16.md`, `nginx-reverse-proxy.md`; Bad: `notes.md`, `misc.md`). Bir dosya = bir konu.
+  - **Sadece öz bilgi**: infer edilemeyen server-specific değerler (volume/mount path, network tipi/adı, port, versiyon, özel mimari kural/karar + gerekçe).
+  - **Genel bilgi yazma**: teknolojinin ne olduğu, standart komutlar, AI'ın zaten bildiği hiçbir şey (örn. Dockerized servis için Docker'ı tanıtmak / `docker` komutları listelemek YOK).
+  - Kısa bullet / key-value, prose değil. Sistem değişince ilgili dosyayı güncelle; çelişkiyi ekleme, eski bilgiyi değiştir.
+- **scripts/**
+  - Aynı çok-adımlı operasyonu birden fazla kez yapıyorsan script'e dök.
+  - Verb-first isimlendir (Good: `rotate-logs.sh`, `backup-db.sh`; Bad: `doit.sh`, `temp.sh`).
+  - Tek satır amaç yorumu ile başla; minimal + idempotent tut; benzeri varsa yenile, kopya üretme.
+
 ### Kullanım Kuralları
 
 - **Okuma işlemleri:** `command_execute` kullanılır (whitelist + write pattern korumalı)
@@ -414,6 +442,7 @@ Tool register'ları `src/tools/` altında modülerleştirildi:
 | `tools/registry-tools.ts` | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` |
 | `tools/connection-tools.ts` | `connection_open`, `connection_close`, `connection_list` |
 | `tools/command-tools.ts` | `command_execute` (her zaman aktif whitelist + write pattern kontrolü), `command_execute_raw` (write komutlar, readonly check ile engelleme, changelog log) |
+| `tools/file-edit-tools.ts` | `file_edit` (hedefli düzenleme: replace/range, temp yedek, diff, dryRun, changelog) |
 | `tools/instruction-tools.ts` | `instruction` (hardcoded content, instruction guard flag set) |
 
 Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` sadece wire-up yapar.
@@ -553,3 +582,21 @@ Her modül `registerXxxTools(server, pool)` fonksiyonu export eder. `index.ts` s
 - `McpServer` constructor'a `instructions` field eklendi
 - Client initialization response'ında iletilir
 - Client'lar bu instructions'ı okuyup otomatik action önerir
+
+### Knowledge Base & Scripts Maintain Kuralları
+- `INSTRUCTION_CONTENT`'a `## ~/server-info/ Maintenance` bölümü eklendi
+- **knowledge/**: isimlendirme (konu/servis bazlı, good/bad örnekler), sadece öz bilgi (AI'ın bildiği yok, Docker örneğiyle), kısa bullet/key-value, güncelleme disiplini
+- **scripts/**: tekrar eden çok-adımlı operasyonlar, verb-first isim, tek satır amaç yorumu, minimal/idempotent
+- Neden: connect'te tree view verildiği için dosya ismi = keşif indeksi; context şişirmemek için içerik öz tutulmalı
+
+### file_edit Tool
+- Yeni tool: hedefli dosya düzenleme (tüm dosyayı yeniden yazmadan)
+- `mode="replace"` (find→replace, literal, match-guard) + `mode="range"` (startLine..endLine → yeni içerik, boş = silme)
+- `dryRun` önizleme, yedek **temp dizinde** (`$(mktemp -d)/<basename>.<ts>` — çalışma/knowledge dizinini kirletmez), unified diff dönüşü
+- Değerler base64 ile shell'e; replace `perl \Q..\E`+`$ENV` literal; range `sed`+`tail` splice (inode koruyucu)
+- `requireInstruction` guard + changelog log (readable summary) + user approval
+- Yeni dosyalar: `src/file-edit.ts`, `src/tools/file-edit-tools.ts`, `test/file-edit.test.ts`, `test/tools/file-edit-tools.test.ts`
+- `index.ts` wire-up; `File Editing Guidelines` → `file_edit` yönlendirmesi
+
+### Test Sayısı (devam)
+- 477 → 509 (file_edit: 20 builder/parser + 12 tool registration/behavior test)

@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { registerRegistryTools } from "./tools/registry-tools.js";
 import { registerConnectionTools } from "./tools/connection-tools.js";
 import { registerCommandTool } from "./tools/command-tools.js";
+import { registerFileEditTool } from "./tools/file-edit-tools.js";
 import { registerInstructionTool } from "./tools/instruction-tools.js";
 import { pool } from "./pool.js";
 import { isReadonlyMode } from "./readonly-guard.js";
@@ -23,6 +24,7 @@ const server = new McpServer(
 registerRegistryTools(server, pool);
 registerConnectionTools(server, pool);
 registerCommandTool(server, pool);
+registerFileEditTool(server, pool);
 registerInstructionTool(server);
 
 async function main() {
