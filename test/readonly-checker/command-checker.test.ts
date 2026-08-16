@@ -48,7 +48,7 @@ describe("CommandChecker", () => {
       expect(checker.check("shopt -s dotglob")).toEqual({ allowed: true });
       expect(checker.check("ulimit -a")).toEqual({ allowed: true });
       expect(checker.check("umask")).toEqual({ allowed: true });
-      expect(checker.check("trap 'echo hi' INT")).toEqual({ allowed: true });
+      expect(checker.check("trap")).toEqual({ allowed: true });
       expect(checker.check("jobs")).toEqual({ allowed: true });
       expect(checker.check("history")).toEqual({ allowed: true });
       expect(checker.check("alias")).toEqual({ allowed: true });
@@ -156,7 +156,7 @@ describe("CommandChecker", () => {
       expect(checker.check("read -p 'Enter: ' var")).toEqual({ allowed: true });
       expect(checker.check("mapfile -t arr < file.txt")).toEqual({ allowed: true });
       expect(checker.check("source ~/.bashrc")).toMatchObject({ allowed: false });
-      expect(checker.check(". ~/.bashrc")).toEqual({ allowed: true });
+      expect(checker.check(". ~/.bashrc")).toMatchObject({ allowed: false });
       expect(checker.check("export VAR=value")).toEqual({ allowed: true });
       expect(checker.check("local var=value")).toEqual({ allowed: true });
       expect(checker.check("typeset var=value")).toEqual({ allowed: true });
@@ -304,6 +304,8 @@ describe("CommandChecker", () => {
       expect(checker.check("partx --add /dev/sda")).toMatchObject({ allowed: false });
       expect(checker.check("kpartx -av /tmp/image.img")).toMatchObject({ allowed: false });
       expect(checker.check("dmsetup ls")).toEqual({ allowed: true });
+      expect(checker.check("dmsetup clear myvol")).toMatchObject({ allowed: false });
+      expect(checker.check("dmsetup mknodes")).toMatchObject({ allowed: false });
       expect(checker.check("lvm pvs")).toMatchObject({ allowed: false });
       expect(checker.check("vgscan")).toMatchObject({ allowed: false });
       expect(checker.check("vgdisplay")).toMatchObject({ allowed: false });
@@ -601,7 +603,7 @@ describe("CommandChecker", () => {
       expect(checker.check("sudo cat /proc/net/ipt_stat_filter 2>/dev/null")).toEqual({ allowed: true });
       expect(checker.check("cat file.txt 2>/dev/null || echo missing")).toEqual({ allowed: true });
       expect(checker.check("ls 2>&1")).toEqual({ allowed: true });
-      expect(checker.check("command 2>/dev/zero")).toEqual({ allowed: true });
+      expect(checker.check("cat /etc/passwd 2>/dev/zero")).toEqual({ allowed: true });
     });
 
     it("should still block 2> to actual files", () => {
@@ -731,6 +733,8 @@ describe("CommandChecker", () => {
       expect(checker.check("systemctl shutdown")).toMatchObject({ allowed: false });
       expect(checker.check("systemctl rescue")).toMatchObject({ allowed: false });
       expect(checker.check("systemctl emergency")).toMatchObject({ allowed: false });
+      expect(checker.check("systemctl import-environment FOO=bar")).toMatchObject({ allowed: false });
+      expect(checker.check("systemctl tmpfiles create")).toMatchObject({ allowed: false });
     });
 
     it("should allow docker read commands", () => {
@@ -791,12 +795,50 @@ describe("CommandChecker", () => {
       expect(checker.check("docker system prune")).toMatchObject({ allowed: false });
       expect(checker.check("docker attach container1")).toMatchObject({ allowed: false });
       expect(checker.check("docker wait container1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker container create ubuntu")).toMatchObject({ allowed: false });
+      expect(checker.check("docker container commit c1 img")).toMatchObject({ allowed: false });
+      expect(checker.check("docker container export c1")).toMatchObject({ allowed: false });
+      expect(checker.check("docker image build -t img .")).toMatchObject({ allowed: false });
+      expect(checker.check("docker image import file img")).toMatchObject({ allowed: false });
+      expect(checker.check("docker network create mynet")).toMatchObject({ allowed: false });
     });
 
     it("should block docker exec with write commands", () => {
       expect(checker.check("docker exec container1 touch /tmp/x")).toMatchObject({ allowed: false });
       expect(checker.check("docker exec container1 rm -rf /tmp/*")).toMatchObject({ allowed: false });
       expect(checker.check("docker exec container1 echo hello > /tmp/out")).toMatchObject({ allowed: false });
+    });
+
+    it("should block snap/ufw write subcommands misclassified as read-only", () => {
+      expect(checker.check("snap refresh")).toMatchObject({ allowed: false });
+      expect(checker.check("ufw route add 10.0.0.0/8 via 192.168.1.1")).toMatchObject({ allowed: false });
+      expect(checker.check("ufw route6 add ::/0 via fe80::1")).toMatchObject({ allowed: false });
+      expect(checker.check("ufw limit openvpn 5m/minute")).toMatchObject({ allowed: false });
+      expect(checker.check("ufw rename oldprofile newprofile")).toMatchObject({ allowed: false });
+    });
+
+    it("should block wrapper/builtin/interpreter bypasses", () => {
+      expect(checker.check("timeout 30 rm -rf /tmp/x")).toMatchObject({ allowed: false });
+      expect(checker.check("nice -n 10 rm file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check("stdbuf -oL rm file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check("ionice -c 3 rm file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check("time rm file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check("command rm file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check("builtin rm file.txt")).toMatchObject({ allowed: false });
+      expect(checker.check(". /tmp/evil.sh")).toMatchObject({ allowed: false });
+      expect(checker.check("awk 'BEGIN{system(\"rm x\")}'")).toMatchObject({ allowed: false });
+      expect(checker.check("trap 'rm -rf /' INT")).toMatchObject({ allowed: false });
+      expect(checker.check("alias evil='rm -rf /'")).toMatchObject({ allowed: false });
+      expect(checker.check("find . -name '*.tmp' -delete")).toMatchObject({ allowed: false });
+      expect(checker.check("hostname mynewhost")).toMatchObject({ allowed: false });
+      // legit read uses must still pass through wrappers
+      expect(checker.check("timeout 30 ls")).toEqual({ allowed: true });
+      expect(checker.check("nice -n 10 ls")).toEqual({ allowed: true });
+      expect(checker.check("time ls")).toEqual({ allowed: true });
+      expect(checker.check("env FOO=bar ls")).toEqual({ allowed: true });
+      expect(checker.check("hostname")).toEqual({ allowed: true });
+      expect(checker.check("trap")).toEqual({ allowed: true });
+      expect(checker.check("alias")).toEqual({ allowed: true });
     });
 
     it("should handle exec with /bin/ path", () => {
@@ -1212,7 +1254,7 @@ describe("CommandChecker", () => {
     it("should allow more shell configuration utilities", () => {
       expect(checker.check("ulimit -a")).toEqual({ allowed: true });
       expect(checker.check("umask")).toEqual({ allowed: true });
-      expect(checker.check("trap 'echo hi' INT")).toEqual({ allowed: true });
+      expect(checker.check("trap")).toEqual({ allowed: true });
       expect(checker.check("jobs")).toEqual({ allowed: true });
       expect(checker.check("history")).toEqual({ allowed: true });
       expect(checker.check("alias")).toEqual({ allowed: true });
@@ -1256,7 +1298,7 @@ describe("CommandChecker", () => {
       expect(checker.check("read -p 'Enter: ' var")).toEqual({ allowed: true });
       expect(checker.check("mapfile -t arr < file.txt")).toEqual({ allowed: true });
       expect(checker.check("source ~/.bashrc")).toMatchObject({ allowed: false });
-      expect(checker.check(". ~/.bashrc")).toEqual({ allowed: true });
+      expect(checker.check(". ~/.bashrc")).toMatchObject({ allowed: false });
       expect(checker.check("export VAR=value")).toEqual({ allowed: true });
       expect(checker.check("local var=value")).toEqual({ allowed: true });
       expect(checker.check("typeset var=value")).toEqual({ allowed: true });
@@ -1494,7 +1536,6 @@ describe("CommandChecker", () => {
       expect(checker.check("apt full-upgrade").allowed).toBe(false);
       expect(checker.check("apt dist-upgrade").allowed).toBe(false);
       expect(checker.check("apt check")).toEqual({ allowed: true });
-      expect(checker.check("apt autoremove")).toEqual({ allowed: true });
     });
 
     it("should block apt write commands", () => {
@@ -1507,6 +1548,8 @@ describe("CommandChecker", () => {
       expect(checker.check("apt clean")).toMatchObject({ allowed: false });
       expect(checker.check("apt autoclean")).toMatchObject({ allowed: false });
       expect(checker.check("apt fix-broken")).toMatchObject({ allowed: false });
+      expect(checker.check("apt autoremove")).toMatchObject({ allowed: false });
+      expect(checker.check("apt edit-sources")).toMatchObject({ allowed: false });
     });
   });
 

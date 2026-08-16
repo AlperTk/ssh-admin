@@ -105,8 +105,8 @@ describe("gitHasWriteArg", () => {
   });
 
   describe("edge cases", () => {
-    it("should handle git stash with write subcommand", () => {
-      expect(gitHasWriteArg("git stash push")).toBe(false);
+    it("should block git stash push/pop (both create/modify stashes)", () => {
+      expect(gitHasWriteArg("git stash push")).toBe(true);
       expect(gitHasWriteArg("git stash pop")).toBe(true);
     });
     it("should block git config --global", () => {

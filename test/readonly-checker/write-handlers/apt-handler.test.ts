@@ -24,7 +24,6 @@ describe("aptHasWriteArg", () => {
       expect(aptHasWriteArg("apt full-upgrade")).toBe(true);
       expect(aptHasWriteArg("apt dist-upgrade")).toBe(true);
       expect(aptHasWriteArg("apt check")).toBe(false);
-      expect(aptHasWriteArg("apt autoremove")).toBe(false);
     });
   });
 
@@ -41,6 +40,10 @@ describe("aptHasWriteArg", () => {
       expect(aptHasWriteArg("apt clean")).toBe(true);
       expect(aptHasWriteArg("apt autoclean")).toBe(true);
       expect(aptHasWriteArg("apt fix-broken")).toBe(true);
+    });
+    it("should block apt autoremove/edit-sources (removes packages / edits sources)", () => {
+      expect(aptHasWriteArg("apt autoremove")).toBe(true);
+      expect(aptHasWriteArg("apt edit-sources")).toBe(true);
     });
   });
 });

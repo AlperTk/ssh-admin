@@ -14,7 +14,7 @@ export const GIT_READ_ONLY = [
   'branch', 'reflog',
 ] as const;
 
-export const GIT_STASH_READ_ONLY = ['list', 'show', 'push'] as const;
+export const GIT_STASH_READ_ONLY = ['list', 'show'] as const;
 
 // journalctl: sadece bu flag'ler okuma olarak kabul edilir
 export const JOURNALCTL_SAFE_FLAGS = new Set([
@@ -40,7 +40,7 @@ export const JOURNALCTL_SAFE_FLAGS = new Set([
 export const SYSTEMCTL_READ_ONLY = new Set([
   'status', 'is-active', 'is-enabled', 'is-failed', 'list-units',
   'list-sockets', 'list-timers', 'list-dependencies', 'cat', 'show',
-  'get-default', 'help', 'dump', 'import-environment', 'tmpfiles',
+  'get-default', 'help', 'dump',
   'property', 'daemon-status', 'log', 'is-system-running',
 ]);
 
@@ -64,8 +64,8 @@ export const IP_READ_ONLY_SUBCOMMANDS = new Map<string, string[]>([
 // apt: sadece read-only alt komutlar izinli
 export const APT_READ_ONLY = new Set([
   'list', 'show', 'search', 'policy', 'info', 'cache', 'depends',
-  'rdepends', 'madison', 'edit-sources',
-  'check', 'simulator', 'autoremove',
+  'rdepends', 'madison',
+  'check', 'simulator',
 ]);
 
 
@@ -82,10 +82,10 @@ export const DOCKER_READ_ONLY = new Set([
 
 export const DOCKER_NAMESPACE_ACTIONS = new Map<string, string[]>([
   ['system', ['prune']],
-  ['image', ['rm', 'push', 'save', 'load', 'history', 'tag']],
-  ['container', ['rm', 'start', 'stop', 'restart', 'kill', 'exec', 'update', 'rename', 'cp', 'attach', 'wait', 'pause', 'unpause', 'resize']],
+  ['image', ['rm', 'push', 'save', 'load', 'history', 'tag', 'build', 'import']],
+  ['container', ['rm', 'start', 'stop', 'restart', 'kill', 'exec', 'update', 'rename', 'cp', 'attach', 'wait', 'pause', 'unpause', 'resize', 'create', 'commit', 'export']],
   ['volume', ['rm', 'create']],
-  ['network', ['rm', 'connect', 'disconnect']],
+  ['network', ['rm', 'connect', 'disconnect', 'create']],
   ['plugin', ['install', 'remove', 'disable', 'enable']],
   ['secret', ['rm', 'create', 'update']],
   ['config', ['rm', 'create', 'update']],
@@ -104,7 +104,7 @@ export const HERE_STRING_RE = /<<<\s/;
 export const SED_INPLACE_RE = /\bsed\b.*-i[a-z]*\b/;
 export const SED_INPLACE_LONG_RE = /\bsed\b.*--in-place/;
 export const SED_WRITE_RE = /\bsed\b.*["']w\s+\/[^"']/;
-export const FIND_EXEC_RE = /\bfind\b.*(-exec|-execdir)\b/;
+export const FIND_EXEC_RE = /\bfind\b.*(-exec|-execdir|-delete|-ok)\b/;
 export const REVERSE_SHELL_NET_RE = /\b(nc|ncat|netcat|socat)\b/;
 export const REVERSE_SHELL_NC_RE = /-e\s+\/bin\/(sh|bash|zsh)/;
 export const REVERSE_SHELL_SOCAT_RE = /\bexec\s*:\s*\/bin\//;
@@ -129,14 +129,14 @@ export const KPARTX_READ_ONLY = new Set([
 export const DMSETUP_READ_ONLY = new Set([
   'ls', 'lstargets', 'lsdependencies', 'info', 'deps',
   'stats', 'status', 'table', 'targets', 'version',
-  'target-version', 'mknodes', 'wait', 'clear',
+  'target-version', 'wait',
 ]);
 
 // snap: snap package manager — read-only subcommands
 export const SNAP_READ_ONLY = new Set([
   'saved', 'check-snapshot', 'find', 'info', 'list',
   'changes', 'services', 'get', 'version', 'whoami',
-  'connections', 'interfaces', 'available', 'refresh',
+  'connections', 'interfaces', 'available',
 ]);
 
 // tune2fs: ext filesystem tuner — -l is read-only
@@ -145,7 +145,7 @@ export const TUNE2FS_READ_ONLY = new Set(['-l']);
 // ufw: uncomplicated firewall - read-only subcommands
 export const UFW_READ_ONLY = new Set([
   'status', 'status numbered', 'show', 'list', 'app list',
-  'app info', 'logging', 'route', 'route6', 'limit', 'rename',
+  'app info', 'logging',
   'help', 'version',
 ]);
 

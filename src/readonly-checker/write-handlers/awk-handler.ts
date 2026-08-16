@@ -15,6 +15,11 @@ export function awkHasWriteArg(cmd: string): boolean {
     }
   }
 
+  // Tehlikeli yapılar: komut çalıştırma / dosya yazma → write
+  if (/\bsystem\s*\(/.test(program)) return true;
+  if (/\|\s*["']/.test(program)) return true; // print | "cmd"
+  if (/\bgetline\b[^|]*<\s*["']/.test(program)) return true; // getline < "cmd"
+
   // Whitelist: sadece SAFE_PATTERNS listesindeki pattern'lar izinli
   if (!program.trim()) return false;
   for (const pattern of AWK_SAFE_PATTERNS) {

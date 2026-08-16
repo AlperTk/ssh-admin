@@ -22,7 +22,7 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
     async (args: { sessionId: string; command: string; timeout?: number }) => {
       const blocked = requireInstruction();
       if (blocked) return blocked;
-      if (!/^[a-zA-Z0-9_-]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
+      if (!/^[a-zA-Z0-9_-]+-[0-9a-f]{8}$/i.test(args.sessionId)) {
         return errorResponse("Invalid sessionId format");
       }
       const checkResult = checker.check(args.command);
@@ -63,7 +63,7 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
     async (args: { sessionId: string; command: string; timeout?: number }) => {
       const blocked = requireInstruction();
       if (blocked) return blocked;
-      if (!/^[a-zA-Z0-9_-]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(args.sessionId)) {
+      if (!/^[a-zA-Z0-9_-]+-[0-9a-f]{8}$/i.test(args.sessionId)) {
         return errorResponse("Invalid sessionId format");
       }
       const checkResult = checker.check(args.command);

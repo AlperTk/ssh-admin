@@ -6,7 +6,7 @@ import { requireInstruction } from "../instruction-guard.js";
 import { buildChangelogCommand } from "../log-changelog.js";
 import { buildFileEditCommand, describeFileEdit, parseFileEditOutput, type FileEditArgs } from "../file-edit.js";
 
-const SESSION_ID_RE = /^[a-zA-Z0-9_-]+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SESSION_ID_RE = /^[a-zA-Z0-9_-]+-[0-9a-f]{8}$/i;
 
 interface FileEditInput {
   sessionId: string;

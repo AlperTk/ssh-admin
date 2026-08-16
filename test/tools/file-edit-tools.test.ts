@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { registerFileEditTool } from "../../src/tools/file-edit-tools.js";
 import { setInstructionCalled, resetInstructionCalled } from "../../src/instruction-guard.js";
 
-const SESSION_ID = "test-server-550e8400-e29b-41d4-a716-446655440000";
+const SESSION_ID = "test-server-550e8400";
 
 const createMockServer = () => {
   const registeredTools = new Map<string, { config: unknown; handler: Function }>();

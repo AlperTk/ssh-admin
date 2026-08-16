@@ -89,9 +89,9 @@ describe("registerCommandTool", () => {
       (mockPool.getSessionInfo as any).mockReturnValue({ alias: "test", host: "10.0.0.1", username: "user" });
       (mockPool.executeCommand as any).mockResolvedValue({ stdout: "", stderr: "", exitCode: 0, durationMs: 100 });
 
-      await handler({ sessionId: "test-server-550e8400-e29b-41d4-a716-446655440000", command: "systemctl restart nginx" });
+      await handler({ sessionId: "test-server-550e8400", command: "systemctl restart nginx" });
 
-      expect(mockPool.getSessionInfo).toHaveBeenCalledWith("test-server-550e8400-e29b-41d4-a716-446655440000");
+      expect(mockPool.getSessionInfo).toHaveBeenCalledWith("test-server-550e8400");
     });
 
     it("should call executeCommand twice — once for changelog, once for the actual command", async () => {
@@ -101,7 +101,7 @@ describe("registerCommandTool", () => {
       (mockPool.getSessionInfo as any).mockReturnValue({ alias: "prod", host: "1.2.3.4", username: "deploy" });
       (mockPool.executeCommand as any).mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0, durationMs: 50 });
 
-      await handler({ sessionId: "test-server-550e8400-e29b-41d4-a716-446655440000", command: "systemctl restart nginx" });
+      await handler({ sessionId: "test-server-550e8400", command: "systemctl restart nginx" });
 
       expect(mockPool.executeCommand).toHaveBeenCalledTimes(2);
       const firstCall = (mockPool.executeCommand as any).mock.calls[0];
@@ -117,7 +117,7 @@ describe("registerCommandTool", () => {
       (mockPool.getSessionInfo as any).mockReturnValue(null);
       (mockPool.executeCommand as any).mockResolvedValue({ stdout: "ok", stderr: "", exitCode: 0, durationMs: 50 });
 
-      await handler({ sessionId: "test-server-550e8400-e29b-41d4-a716-446655440000", command: "systemctl restart nginx" });
+      await handler({ sessionId: "test-server-550e8400", command: "systemctl restart nginx" });
 
       expect(mockPool.executeCommand).toHaveBeenCalledTimes(1);
     });
@@ -127,7 +127,7 @@ describe("registerCommandTool", () => {
       const tool = mockServer.registerTool.mock.calls.find((c: any[]) => c[0] === "command_execute_raw");
       const handler = tool![2];
 
-      const result = await handler({ sessionId: "test-server-550e8400-e29b-41d4-a716-446655440000", command: "ls -la" });
+      const result = await handler({ sessionId: "test-server-550e8400", command: "ls -la" });
 
       expect(result).toHaveProperty("isError", true);
       const parsed = JSON.parse((result.content[0] as any).text);

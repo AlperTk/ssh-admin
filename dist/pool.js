@@ -18,7 +18,7 @@ export class ConnectionPool {
             this.sessions.delete(existingSessionId);
             this.hostToSession.delete(hostConfig.host);
         }
-        const sessionId = `${alias}-${crypto.randomUUID()}`;
+        const sessionId = `${alias}-${crypto.randomUUID().slice(0, 8)}`;
         const client = new Client();
         const connectOpts = {
             host: hostConfig.host,

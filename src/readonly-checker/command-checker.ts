@@ -28,6 +28,9 @@ import { sysctlHasWriteArg } from './write-handlers/sysctl-handler.js';
 import { arHasWriteArg } from './write-handlers/ar-handler.js';
 import { stripHasWriteArg } from './write-handlers/strip-handler.js';
 import { objcopyHasWriteArg } from './write-handlers/objcopy-handler.js';
+import { hostnameHasWriteArg } from './write-handlers/hostname-handler.js';
+import { trapHasWriteArg } from './write-handlers/trap-handler.js';
+import { aliasHasWriteArg } from './write-handlers/alias-handler.js';
 import { WritePatternDetector } from './write-patterns/write-pattern-detector.js';
 import { resolveCommand, getFirstToken as resolverGetFirstToken } from './resolution/command-resolver.js';
 import { extractLoopBody } from './parsing/loop-extractor.js';
@@ -65,6 +68,7 @@ const PIPE_OPTIONS = {
 
 export class CommandChecker {
   private readonly whitelist: Set<string>;
+  private readonly denyCommands = new Set(['.']);
   private readonly handlers: Map<string, WriteHandlerFn>;
   private readonly patternDetector: WritePatternDetector;
 
@@ -107,6 +111,9 @@ export class CommandChecker {
       ['ar', arHasWriteArg],
       ['strip', stripHasWriteArg],
       ['objcopy', objcopyHasWriteArg],
+      ['hostname', hostnameHasWriteArg],
+      ['trap', trapHasWriteArg],
+      ['alias', aliasHasWriteArg],
     ]);
 
     this.patternDetector = new WritePatternDetector();
@@ -165,6 +172,11 @@ export class CommandChecker {
         // Command resolution (sudo/su/ssh peel-through)
         const resolved = resolveCommand(pTrimmed);
         const cmd = resolverGetFirstToken(resolved);
+
+        // 3c. DENY CHECK — execution builtins (dot-source vb.) read-only'da asla geçemez
+        if (this.denyCommands.has(cmd)) {
+          return { allowed: false, reason: `Command '${cmd}' is not permitted in read-only mode`, blockedCommand: cmd, segmentIndex: segIdx, checkLayer: 'whitelist' as const, resolvedCommand: resolved, pipeSegments: pipeSegments.map(s => s.trim()) };
+        }
 
         // 3d. WHITELIST CHECK — O(1), early exit
         if (!this.whitelist.has(cmd)) {
