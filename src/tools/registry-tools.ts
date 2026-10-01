@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { addServer, listServers, getServer, updateServer, deleteServer } from "../registry.js";
 import { ConnectionPool } from "../pool.js";
-import { successResponse, errorResponse, formatError } from "../response.js";
+import { successResponse, handleToolCall } from "../response.js";
 import { requireWrite } from "../readonly-guard.js";
 import { requireInstruction } from "../instruction-guard.js";
 
@@ -25,32 +25,26 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
         keyPath: z.string().optional().describe("Path to SSH private key file (for key auth)"),
       },
     },
-    async (args: { alias: string; host: string; port: number; username: string; authMethod: "key" | "password"; keyPath?: string }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      const writeBlocked = requireWrite();
-      if (writeBlocked) return writeBlocked;
-      try {
+    (args: { alias: string; host: string; port: number; username: string; authMethod: "key" | "password"; keyPath?: string }) =>
+      handleToolCall(() => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        const writeBlocked = requireWrite();
+        if (writeBlocked) return writeBlocked;
         const result = addServer(args);
         return successResponse(result);
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 
   server.tool(
     "registry_list_servers",
     "List all registered SSH servers (credentials hidden)",
-    async () => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      const hosts = listServers();
-      return {
-        content: [{ type: "text", text: JSON.stringify({ servers: hosts }, null, 2) }],
-      };
-    }
+    () =>
+      handleToolCall(() => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        return successResponse(listServers());
+      })()
   );
 
   server.registerTool(
@@ -62,17 +56,13 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
         alias: z.string().describe("Server alias"),
       },
     },
-    async (args: { alias: string }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      try {
+    (args: { alias: string }) =>
+      handleToolCall(() => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
         const host = getServer(args.alias);
         return successResponse(host);
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 
   server.registerTool(
@@ -87,23 +77,19 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
         keyPath: z.string().optional().describe("New key path"),
       },
     },
-    async (args: { alias: string; username?: string; authMethod?: "key" | "password"; keyPath?: string }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      const writeBlocked = requireWrite();
-      if (writeBlocked) return writeBlocked;
-      try {
+    (args: { alias: string; username?: string; authMethod?: "key" | "password"; keyPath?: string }) =>
+      handleToolCall(() => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        const writeBlocked = requireWrite();
+        if (writeBlocked) return writeBlocked;
         const updates: Partial<{ username: string; authMethod: "key" | "password"; keyPath: string }> = {};
         if (args.username !== undefined) updates.username = args.username;
         if (args.authMethod !== undefined) updates.authMethod = args.authMethod;
         if (args.keyPath !== undefined) updates.keyPath = args.keyPath;
         const result = updateServer(args.alias, updates);
         return successResponse(result);
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 
   server.registerTool(
@@ -115,18 +101,14 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
         alias: z.string().describe("Server alias to delete"),
       },
     },
-    async (args: { alias: string }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      const writeBlocked = requireWrite();
-      if (writeBlocked) return writeBlocked;
-      try {
+    (args: { alias: string }) =>
+      handleToolCall(() => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        const writeBlocked = requireWrite();
+        if (writeBlocked) return writeBlocked;
         deleteServer(args.alias);
         return successResponse({ message: `Server '${args.alias}' deleted` });
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 }

@@ -2,10 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConnectionPool } from "../pool.js";
 import { checker } from "../readonly-checker.js";
-import { buildChangelogCommand } from "../log-changelog.js";
+import { auditChangelog } from "../log-changelog.js";
 
-import { successResponse, errorResponse, formatError } from "../response.js";
+import { successResponse, errorResponse, handleToolCall } from "../response.js";
 import { requireInstruction } from "../instruction-guard.js";
+import { isValidSessionId } from "../session.js";
+import { DEFAULT_COMMAND_TIMEOUT_MS } from "../constants.js";
 
 export function registerCommandTool(server: McpServer, pool: ConnectionPool): void {
   server.registerTool(
@@ -16,37 +18,33 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       inputSchema: {
         sessionId: z.string().describe("Session ID from connection_open"),
         command: z.string().describe("Shell command to execute"),
-        timeout: z.number().optional().default(60000).describe("Timeout in milliseconds (default: 60000)"),
+        timeout: z.number().optional().default(DEFAULT_COMMAND_TIMEOUT_MS).describe(`Timeout in milliseconds (default: ${DEFAULT_COMMAND_TIMEOUT_MS})`),
       },
     },
-    async (args: { sessionId: string; command: string; timeout?: number }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      if (!/^[a-zA-Z0-9_-]+-[0-9a-f]{8}$/i.test(args.sessionId)) {
-        return errorResponse("Invalid sessionId format");
-      }
-      const checkResult = checker.check(args.command);
-      if (!checkResult.allowed) {
-        const parts: string[] = [`Write operation detected: ${checkResult.reason}`];
-        if (checkResult.checkLayer) parts.push(`[check_layer=${checkResult.checkLayer}]`);
-        if (checkResult.resolvedCommand) parts.push(`[resolved_command=${checkResult.resolvedCommand}]`);
-        if (checkResult.originalCommand) parts.push(`[original_command=${checkResult.originalCommand}]`);
-        if (checkResult.handlerName) parts.push(`[handler=${checkResult.handlerName}]`);
-        if (checkResult.blockedCommand) parts.push(`[blocked_command=${checkResult.blockedCommand}]`);
-        if (checkResult.matchedRule) parts.push(`[matched_rule=${checkResult.matchedRule}]`);
-        if (checkResult.matchedText) parts.push(`[matched_text=${checkResult.matchedText}]`);
-        if (checkResult.segmentIndex !== undefined) parts.push(`[segment=${checkResult.segmentIndex}]`);
-        if (checkResult.pipeSegments) parts.push(`[pipe_segments=[${checkResult.pipeSegments.join(', ')}]]`);
-        return errorResponse(parts.join(' '));
-      }
-      try {
+    (args: { sessionId: string; command: string; timeout?: number }) =>
+      handleToolCall(async () => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        if (!isValidSessionId(args.sessionId)) {
+          return errorResponse("Invalid sessionId format");
+        }
+        const checkResult = checker.check(args.command);
+        if (!checkResult.allowed) {
+          const parts: string[] = [`Write operation detected: ${checkResult.reason}`];
+          if (checkResult.checkLayer) parts.push(`[check_layer=${checkResult.checkLayer}]`);
+          if (checkResult.resolvedCommand) parts.push(`[resolved_command=${checkResult.resolvedCommand}]`);
+          if (checkResult.originalCommand) parts.push(`[original_command=${checkResult.originalCommand}]`);
+          if (checkResult.handlerName) parts.push(`[handler=${checkResult.handlerName}]`);
+          if (checkResult.blockedCommand) parts.push(`[blocked_command=${checkResult.blockedCommand}]`);
+          if (checkResult.matchedRule) parts.push(`[matched_rule=${checkResult.matchedRule}]`);
+          if (checkResult.matchedText) parts.push(`[matched_text=${checkResult.matchedText}]`);
+          if (checkResult.segmentIndex !== undefined) parts.push(`[segment=${checkResult.segmentIndex}]`);
+          if (checkResult.pipeSegments) parts.push(`[pipe_segments=[${checkResult.pipeSegments.join(', ')}]]`);
+          return errorResponse(parts.join(' '));
+        }
         const result = await pool.executeCommand(args.sessionId, args.command, args.timeout);
         return successResponse(result);
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 
   server.registerTool(
@@ -57,31 +55,23 @@ export function registerCommandTool(server: McpServer, pool: ConnectionPool): vo
       inputSchema: {
         sessionId: z.string().describe("Session ID from connection_open"),
         command: z.string().describe("Shell command to execute"),
-        timeout: z.number().optional().default(60000).describe("Timeout in milliseconds (default: 60000)"),
+        timeout: z.number().optional().default(DEFAULT_COMMAND_TIMEOUT_MS).describe(`Timeout in milliseconds (default: ${DEFAULT_COMMAND_TIMEOUT_MS})`),
       },
     },
-    async (args: { sessionId: string; command: string; timeout?: number }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      if (!/^[a-zA-Z0-9_-]+-[0-9a-f]{8}$/i.test(args.sessionId)) {
-        return errorResponse("Invalid sessionId format");
-      }
-      const checkResult = checker.check(args.command);
-      if (checkResult.allowed) {
-        return errorResponse("This is a read-only command. Please use 'command_execute' instead of 'command_execute_raw'.");
-      }
-      const sessionInfo = pool.getSessionInfo(args.sessionId);
-      const changelogCmd = buildChangelogCommand(sessionInfo, args.command);
-      if (changelogCmd) {
-        pool.executeCommand(args.sessionId, changelogCmd, 5000).catch(() => {});
-      }
-      try {
+    (args: { sessionId: string; command: string; timeout?: number }) =>
+      handleToolCall(async () => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        if (!isValidSessionId(args.sessionId)) {
+          return errorResponse("Invalid sessionId format");
+        }
+        const checkResult = checker.check(args.command);
+        if (checkResult.allowed) {
+          return errorResponse("This is a read-only command. Please use 'command_execute' instead of 'command_execute_raw'.");
+        }
         const result = await pool.executeCommand(args.sessionId, args.command, args.timeout);
+        await auditChangelog(pool, args.sessionId, args.command);
         return successResponse(result);
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 }

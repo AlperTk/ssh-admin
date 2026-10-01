@@ -142,7 +142,14 @@ describe("ConnectionPool", () => {
       (ConnectionPool as any).sessions.set("info-s1", s1);
 
       const info = ConnectionPool.getSessionInfo("info-s1");
-      expect(info).toEqual({ alias: "prod", host: "10.0.0.1", username: "deploy" });
+      expect(info).toEqual({
+        sessionId: "info-s1",
+        alias: "prod",
+        host: "10.0.0.1",
+        username: "deploy",
+        connectedAt: s1.connectedAt,
+        lastUsed: s1.lastUsed,
+      });
     });
 
     it("should return null for non-existent session", () => {

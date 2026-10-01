@@ -1,6 +1,5 @@
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { tokenize, getFirstToken } from '../tokenizer.js';
+import { tokenize } from '../tokenizer.js';
+import { loadWhitelist } from './data-access.js';
 import { gitHasWriteArg } from './write-handlers/git-handler.js';
 import { dockerHasWriteArg } from './write-handlers/docker-handler.js';
 import { systemctlHasWriteArg } from './write-handlers/systemctl-handler.js';
@@ -32,7 +31,7 @@ import { hostnameHasWriteArg } from './write-handlers/hostname-handler.js';
 import { trapHasWriteArg } from './write-handlers/trap-handler.js';
 import { aliasHasWriteArg } from './write-handlers/alias-handler.js';
 import { WritePatternDetector } from './write-patterns/write-pattern-detector.js';
-import { resolveCommand, getFirstToken as resolverGetFirstToken } from './resolution/command-resolver.js';
+import { resolveCommand, getFirstToken } from './resolution/command-resolver.js';
 import { extractLoopBody } from './parsing/loop-extractor.js';
 import { checkSubstitutions } from './parsing/substitution-detector.js';
 
@@ -73,17 +72,17 @@ export class CommandChecker {
   private readonly patternDetector: WritePatternDetector;
 
   constructor() {
-    // Singleton: bir kez oku, bir kez cache'le
-    // __dirname kaynakta src/readonly-checker/, bundle'da dist/
-    let whitelistPath = join(__dirname, 'data', 'readonly-whitelist.json');
-    if (!existsSync(whitelistPath)) {
-      whitelistPath = join(__dirname, '..', 'data', 'readonly-whitelist.json');
-    }
-    const whitelistData = JSON.parse(readFileSync(whitelistPath, 'utf-8'));
-    this.whitelist = new Set(whitelistData.commands);
+    // Whitelist loaded once via the data-access module (cached at module level).
+    this.whitelist = loadWhitelist();
 
     // Direct dispatch map — O(1) routing
-    this.handlers = new Map([
+    this.handlers = this.buildHandlers();
+
+    this.patternDetector = new WritePatternDetector();
+  }
+
+  private buildHandlers(): Map<string, WriteHandlerFn> {
+    return new Map([
       ['git', gitHasWriteArg],
       ['docker', dockerHasWriteArg],
       ['systemctl', systemctlHasWriteArg],
@@ -115,18 +114,14 @@ export class CommandChecker {
       ['trap', trapHasWriteArg],
       ['alias', aliasHasWriteArg],
     ]);
-
-    this.patternDetector = new WritePatternDetector();
   }
 
   check(command: string): CheckResult {
     if (!command.trim()) return { allowed: true };
 
     // 1. Substitution detection → recursive check
-    const subResult = checkSubstitutions(command, (inner) => this.check(inner));
-    if (subResult && !subResult.allowed) {
-      return { ...subResult, checkLayer: 'substitution' as const, originalCommand: command };
-    }
+    const subResult = this.runSubstitutionCheck(command);
+    if (subResult !== null) return subResult;
 
     // 2. Loop extraction → recursive check
     const loopBody = extractLoopBody(command);
@@ -136,68 +131,93 @@ export class CommandChecker {
     }
 
     // 3. Segment parsing
-    const segments = tokenize(command, SEGMENT_OPTIONS);
-
-    for (const seg of segments) {
-      const trimmed = seg.trim();
-      if (!trimmed) continue;
-
-      // 3a. Subshell/brace expansion → recursive check
-      const subshellContent = this.extractSubshellContent(trimmed);
-      if (subshellContent !== null) {
-        const result = this.check(subshellContent);
-        if (!result.allowed) return result;
-        continue;
-      }
-
-      const braceContent = this.extractBraceContent(trimmed);
-      if (braceContent !== null) {
-        const result = this.check(braceContent);
-        if (!result.allowed) return result;
-        continue;
-      }
-
-      // 3b. Pipe segment parsing
-      const pipeSegments = tokenize(trimmed, PIPE_OPTIONS);
-      let segIdx = 0;
-      for (const pipeSeg of pipeSegments) {
-        segIdx++;
-        const pTrimmed = pipeSeg.trim();
-        if (!pTrimmed) continue;
-
-        // Process substitution check
-        const psResult = this.checkProcessSubstitution(pTrimmed);
-        if (!psResult.allowed) return psResult;
-
-        // Command resolution (sudo/su/ssh peel-through)
-        const resolved = resolveCommand(pTrimmed);
-        const cmd = resolverGetFirstToken(resolved);
-
-        // 3c. DENY CHECK — execution builtins (dot-source vb.) read-only'da asla geçemez
-        if (this.denyCommands.has(cmd)) {
-          return { allowed: false, reason: `Command '${cmd}' is not permitted in read-only mode`, blockedCommand: cmd, segmentIndex: segIdx, checkLayer: 'whitelist' as const, resolvedCommand: resolved, pipeSegments: pipeSegments.map(s => s.trim()) };
-        }
-
-        // 3d. WHITELIST CHECK — O(1), early exit
-        if (!this.whitelist.has(cmd)) {
-          return { allowed: false, reason: `Command '${cmd}' is not in the read-only whitelist`, blockedCommand: cmd, segmentIndex: segIdx, checkLayer: 'whitelist' as const, resolvedCommand: resolved, pipeSegments: pipeSegments.map(s => s.trim()) };
-        }
-
-        // 3e. DIRECT DISPATCH — O(1), no iteration
-        const handler = this.handlers.get(cmd);
-        if (handler && handler(pTrimmed)) {
-          return { allowed: false, reason: `Write argument detected in command`, blockedCommand: cmd, matchedRule: `${cmd} write arg`, segmentIndex: segIdx, checkLayer: 'handler' as const, resolvedCommand: resolved, handlerName: cmd, pipeSegments: pipeSegments.map(s => s.trim()) };
-        }
-
-        // 3f. Write pattern detection
-        const patternResult = this.patternDetector.detect(pTrimmed);
-        if (patternResult.ok) {
-          return { allowed: false, reason: `Write pattern detected in command`, blockedCommand: cmd, matchedRule: patternResult.debug?.rule, matchedText: patternResult.debug?.text, segmentIndex: segIdx, checkLayer: 'pattern' as const, resolvedCommand: resolved, handlerName: cmd, pipeSegments: pipeSegments.map(s => s.trim()) };
-        }
-      }
+    for (const seg of tokenize(command, SEGMENT_OPTIONS)) {
+      const result = this.checkSegment(seg);
+      if (result !== null) return result;
     }
 
     return { allowed: true };
+  }
+
+  private runSubstitutionCheck(command: string): CheckResult | null {
+    const subResult = checkSubstitutions(command, (inner) => this.check(inner));
+    if (subResult && !subResult.allowed) {
+      return { ...subResult, checkLayer: 'substitution' as const, originalCommand: command };
+    }
+    return null;
+  }
+
+  private checkSegment(segment: string): CheckResult | null {
+    const trimmed = segment.trim();
+    if (!trimmed) return null;
+
+    // Subshell/brace expansion → recursive check
+    const subshellContent = this.extractSubshellContent(trimmed);
+    if (subshellContent !== null) {
+      const result = this.check(subshellContent);
+      if (!result.allowed) return result;
+      return null;
+    }
+
+    const braceContent = this.extractBraceContent(trimmed);
+    if (braceContent !== null) {
+      const result = this.check(braceContent);
+      if (!result.allowed) return result;
+      return null;
+    }
+
+    // Pipe segment parsing
+    const pipeSegments = tokenize(trimmed, PIPE_OPTIONS);
+    let segIdx = 0;
+    for (const pipeSeg of pipeSegments) {
+      segIdx++;
+      const pTrimmed = pipeSeg.trim();
+      if (!pTrimmed) continue;
+
+      const result = this.checkPipeSegment(pTrimmed, segIdx, pipeSegments);
+      if (result !== null) return result;
+    }
+
+    return null;
+  }
+
+  private checkPipeSegment(pTrimmed: string, segIdx: number, pipeSegments: string[]): CheckResult | null {
+    // Process substitution check
+    const psResult = this.checkProcessSubstitution(pTrimmed);
+    if (!psResult.allowed) return psResult;
+
+    // Command resolution (sudo/su/ssh peel-through)
+    const resolved = resolveCommand(pTrimmed);
+    const cmd = getFirstToken(resolved);
+    const trimmedSegments = pipeSegments.map(s => s.trim());
+
+    // DENY CHECK — execution builtins (dot-source vb.) read-only'da asla geçemez
+    if (this.denyCommands.has(cmd)) {
+      return this.denyResult(cmd, `Command '${cmd}' is not permitted in read-only mode`, segIdx, resolved, trimmedSegments);
+    }
+
+    // WHITELIST CHECK — O(1), early exit
+    if (!this.whitelist.has(cmd)) {
+      return this.denyResult(cmd, `Command '${cmd}' is not in the read-only whitelist`, segIdx, resolved, trimmedSegments);
+    }
+
+    // DIRECT DISPATCH — O(1), no iteration
+    const handler = this.handlers.get(cmd);
+    if (handler && handler(pTrimmed)) {
+      return { allowed: false, reason: `Write argument detected in command`, blockedCommand: cmd, matchedRule: `${cmd} write arg`, segmentIndex: segIdx, checkLayer: 'handler' as const, resolvedCommand: resolved, handlerName: cmd, pipeSegments: trimmedSegments };
+    }
+
+    // Write pattern detection
+    const patternResult = this.patternDetector.detect(pTrimmed);
+    if (patternResult.ok) {
+      return { allowed: false, reason: `Write pattern detected in command`, blockedCommand: cmd, matchedRule: patternResult.debug?.rule, matchedText: patternResult.debug?.text, segmentIndex: segIdx, checkLayer: 'pattern' as const, resolvedCommand: resolved, handlerName: cmd, pipeSegments: trimmedSegments };
+    }
+
+    return null;
+  }
+
+  private denyResult(cmd: string, reason: string, segIdx: number, resolved: string, pipeSegments: string[]): CheckResult {
+    return { allowed: false, reason, blockedCommand: cmd, segmentIndex: segIdx, checkLayer: 'whitelist' as const, resolvedCommand: resolved, pipeSegments };
   }
 
   private extractSubshellContent(segment: string): string | null {

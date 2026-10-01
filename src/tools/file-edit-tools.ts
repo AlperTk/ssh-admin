@@ -1,12 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConnectionPool } from "../pool.js";
-import { successResponse, errorResponse, formatError } from "../response.js";
+import { successResponse, errorResponse, handleToolCall } from "../response.js";
 import { requireInstruction } from "../instruction-guard.js";
-import { buildChangelogCommand } from "../log-changelog.js";
+import { auditChangelog } from "../log-changelog.js";
 import { buildFileEditCommand, describeFileEdit, parseFileEditOutput, type FileEditArgs } from "../file-edit.js";
-
-const SESSION_ID_RE = /^[a-zA-Z0-9_-]+-[0-9a-f]{8}$/i;
+import { isValidSessionId } from "../session.js";
+import { DEFAULT_COMMAND_TIMEOUT_MS } from "../constants.js";
 
 interface FileEditInput {
   sessionId: string;
@@ -40,41 +40,35 @@ export function registerFileEditTool(server: McpServer, pool: ConnectionPool): v
         startLine: z.number().int().optional().describe("mode=range: first line to replace (1-based, inclusive)"),
         endLine: z.number().int().optional().describe("mode=range: last line to replace (inclusive, must be >= startLine)"),
         dryRun: z.boolean().optional().describe("Preview the change as a diff without writing (default false)"),
-        timeout: z.number().optional().describe("Timeout in milliseconds (default: 60000)"),
+        timeout: z.number().optional().describe(`Timeout in milliseconds (default: ${DEFAULT_COMMAND_TIMEOUT_MS})`),
       },
     },
-    async (args: FileEditInput) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      if (!SESSION_ID_RE.test(args.sessionId)) {
-        return errorResponse("Invalid sessionId format");
-      }
+    (args: FileEditInput) =>
+      handleToolCall(async () => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        if (!isValidSessionId(args.sessionId)) {
+          return errorResponse("Invalid sessionId format");
+        }
 
-      const validationError = validateArgs(args);
-      if (validationError) return errorResponse(validationError);
+        const validationError = validateArgs(args);
+        if (validationError) return errorResponse(validationError);
 
-      const editArgs: FileEditArgs = {
-        path: args.path,
-        mode: args.mode as "replace" | "range",
-        find: args.find,
-        all: args.all,
-        startLine: args.startLine,
-        endLine: args.endLine,
-        replace: args.replace ?? "",
-        dryRun: args.dryRun,
-      };
+        const editArgs: FileEditArgs = {
+          path: args.path,
+          mode: args.mode as "replace" | "range",
+          find: args.find,
+          all: args.all,
+          startLine: args.startLine,
+          endLine: args.endLine,
+          replace: args.replace ?? "",
+          dryRun: args.dryRun,
+        };
 
-      const command = buildFileEditCommand(editArgs);
+        const command = buildFileEditCommand(editArgs);
 
-      // Audit trail (same model as command_execute_raw), using a readable summary.
-      const sessionInfo = pool.getSessionInfo(args.sessionId);
-      const changelogCmd = buildChangelogCommand(sessionInfo, describeFileEdit(editArgs));
-      if (changelogCmd) {
-        pool.executeCommand(args.sessionId, changelogCmd, 5000).catch(() => {});
-      }
-
-      try {
         const result = await pool.executeCommand(args.sessionId, command, args.timeout);
+        await auditChangelog(pool, args.sessionId, describeFileEdit(editArgs));
         const parsed = parseFileEditOutput(result.stdout);
         if (parsed.error) {
           return errorResponse(parsed.error);
@@ -86,11 +80,7 @@ export function registerFileEditTool(server: McpServer, pool: ConnectionPool): v
           backup: parsed.backup,
           diff: parsed.diff,
         });
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 }
 

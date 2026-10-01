@@ -154,7 +154,7 @@ describe("registerFileEditTool", () => {
       expect(parsed.error).toContain("No match found");
     });
 
-    it("logs to the changelog before running the edit when sessionInfo exists", async () => {
+    it("logs to the changelog after running the edit when sessionInfo exists", async () => {
       const handler = getHandler();
       (mockPool.getSessionInfo as any).mockReturnValue({ alias: "prod", host: "1.2.3.4", username: "deploy" });
       (mockPool.executeCommand as any).mockResolvedValue({ stdout: APPLY_ENVELOPE, stderr: "", exitCode: 0, durationMs: 40 });
@@ -162,13 +162,13 @@ describe("registerFileEditTool", () => {
       await handler({ sessionId: SESSION_ID, path: "/etc/nginx/nginx.conf", mode: "replace", find: "listen 80;", replace: "listen 8080;" });
 
       expect(mockPool.executeCommand).toHaveBeenCalledTimes(2);
-      const [changelogSession, changelogCmd] = (mockPool.executeCommand as any).mock.calls[0];
-      expect(changelogSession).toBe(SESSION_ID);
+      // The first call is the actual edit command; the audit runs after it resolves.
+      const [editSession, editCmd] = (mockPool.executeCommand as any).mock.calls[0];
+      expect(editSession).toBe(SESSION_ID);
+      expect(editCmd).toContain("base64 -d");
+      const [, changelogCmd] = (mockPool.executeCommand as any).mock.calls[1];
       expect(changelogCmd).toContain("mkdir -p ~/server-info/logs");
       expect(changelogCmd).toContain("file_edit(replace)");
-      // The second call is the actual edit command.
-      const [, editCmd] = (mockPool.executeCommand as any).mock.calls[1];
-      expect(editCmd).toContain("base64 -d");
     });
   });
 });

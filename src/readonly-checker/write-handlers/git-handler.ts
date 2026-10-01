@@ -1,5 +1,5 @@
 import { GIT_READ_ONLY, GIT_STASH_READ_ONLY } from '../../data/readonly-rules.js';
-import { getFirstToken, skipFlags } from './base-handler.js';
+import { getFirstToken, skipFlags, isInReadonlyList } from './base-handler.js';
 
 export function gitHasWriteArg(cmd: string): boolean {
   const rest = cmd.substring(4).trimStart();
@@ -11,12 +11,12 @@ export function gitHasWriteArg(cmd: string): boolean {
   if (token === 'stash') {
     let rest2 = afterFlags.substring(token.length).trimStart();
     const thirdToken = getFirstToken(rest2);
-    if (thirdToken && !GIT_STASH_READ_ONLY.includes(thirdToken as any)) return true;
+    if (thirdToken && !isInReadonlyList(GIT_STASH_READ_ONLY, thirdToken)) return true;
     return false;
   }
 
   // Whitelist: sadece READ_ONLY listesindeki komutlar izinli
-  if (!GIT_READ_ONLY.includes(token as any)) return true;
+  if (!isInReadonlyList(GIT_READ_ONLY, token)) return true;
 
   // git config --global / --system / -f → kalıcı yazma
   if (token === 'config') {

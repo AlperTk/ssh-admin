@@ -1,11 +1,12 @@
-import { getFirstToken as baseGetFirstToken, skipShortFlags as baseSkipShortFlags } from '../write-handlers/base-handler.js';
+import { getFirstToken } from '../../tokenizer.js';
+import { skipShortFlags as baseSkipShortFlags } from '../write-handlers/base-handler.js';
 
-export const getFirstToken = baseGetFirstToken;
+export { getFirstToken };
 export const skipShortFlags = baseSkipShortFlags;
 
 /** Komutu çöz: sudo/su/ssh peel-through */
 export function resolveCommand(cmd: string): string {
-  const firstToken = baseGetFirstToken(cmd);
+  const firstToken = getFirstToken(cmd);
 
   if (firstToken === 'sudo') {
     let rest = cmd.substring(firstToken.length).trimStart();

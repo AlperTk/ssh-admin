@@ -104,10 +104,14 @@ describe("registerCommandTool", () => {
       await handler({ sessionId: "test-server-550e8400", command: "systemctl restart nginx" });
 
       expect(mockPool.executeCommand).toHaveBeenCalledTimes(2);
-      const firstCall = (mockPool.executeCommand as any).mock.calls[0];
-      expect(firstCall[1]).toContain("mkdir -p ~/server-info/logs");
-      expect(firstCall[1]).toContain("alias=prod");
-      expect(firstCall[1]).toContain("cmd='systemctl restart nginx'");
+      // The first call is the actual command; the audit runs after it resolves.
+      const [firstSession, firstCmd] = (mockPool.executeCommand as any).mock.calls[0];
+      expect(firstSession).toBe("test-server-550e8400");
+      expect(firstCmd).toBe("systemctl restart nginx");
+      const [, changelogCmd] = (mockPool.executeCommand as any).mock.calls[1];
+      expect(changelogCmd).toContain("mkdir -p ~/server-info/logs");
+      expect(changelogCmd).toContain("alias=prod");
+      expect(changelogCmd).toContain("cmd='systemctl restart nginx'");
     });
 
     it("should not call executeCommand for changelog when sessionInfo is null", async () => {
