@@ -1,8 +1,6 @@
-export interface SessionInfo {
-  alias: string;
-  host: string;
-  username: string;
-}
+import { ConnectionPool } from "./pool.js";
+import type { SessionInfo } from "./types.js";
+import { AUDIT_COMMAND_TIMEOUT_MS } from "./constants.js";
 
 const MAX_LINES = 500;
 
@@ -24,4 +22,19 @@ export function buildChangelogCommand(sessionInfo: SessionInfo | null, command: 
     `echo "[${timestamp}] alias=${alias} host=${host} user=${username} cmd='${safeCommand}'" >> ~/server-info/changelog.log`,
     rotationCmd,
   ].join(" && ");
+}
+
+export async function auditChangelog(
+  pool: ConnectionPool,
+  sessionId: string,
+  description: string,
+): Promise<void> {
+  try {
+    const info = pool.getSessionInfo(sessionId);
+    if (!info) return;
+    const cmd = buildChangelogCommand(info, description);
+    if (cmd) await pool.executeCommand(sessionId, cmd, AUDIT_COMMAND_TIMEOUT_MS);
+  } catch (err) {
+    console.error("[changelog] audit failed:", err);
+  }
 }

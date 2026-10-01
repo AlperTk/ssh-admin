@@ -6,16 +6,16 @@ import { registerCommandTool } from "./tools/command-tools.js";
 import { registerFileEditTool } from "./tools/file-edit-tools.js";
 import { registerInstructionTool } from "./tools/instruction-tools.js";
 import { pool } from "./pool.js";
-import { isReadonlyMode } from "./readonly-guard.js";
+import { logReadonlyMode } from "./readonly-guard.js";
+import { createRequire } from "module";
 
-if (isReadonlyMode()) {
-  console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
-} else {
-  console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
-}
+logReadonlyMode();
+
+const require_ = createRequire(import.meta.url);
+const { version } = require_("../package.json") as { version: string };
 
 const server = new McpServer(
-  { name: "ssh-admin", version: "1.0.0" },
+  { name: "ssh-admin", version },
   {
     instructions: "Bağlandığınızda ilk olarak 'instruction' aracını çağırın. Sistem talimatlarını döndürür.",
   }

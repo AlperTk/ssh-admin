@@ -27,12 +27,16 @@ No bypass possible. Strict readonly mode via `MCP_SSH_READONLY=true`.
 - **file-edit**: replace / range
 - **instruction**: set instruction state
 
-## Configuration defaults
-- Connection timeout: 5000ms
-- Command timeout: 60000ms
+## Configuration defaults (all in `src/constants.ts`)
+- `DEFAULT_CONNECTION_TIMEOUT_MS`: 5000ms
+- `DEFAULT_COMMAND_TIMEOUT_MS`: 60000ms
+- `AUDIT_COMMAND_TIMEOUT_MS`: 5000ms
 - Keepalive interval: max(10s, timeout/3), count 10
 - Verification timeout: max(30s, timeout)
 - `forceIPv4`: false
+
+## Connection verification
+Uses a per-call unique sentinel token (`__SSH_ADMIN_VERIFY_<uuid>__`) rather than exact `echo ping` matching. Robust against extra shell output (bashrc, MOTD, etc.).
 
 ## Per-server knowledge structure (documented in README)
 `~/server-info/<host>/` → services.md, packages.md, rules.md, decisions.md, architecture.md, changelog.log, knowledge/, scripts/
@@ -40,6 +44,13 @@ No bypass possible. Strict readonly mode via `MCP_SSH_READONLY=true`.
 ## Non-negotiable requirements
 - Passwords never persisted to disk; memory-wiped after use.
 - File permissions enforced (0700 dir / 0600 file).
-- Consistent response shape: success `{ success: true, data }`, error `{ success: false, error }`.
+- Consistent response shape: success `{ success: true, data }`, error `{ success: false, error }` (+ optional `code` from `ErrorCode`).
 - Max 1 session per host; auto-reuse; clean stale state.
 - All external I/O centralized through repository/service modules (never direct fs/db access from handlers).
+- Changelog audit is sequenced AFTER the main command resolves (no ordering race).
+- All errors carry a typed `ErrorCode` (closed union in `errors.ts`).
+
+## Error model
+- Single `AppError` class in `errors.ts` with closed `ErrorCode` union: `NOT_FOUND | DUPLICATE | INVALID_INPUT | CONNECTION_FAILED | COMMAND_FAILED | TIMEOUT | READONLY_BLOCKED | INSTRUCTION_REQUIRED | INTERNAL_ERROR`.
+- `formatError` extracts `{ message, code? }`; `errorResponse(message, code?)` threads the code into the JSON payload.
+- All tool handlers use `handleToolCall(fn)` wrapper from `response.ts` for centralized try/catch + error formatting.

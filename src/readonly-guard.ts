@@ -26,3 +26,11 @@ export function requireWrite(override?: boolean): ReturnType<typeof errorRespons
 export function isReadonlyMode(override?: boolean): boolean {
   return override ?? getReadonlyMode();
 }
+
+export function logReadonlyMode(): void {
+  if (isReadonlyMode()) {
+    console.error("[MCP-SSH] Readonly mode ENABLED - write operations will be blocked");
+  } else {
+    console.error("[MCP-SSH] Readonly mode DISABLED - all operations allowed");
+  }
+}

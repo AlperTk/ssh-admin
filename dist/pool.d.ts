@@ -7,17 +7,25 @@ export declare class ConnectionPool {
         status: string;
         verified: boolean;
     }>;
+    private getReusableSessionId;
+    private buildConnectOptions;
+    private createOpenContext;
+    private attachReadyHandler;
+    private handleVerificationStream;
+    private storeSession;
+    private attachErrorHandler;
+    private attachCloseHandler;
+    private startConnection;
     close(sessionId: string): {
         success: boolean;
         message: string;
     };
+    private toSessionInfo;
     list(): SessionInfo[];
     executeCommand(sessionId: string, command: string, timeout?: number): Promise<CommandResult>;
-    getSessionInfo(sessionId: string): {
-        alias: string;
-        host: string;
-        username: string;
-    } | null;
+    private wireStreamEvents;
+    private buildResult;
+    getSessionInfo(sessionId: string): SessionInfo | null;
     getSessionCount(): number;
     closeAll(): void;
 }

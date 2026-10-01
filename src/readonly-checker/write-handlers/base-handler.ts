@@ -1,23 +1,7 @@
+import { getFirstToken } from '../../tokenizer.js';
+
 /** Komut satırı parsing yardımcı fonksiyonları */
-export function getFirstToken(str: string): string {
-  let token = '';
-  let inSQ = false;
-  let inDQ = false;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    if (ch === "'" && !inDQ) {
-      inSQ = !inSQ;
-    } else if (ch === '"' && !inSQ) {
-      inDQ = !inDQ;
-    } else if (!inSQ && !inDQ) {
-      if (ch === ' ' || ch === '\t' || ch === ';') break;
-      token += ch;
-    } else {
-      token += ch;
-    }
-  }
-  return token;
-}
+export { getFirstToken };
 
 export function skipShortFlags(rest: string): string {
   while (rest.startsWith('-') && !rest.startsWith('--')) {
@@ -43,4 +27,9 @@ export function skipFlags(rest: string): string {
     }
   }
   return rest;
+}
+
+/** Checks whether a string value is present in a readonly list of strings. */
+export function isInReadonlyList(list: readonly string[], value: string): boolean {
+  return list.includes(value);
 }

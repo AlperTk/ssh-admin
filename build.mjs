@@ -25,10 +25,13 @@ await esbuild.build({
   platform: "node",
   format: "cjs",
   outfile: "dist/bundle.cjs",
-  external: [],
+  external: ["ssh2", "cpu-features", "@modelcontextprotocol/sdk"],
+  define: {
+    "import.meta.url": "__importMetaUrl",
+  },
   sourcemap: true,
   banner: {
-    js: "#!/usr/bin/env node",
+    js: '#!/usr/bin/env node\nconst __importMetaUrl = require("url").pathToFileURL(__filename).href;',
   },
 });
 

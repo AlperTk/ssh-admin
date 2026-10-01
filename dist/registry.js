@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { AppError } from "./errors.js";
 const REGISTRY_DIR = process.env.MCP_SSH_REGISTRY_PATH
     ? path.dirname(process.env.MCP_SSH_REGISTRY_PATH)
     : path.join(os.homedir(), ".ssh-admin");
@@ -54,7 +55,7 @@ export function addServer(host) {
     const registry = loadRegistry();
     // Check duplicate alias
     if (registry.hosts.some((h) => h.alias === host.alias)) {
-        throw new Error(`Host with alias '${host.alias}' already exists`);
+        throw new AppError(`Host with alias '${host.alias}' already exists`, "DUPLICATE");
     }
     registry.hosts.push(host);
     saveRegistry(registry);
@@ -67,7 +68,7 @@ export function listServers() {
 export function getServer(alias) {
     const result = findHost(alias);
     if (!result) {
-        throw new Error(`Host '${alias}' not found in registry`);
+        throw new AppError(`Host '${alias}' not found in registry`, "NOT_FOUND");
     }
     return { ...result.host };
 }
@@ -75,11 +76,11 @@ export function updateServer(alias, updates) {
     const registry = loadRegistry();
     const index = registry.hosts.findIndex((h) => h.alias === alias);
     if (index === -1) {
-        throw new Error(`Host '${alias}' not found in registry`);
+        throw new AppError(`Host '${alias}' not found in registry`, "NOT_FOUND");
     }
     // Don't allow updating host/port via update (use delete + add for those)
     if ("host" in updates || "port" in updates) {
-        throw new Error("Cannot update 'host' or 'port' directly. Delete and re-add the server.");
+        throw new AppError("Cannot update 'host' or 'port' directly. Delete and re-add the server.", "INVALID_INPUT");
     }
     registry.hosts[index] = { ...registry.hosts[index], ...updates };
     saveRegistry(registry);
@@ -89,7 +90,7 @@ export function deleteServer(alias) {
     const registry = loadRegistry();
     const index = registry.hosts.findIndex((h) => h.alias === alias);
     if (index === -1) {
-        throw new Error(`Host '${alias}' not found in registry`);
+        throw new AppError(`Host '${alias}' not found in registry`, "NOT_FOUND");
     }
     registry.hosts.splice(index, 1);
     saveRegistry(registry);
@@ -104,13 +105,13 @@ export function resolveCredentials(alias, host) {
         }
         catch (e) {
             const err = e;
-            throw new Error(`Cannot read key file for host '${alias}': ${err.message}. ` +
-                `Verify keyPath '${host.keyPath}' exists and is readable.`);
+            throw new AppError(`Cannot read key file for host '${alias}': ${err.message}. ` +
+                `Verify keyPath '${host.keyPath}' exists and is readable.`, "INTERNAL_ERROR");
         }
         return { key: keyContent };
     }
     if (host.authMethod === "password" && !password) {
-        throw new Error(`No password found for host '${alias}'. Set environment variable ${envKey}.`);
+        throw new AppError(`No password found for host '${alias}'. Set environment variable ${envKey}.`, "INVALID_INPUT");
     }
     return { password };
 }

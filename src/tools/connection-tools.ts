@@ -1,8 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConnectionPool } from "../pool.js";
-import { successResponse, errorResponse, formatError } from "../response.js";
+import { successResponse, errorResponse, handleToolCall } from "../response.js";
 import { requireInstruction } from "../instruction-guard.js";
+import { buildDiscoveryCommand } from "../server-info.js";
+import { DEFAULT_CONNECTION_TIMEOUT_MS } from "../constants.js";
 
 export function registerConnectionTools(server: McpServer, pool: ConnectionPool): void {
   server.registerTool(
@@ -12,24 +14,20 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
       description: "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
       inputSchema: {
         alias: z.string().describe("Server alias from registry"),
-        timeout: z.number().optional().describe("Connection timeout in milliseconds (default: 5000)"),
+        timeout: z.number().optional().describe(`Connection timeout in milliseconds (default: ${DEFAULT_CONNECTION_TIMEOUT_MS})`),
       },
     },
-    async (args: { alias: string; timeout?: number }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      try {
+    (args: { alias: string; timeout?: number }) =>
+      handleToolCall(async () => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
         const result = await pool.open(args.alias, args.timeout);
         if (result.status === "connected" || result.status === "already_connected") {
-          const dirResult = await pool.executeCommand(result.sessionId, `(cd ~/server-info && echo "$(pwd)" && find . -mindepth 1 -maxdepth 2 | sed -e "s/[^-][^\\/]*\\//  |/g" -e "s/|\\([^ ]\\)/|-- \\1/")`, 10000);
+          const dirResult = await pool.executeCommand(result.sessionId, buildDiscoveryCommand(), 10000);
           return successResponse({ ...result, serverInfoStructure: dirResult.stdout });
         }
         return successResponse(result);
-      } catch (err: unknown) {
-        const { message } = formatError(err);
-        return errorResponse(message);
-      }
-    }
+      })()
   );
 
   server.registerTool(
@@ -41,27 +39,26 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
         sessionId: z.string().describe("Session ID to close"),
       },
     },
-    async (args: { sessionId: string }) => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      const result = pool.close(args.sessionId);
-      if (!result.success) {
-        return errorResponse(result.message);
-      }
-      return successResponse(result);
-    }
+    (args: { sessionId: string }) =>
+      handleToolCall(() => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        const result = pool.close(args.sessionId);
+        if (!result.success) {
+          return errorResponse(result.message);
+        }
+        return successResponse(result);
+      })()
   );
 
   server.tool(
     "connection_list",
     "List all active SSH sessions",
-    async () => {
-      const blocked = requireInstruction();
-      if (blocked) return blocked;
-      const sessions = pool.list();
-      return {
-        content: [{ type: "text", text: JSON.stringify({ sessions, count: sessions.length }, null, 2) }],
-      };
-    }
+    () =>
+      handleToolCall(() => {
+        const blocked = requireInstruction();
+        if (blocked) return blocked;
+        return successResponse(pool.list());
+      })()
   );
 }
