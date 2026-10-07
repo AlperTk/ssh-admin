@@ -75,6 +75,7 @@ describe("registerConnectionTools", () => {
     registerConnectionTools(mockServer as any, mockPool as any);
     const names = mockServer.getRegisteredNames();
     expect(names).not.toContain("registry_add_server");
-    expect(names).not.toContain("command_execute");
+    expect(names).not.toContain("command_execute_read");
+    expect(names).not.toContain("command_execute_write");
   });
 });

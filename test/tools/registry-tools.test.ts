@@ -106,6 +106,7 @@ describe("registerRegistryTools", () => {
     registerRegistryTools(mockServer as any, mockPool as any);
     const names = mockServer.getRegisteredNames();
     expect(names).not.toContain("connection_open");
-    expect(names).not.toContain("command_execute");
+    expect(names).not.toContain("command_execute_read");
+    expect(names).not.toContain("command_execute_write");
   });
 });
