@@ -11,7 +11,7 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
     "registry_add_server",
     {
       title: "Add Server",
-      description: "Add a new SSH server to the registry",
+      description: "Add a new SSH server to the registry. When authMethod is 'password', the password is read from the environment variable SSH_PASSWORD_<ALIAS>.",
       inputSchema: {
         alias: z.string()
           .min(1, "Alias cannot be empty")

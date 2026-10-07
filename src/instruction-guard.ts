@@ -16,7 +16,7 @@ export function resetInstructionCalled(): void {
 
 export function requireInstruction(): ReturnType<typeof errorResponse> | null {
   if (!_instructionCalled) {
-    return errorResponse("Please call the 'instruction' tool first to receive system instructions.");
+    return errorResponse("Please call the 'get_agent_instructions' tool first to receive system instructions.");
   }
   return null;
 }

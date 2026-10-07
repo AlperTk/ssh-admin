@@ -71,7 +71,7 @@ describe("registerFileEditTool", () => {
   });
 
   describe("handler", () => {
-    it("blocks when the instruction tool has not been called", async () => {
+    it("blocks when the get_agent_instructions tool has not been called", async () => {
       resetInstructionCalled();
       const handler = getHandler();
       const result = await handler({ sessionId: SESSION_ID, path: "/x", mode: "replace", find: "a", replace: "b" });

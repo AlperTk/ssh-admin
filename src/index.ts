@@ -17,7 +17,7 @@ const { version } = require_("../package.json") as { version: string };
 const server = new McpServer(
   { name: "ssh-admin", version },
   {
-    instructions: "Bağlandığınızda ilk olarak 'instruction' aracını çağırın. Sistem talimatlarını döndürür.",
+    instructions: "Bağlandığınızda ilk olarak 'get_agent_instructions' aracını çağırın. Sistem talimatlarını döndürür.",
   }
 );
 

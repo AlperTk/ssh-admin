@@ -16,7 +16,7 @@ Each server has persistent information stored in its \`~/server-info/\` director
 - **rules.md** — Server constraints and rules
 - **decisions.md** — Decisions made and their rationale
 - **architecture.md** — Architecture notes and configuration details
-- **changelog.log** — Commands executed via command_execute_raw (auto-append)
+- **changelog.log** — Commands executed via command_execute_write (auto-append)
 
 ### Directories
 
@@ -29,8 +29,8 @@ Each server has persistent information stored in its \`~/server-info/\` director
 
 ### Usage Rules
 
-- **Read operations:** Use \`command_execute\` (protected by whitelist + write pattern detection)
-- **Permanent changes:** Use \`command_execute_raw\` (unfiltered + user approval required)
+- **Read operations:** Use \`command_execute_read\` (whitelist-gated; runs automatically, no user approval needed)
+- **Write / system changes:** Use \`command_execute_write\` (runs only after user approval)
 - Files are updated by AI when system changes occur
 - AI reads these files to get server information when needed
 
@@ -60,7 +60,7 @@ Capture recurring multi-step operations as reusable scripts so they run consiste
 
 ## Command Execution Guidelines
 
-Before calling \`command_execute\` or \`command_execute_raw\**, always tell the user what you are about to do:
+Before calling \`command_execute_read\` or \`command_execute_write\`, always tell the user what you are about to do:
 
 - **Read-only**: "I will read X file", "I will check Y service status" etc.
 - **Write**: "I will modify Z file", "I will install W package" etc.
@@ -73,12 +73,12 @@ Prefer the \`file_edit\` tool over rewriting whole files or hand-crafting sed/aw
 - **Replacing a block of lines** (e.g. 30 lines → 5 lines) → \`file_edit\` with \`mode="range"\` (\`startLine\`, \`endLine\`, new \`replace\`). Do NOT paste the old block into \`find\`.
 - **Whole-file rewrite** only when >~50% of the file changes or the change is structural.
 
-Workflow: read the region first (\`command_execute\` → \`sed -n 'X,Yp'\` or \`grep -n\`), then call \`file_edit\` with \`dryRun=true\` to review the diff, then apply with \`dryRun=false\`.
+Workflow: read the region first (\`command_execute_read\` → \`sed -n 'X,Yp'\` or \`grep -n\`), then call \`file_edit\` with \`dryRun=true\` to review the diff, then apply with \`dryRun=false\`.
 `;
 
 export function registerInstructionTool(server: McpServer): void {
   server.registerTool(
-    "instruction",
+    "get_agent_instructions",
     {
       title: "Instruction",
       description: "Important instruction — this tool must be called first. Returns the system prompt / agent instructions",

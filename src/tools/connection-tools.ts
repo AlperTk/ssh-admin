@@ -11,7 +11,7 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
     "connection_open",
     {
       title: "Open Connection",
-      description: "Open an SSH connection to a registered server. Returns a sessionId for subsequent commands.",
+      description: "Open (or reuse an already-open) session for a registered alias; returns the sessionId plus a tree view of ~/server-info/.",
       inputSchema: {
         alias: z.string().describe("Server alias from registry"),
         timeout: z.number().optional().describe(`Connection timeout in milliseconds (default: ${DEFAULT_CONNECTION_TIMEOUT_MS})`),

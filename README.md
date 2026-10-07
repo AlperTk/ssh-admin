@@ -46,11 +46,11 @@ Example `opencode/opencode.json`:
         "lsp": "deny",
         "skill": "deny",
         "ssh-admin_*": "ask",
-        "ssh-admin_command_execute": "allow",
-        "ssh-admin_command_execute_raw": "ask",
+        "ssh-admin_command_execute_read": "allow",
+        "ssh-admin_command_execute_write": "ask",
         "ssh-admin_registry_list_servers": "allow",
         "ssh-admin_connection_close": "allow",
-        "ssh-admin_instruction": "allow",
+        "ssh-admin_get_agent_instructions": "allow",
         "ssh-admin_registry_get_server": "allow",
         "ssh-admin_connection_list": "allow"
       }
@@ -144,19 +144,19 @@ MCP_SSH_READONLY=true npm run dev
 
 | Tool | Description |
 |------|-------------|
-| `command_execute` | Execute command on an open session (whitelist + write pattern protected) |
-| `command_execute_raw` | Execute commands without filtering (changelog logging + user approval required) |
-| `instruction` | Returns system prompt / agent instructions (call first) |
+| `command_execute_read` | Execute command on an open session (whitelist + write pattern protected) |
+| `command_execute_write` | Execute commands without filtering (changelog logging + user approval required) |
+| `get_agent_instructions` | Returns system prompt / agent instructions (call first) |
 
 ## Usage Flow
 
 ```
-1. instruction                              → get agent instructions
+1. get_agent_instructions                              → get agent instructions
 2. registry_list_servers                    → see available hosts
 3. connection_open(alias="prod")            → get sessionId
-4. command_execute(sessionId, "uptime")     → run first command
-5. command_execute(sessionId, "df -h")      → run second command on same session
-6. command_execute_raw(sessionId, "systemctl restart nginx") → modify system
+4. command_execute_read(sessionId, "uptime")     → run first command
+5. command_execute_read(sessionId, "df -h")      → run second command on same session
+6. command_execute_write(sessionId, "systemctl restart nginx") → modify system
 7. connection_close(sessionId)              → close session
 ```
 
@@ -171,7 +171,7 @@ Each server has persistent information stored in its `~/server-info/` directory.
 - **rules.md** — Server constraints and rules
 - **decisions.md** — Decisions made and their rationale
 - **architecture.md** — Architecture notes and configuration details
-- **changelog.log** — Commands executed via command_execute_raw (auto-append)
+- **changelog.log** — Commands executed via command_execute_write (auto-append)
 
 ### Directories
 
@@ -184,9 +184,9 @@ Each server has persistent information stored in its `~/server-info/` directory.
 
 ### Usage Rules
 
-- **Read operations:** Use `command_execute` (protected by whitelist + write pattern detection)
-- **Permanent changes:** Use `command_execute_raw` (unfiltered + user approval required)
-  - Read-only commands are blocked in `command_execute_raw` → use `command_execute` instead
+- **Read operations:** Use `command_execute_read` (protected by whitelist + write pattern detection)
+- **Permanent changes:** Use `command_execute_write` (unfiltered + user approval required)
+  - Read-only commands are blocked in `command_execute_write` → use `command_execute_read` instead
 - Files are updated by AI when system changes occur
 - AI reads these files to get server information when needed
 
@@ -200,7 +200,7 @@ Every command goes through a three-layer defense:
 2. **Write Argument Detection** — Even whitelisted commands are checked for write flags (e.g., `tar cf`, `systemctl restart`, `docker run`, `git add`)
 3. **Redirection Detection** — File write operators (`>`, `>>`) are blocked
 
-No bypass is possible. No permanent modifications can be made through `command_execute`.
+No bypass is possible. No permanent modifications can be made through `command_execute_read`.
 
 ### Readonly Mode
 

@@ -34,7 +34,7 @@ export function registerFileEditTool(server: McpServer, pool: ConnectionPool): v
         sessionId: z.string().describe("Session ID from connection_open"),
         path: z.string().describe("Absolute path of the file to edit on the remote server"),
         mode: z.enum(["replace", "range"]).describe("'replace' for exact text swap, 'range' for replacing a line span"),
-        find: z.string().optional().describe("mode=replace: exact text to find (single line). Must match at least once."),
+        find: z.string().optional().describe("mode=replace: exact text to find (single line). Must occur exactly once unless all is set."),
         replace: z.string().describe("Replacement text. Empty string deletes the match / lines."),
         all: z.boolean().optional().describe("mode=replace: replace all occurrences (default false = exactly one match required)"),
         startLine: z.number().int().optional().describe("mode=range: first line to replace (1-based, inclusive)"),
