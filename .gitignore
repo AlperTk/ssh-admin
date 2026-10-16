@@ -1,10 +1,30 @@
+# Dependencies
 node_modules/
+
+# Build output (full per-file tree + data copy + bundle)
 dist/
+
+# Test coverage report (vitest / @vitest/coverage-v8 emit dir at repo root)
+coverage/
+
+# npm pack artifacts (tarballs produced during packaging/dry-run)
+*.tgz
+*.tar.gz
+
+# Environment / secrets — keep the tracked placeholder example trackable
 .env
+!.env.example
+
+# Runtime host registry cache (lives OUTSIDE this repo, but guard against accidental commits)
 .ssh-admin/
 
-# graphify knowledge-graph output
+# Graphify knowledge-graph output
 .graphify-out/
 
-# serena local index/cache
+# Serena local index / workspace cache
 .serena/
+
+# Agent / session tooling scratch directories generated locally in this workspace
+.agents/
+.opencode/
+.session-scratch/

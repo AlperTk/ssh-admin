@@ -1,25 +1,44 @@
 {
   "name": "ssh-admin",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "MCP server for SSH remote server management",
+  "keywords": [
+    "mcp",
+    "ssh",
+    "server",
+    "ssh-admin",
+    "remote",
+    "management"
+  ],
+  "author": "AlperTk",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlperTk/ssh-admin.git"
+  },
+  "homepage": "https://github.com/AlperTk/ssh-admin#readme",
+  "bugs": {
+    "url": "https://github.com/AlperTk/ssh-admin/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "ssh-admin": "./dist/bundle.cjs"
   },
+  "files": [
+    "dist/bundle.cjs",
+    "dist/data"
+  ],
   "scripts": {
     "build": "tsc && node build.mjs",
     "bundle": "node build.mjs",
     "start": "node dist/bundle.cjs",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepack": "npm run build"
   },
-  "keywords": [
-    "mcp",
-    "ssh",
-    "server"
-  ],
-  "author": "",
-  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
