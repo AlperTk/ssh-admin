@@ -1,243 +1,158 @@
 # ssh-admin
 
-MCP (Model Context Protocol) server for managing SSH connections to remote servers. Provides host registry, session pool, and secure command execution with read-only protection.
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](#)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0.2-blue)](#)
+[![Runtime dependencies](https://img.shields.io/badge/runtime_dependencies-3-brightgreen)](#)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Npm Version](https://img.shields.io/npm/v/ssh-admin.svg)](https://www.npmjs.com/package/ssh-admin) 
+
+**A security-conscious SSH administration MCP server for AI agents.**
+
+`ssh-admin` lets MCP clients such as OpenCode manage remote hosts, reuse SSH connections, inspect systems, and make approved changes through a consistent set of tools. It separates read-only commands from potentially mutating operations and keeps a changelog of write actions.
 
 ## Features
 
-- **Server Registry**: Add, list, update, delete SSH server configurations with mtime-based caching
-- **Connection Pool**: Automatic session deduplication (max 1 per host), graceful reconnect
-- **Command Execution**: Run shell commands on active SSH sessions with whitelist + write pattern detection
-- **Raw Command Execute**: Unfiltered command execution with changelog logging and user approval
-- **Readonly Mode**: Optional strict read-only mode that blocks all write operations and registry mutations
-- **Secure Credentials**: Passwords stored in environment variables, never in the registry
-- **Graceful Shutdown**: SIGTERM/SIGINT handling with clean session teardown
+- **Host registry** — add, list, inspect, update, and remove SSH host configurations.
+- **Persistent SSH sessions** — reuse a verified connection per host instead of reconnecting for every command.
+- **Read/write separation** — automatically execute commands accepted by the read-only checker; route other commands to a separate write tool.
+- **Remote file editing** — edit files with backup and diff support, including dry-run previews.
+- **Write audit trail** — record write operations in a remote changelog.
+- **Credential hygiene** — load passwords from environment variables and private keys from local paths; do not persist secrets in the host registry.
+- **Structured responses** — return consistent success/error results and typed error codes.
+
+## Requirements
+
+- Node.js **18+**
+- An MCP-compatible client (for example, [OpenCode](https://opencode.ai/))
+- SSH access to the remote hosts you intend to manage
 
 ## Installation
 
 ```bash
-npm install
-npm run build
+npm install -g ssh-admin
 ```
 
-## OpenCode Configuration
+If you configure the client with the `npx -y` entry above, there is nothing to install manually — the registry copy resolves automatically. Contributors building from source should follow [Development](#development).
 
-Example `opencode/opencode.json`:
+## OpenCode configuration
+
+Add `ssh-admin` as a local MCP server in `opencode.json`:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "default_agent": "ssh-admin",
-  "permission": {},
-  "agent": {
-    "linuxadmin": {
-      "permission": {
-        "edit": "deny",
-        "bash": "deny",
-        "glob": "deny",
-        "grep": "deny",
-        "list": "deny",
-        "read": "deny",
-        "task": "deny",
-        "external_directory": "deny",
-        "todowrite": "allow",
-        "question": "allow",
-        "webfetch": "deny",
-        "websearch": "deny",
-        "lsp": "deny",
-        "skill": "deny",
-        "ssh-admin_*": "ask",
-        "ssh-admin_command_execute_read": "allow",
-        "ssh-admin_command_execute_write": "ask",
-        "ssh-admin_registry_list_servers": "allow",
-        "ssh-admin_connection_close": "allow",
-        "ssh-admin_get_agent_instructions": "allow",
-        "ssh-admin_registry_get_server": "allow",
-        "ssh-admin_connection_list": "allow"
-      }
-    }
-  },
   "mcp": {
     "ssh-admin": {
       "type": "local",
-      "command": ["node", "./ssh-admin/dist/bundle.cjs"],
-      "enabled": true,
-      "env": {}
+      "command": "npx",
+      "args": ["-y", "ssh-admin"],
+      "enabled": true
     }
   }
 }
 ```
 
-## Configuration
+On first launch, `npx -y` fetches `ssh-admin` from the npm registry automatically — no local checkout needed. The server communicates with its MCP client over **stdio**; it does not expose a network listener.
 
-### Adding Servers
+## Tool authorization
 
-Use the `registry_add_server` tool to add servers:
+Consuming AI agents should grant explicit per-tool permission entries rather than relying on implicit defaults. Use the key form `<mcp-server-name>_<tool-name>` for every one of the twelve registered tools, assigning each tool either `"allow"` (auto-run without prompting) or `"ask"` (presented to the client's approval flow before execution). The complete mapping below covers every tool this server registers.
 
 ```json
 {
-  "name": "registry_add_server",
-  "arguments": {
-    "alias": "prod-web",
-    "host": "192.168.1.100",
-    "port": 22,
-    "username": "deploy",
-    "authMethod": "key",
-    "keyPath": "~/.ssh/id_ed25519"
+  "permissions": {
+    "ssh-admin_get_agent_instructions": "allow",
+    "ssh-admin_command_execute_read": "allow",
+    "ssh-admin_registry_list_servers": "allow",
+    "ssh-admin_connection_close": "allow",
+    "ssh-admin_registry_get_server": "allow",
+    "ssh-admin_connection_list": "allow",
+    "ssh-admin_command_execute_write": "ask",
+    "ssh-admin_registry_add_server": "ask",
+    "ssh-admin_registry_update_server": "ask",
+    "ssh-admin_registry_delete_server": "ask",
+    "ssh-admin_connection_open": "ask",
+    "ssh-admin_file_edit": "ask"
   }
 }
 ```
 
-For password auth:
+These grants are grouped by intent — read-only instructions and inspection tools auto-run, while everything mutating or privileged asks first:
 
-```json
-{
-  "name": "registry_add_server",
-  "arguments": {
-    "alias": "staging-db",
-    "host": "10.0.0.50",
-    "port": 2222,
-    "username": "admin",
-    "authMethod": "password"
-  }
-}
+- **Instructions & introspection (allow):** `get_agent_instructions` initializes agent usage rules; `registry_list_servers`, `registry_get_server`, and `connection_list` inspect local registry state and session health with no side effects.
+- **Read path (allow):** `command_execute_read` executes commands classified as safe by the bundled read-only checker.
+- **Write/privileged paths (ask):** `registry add/update/delete` mutate the local host store containing connection credentials; `connection_open` establishes an outbound privileged SSH channel; `command_execute_write` appends the remote audit changelog and is gated behind explicit approval anyway; `file_edit` performs remote file mutations with backup plus unified-diff preview.
+- **Defense-in-depth guardrail:** client-side allow-lists harden but never replace the bundled fail-closed read/write checker, which enforces its safety decision unconditionally regardless of any granted permission.
+
+## How it works
+
+1. The agent calls **`get_agent_instructions`** before using the other tools.
+2. It registers or selects a host through the host registry.
+3. **`connection_open`** creates a verified SSH session, or reuses an existing live session for that host.
+4. The agent uses **`command_execute_read`** for commands accepted by the read-only checker.
+5. Potentially mutating commands use **`command_execute_write`**, subject to the MCP client's approval policy. Remote file changes use **`file_edit`**.
+6. Write operations are logged to `~/server-info/changelog.log` on the remote host.
+
+```text
+MCP client (e.g. OpenCode)
+          │ stdio
+          ▼
+      ssh-admin
+          │
+          ├── Host registry (local JSON)
+          ├── SSH connection pool (ssh2)
+          ├── Read-only command checker
+          └── Command execution / file edits
+                        │ SSH
+                        ▼
+                   Remote host
 ```
 
-Then set the password via environment variable:
-```bash
-export SSH_PASSWORD_STAGING_DB="your_password_here"
-```
+## Available tools
 
-### Running the Server
+| Category | Tools | Purpose |
+| --- | --- | --- |
+| Instructions | `get_agent_instructions` | Initialize the agent's required tool-use instructions. |
+| Registry | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` | Manage known SSH hosts. |
+| Connections | `connection_open`, `connection_close`, `connection_list` | Create, reuse, close, and inspect SSH sessions. |
+| Commands | `command_execute_read`, `command_execute_write` | Run commands through separate read and write paths. |
+| Files | `file_edit` | Apply remote file changes with backup/diff support. |
 
-```bash
-# Development mode
-npm run dev
+## Credentials and persistence
 
-# Production mode
-npm run build && npm start
+Host configuration is stored locally at `~/.ssh-admin/hosts.json`. Set `MCP_SSH_REGISTRY_PATH` to override that location.
 
-# Readonly mode (blocks registry writes + all command modifications)
-MCP_SSH_READONLY=true npm run dev
-```
+- The registry directory uses `0700` permissions; registry files are written atomically with `0600` permissions.
+- Passwords are resolved at connection time from environment variables named `SSH_PASSWORD_<ALIAS>` (uppercase alias).
+- SSH private keys are read from the configured `keyPath` when connecting.
+- Credentials are not stored in the registry, and server-list results omit secrets.
+- Active SSH connections remain in memory. The pool maintains at most one session per host.
 
-## MCP Tools
+For password authentication, expose the corresponding environment variable to the MCP server process. Never commit passwords or private keys to source control.
 
-### Registry Tools
+## Security model
 
-| Tool | Description |
-|------|-------------|
-| `registry_add_server` | Add a new SSH server to the registry |
-| `registry_list_servers` | List all registered servers (credentials hidden) |
-| `registry_get_server` | Get details of a specific server |
-| `registry_update_server` | Update server properties (cannot change host/port) |
-| `registry_delete_server` | Remove a server from the registry |
+`ssh-admin` distinguishes between read operations and commands that may change remote state:
 
-### Connection Tools
+- **Instruction gate:** the agent must call `get_agent_instructions` before other tools become available.
+- **Read-only checker:** `command_execute_read` accepts only commands classified as safe to read; rejected commands must not run through that path.
+- **Write path:** `command_execute_write` is distinct from read execution and is intended to require explicit client-side approval.
+- **Global read-only mode:** write operations can be blocked centrally.
+- **Session verification:** newly established SSH connections must pass a round-trip sentinel check before use.
+- **Audit logging:** write operations append entries to a changelog on the remote host, with rotation at 500 lines.
 
-| Tool | Description |
-|------|-------------|
-| `connection_open` | Open an SSH connection, returns sessionId |
-| `connection_close` | Close an open SSH session |
-| `connection_list` | List all active sessions |
-
-### Command Tools
-
-| Tool | Description |
-|------|-------------|
-| `command_execute_read` | Execute command on an open session (whitelist + write pattern protected) |
-| `command_execute_write` | Execute commands without filtering (changelog logging + user approval required) |
-| `get_agent_instructions` | Returns system prompt / agent instructions (call first) |
-
-## Usage Flow
-
-```
-1. get_agent_instructions                              → get agent instructions
-2. registry_list_servers                    → see available hosts
-3. connection_open(alias="prod")            → get sessionId
-4. command_execute_read(sessionId, "uptime")     → run first command
-5. command_execute_read(sessionId, "df -h")      → run second command on same session
-6. command_execute_write(sessionId, "systemctl restart nginx") → modify system
-7. connection_close(sessionId)              → close session
-```
-
-## ~/server-info/ Structure
-
-Each server has persistent information stored in its `~/server-info/` directory. These files are updated and read by the AI.
-
-### Files
-
-- **services.md** — Installed services and their status
-- **packages.md** — Installed critical packages
-- **rules.md** — Server constraints and rules
-- **decisions.md** — Decisions made and their rationale
-- **architecture.md** — Architecture notes and configuration details
-- **changelog.log** — Commands executed via command_execute_write (auto-append)
-
-### Directories
-
-- **knowledge/** — Knowledge files (.md) created and maintained by the AI
-  - Each .md file represents a topic or knowledge domain
-  - AI adds or updates files as it learns new server information
-- **scripts/** — Reusable scripts for frequently performed operations
-  - Store automation scripts here to speed up common tasks
-  - AI creates and maintains scripts based on recurring operational patterns
-
-### Usage Rules
-
-- **Read operations:** Use `command_execute_read` (protected by whitelist + write pattern detection)
-- **Permanent changes:** Use `command_execute_write` (unfiltered + user approval required)
-  - Read-only commands are blocked in `command_execute_write` → use `command_execute_read` instead
-- Files are updated by AI when system changes occur
-- AI reads these files to get server information when needed
-
-## Security
-
-### Command Protection
-
-Every command goes through a three-layer defense:
-
-1. **Whitelist** — Unknown commands are blocked (e.g., python, node, perl, ruby, mount, screen, tmux, dd, zip, gzip)
-2. **Write Argument Detection** — Even whitelisted commands are checked for write flags (e.g., `tar cf`, `systemctl restart`, `docker run`, `git add`)
-3. **Redirection Detection** — File write operators (`>`, `>>`) are blocked
-
-No bypass is possible. No permanent modifications can be made through `command_execute_read`.
-
-### Readonly Mode
-
-When `MCP_SSH_READONLY=true`:
-- Registry write tools (`registry_add_server`, `registry_update_server`, `registry_delete_server`) are disabled
-- All commands pass through whitelist + write pattern checks
-- No permanent changes can be made to any server
-
-### Credentials & Storage
-
-- Passwords are **never** stored in the registry
-- Use environment variables: `SSH_PASSWORD_<ALIAS>` (uppercase alias)
-- Key-based auth is recommended for production use
-- Registry directory: `~/.ssh-admin/` with mode `0700`
-- Registry file: `hosts.json` with mode `0600`
-- Password memory is wiped immediately after credential verification
-
-## Configuration
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Connection timeout | 5000ms | SSH connection establishment timeout |
-| Command timeout | 60000ms | Command execution timeout |
-| Keepalive interval | max(10s, timeout/3) | SSH keepalive interval |
-| Keepalive count | 10 | Number of failed keepalives before disconnect |
-| Verification timeout | max(30s, timeout) | Connection verification timeout |
-| forceIPv4 | false | Force IPv4 connections (set per host in registry) |
+**Important:** Approval depends on how your MCP client is configured. The read-only checker is a safety layer, not a substitute for SSH account permissions, operating-system isolation, or a restrictive client approval policy. Treat remote commands and file edits as privileged operations.
 
 ## Development
 
-```bash
-npm install          # Install dependencies
-npm run dev          # Watch mode via tsx
-npm test             # Run tests (477 tests)
-npm run build        # TypeScript compile + bundle
-```
+Working from source follows the same **Node ≥ 18** floor declared under `engines`:
+
+- **Clone & install** — `git clone https://github.com/AlperTk/ssh-admin.git`, then `cd ssh-admin && npm install` (pulls the TypeScript, esbuild, and Vitest toolchain).
+- **Build** — type-check and produce the single-file `dist/bundle.cjs` (`tsc && node build.mjs`) via `npm run build`.
+- **Run** — launch the built stdio server with `npm start` (`node dist/bundle.cjs`), or work directly against source with `npm run dev` (`tsx src/index.ts`).
+- **Test** — `npm test` runs the whole suite once.
 
 ## License
 
-MIT
+Licensed under the **Apache License 2.0**. See [LICENSE](LICENSE).
+
+Copyright � 2026 AlperTk.
