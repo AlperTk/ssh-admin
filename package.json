@@ -20,12 +20,17 @@
   "bugs": {
     "url": "https://github.com/AlperTk/ssh-admin/issues"
   },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },
   "bin": {
     "ssh-admin": "./dist/bundle.cjs"
   },
+  "main": "./dist/bundle.cjs",
   "files": [
     "dist/bundle.cjs",
     "dist/data"
@@ -42,8 +47,7 @@
   "type": "module",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "ssh2": "^1.17.0",
-    "typescript": "^7.0.2"
+    "ssh2": "^1.17.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
@@ -52,6 +56,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "^0.28.1",
     "tsx": "^4.23.8",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
 }

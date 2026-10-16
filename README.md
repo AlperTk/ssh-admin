@@ -3,6 +3,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](#)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.0.2-blue)](#)
 [![Runtime dependencies](https://img.shields.io/badge/runtime_dependencies-3-brightgreen)](#)
+[![Node.js](https://img.shields.io/badge/node.js-%3E%3D18-blue)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Npm Version](https://img.shields.io/npm/v/ssh-admin.svg)](https://www.npmjs.com/package/ssh-admin) 
 
