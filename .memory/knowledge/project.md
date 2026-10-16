@@ -23,6 +23,7 @@ All tools are gated behind `get_agent_instructions`, which must be called first.
 
 ## Consumers
 - OpenCode agents consume it as a stdio MCP subprocess: `node ./ssh-admin/dist/bundle.cjs` (configured under `mcp.ssh-admin` in `opencode.json`). A CLI bin (`ssh-admin`) points at the same bundle but has no argv branching.
+- Public upstream repository: `https://github.com/AlperTk/ssh-admin` (author `AlperTk`); consumed as a stdio MCP subprocess and npm bin `ssh-admin`.
 
 ## Technology stack
 | Layer | Tech | Pin |
@@ -34,7 +35,7 @@ All tools are gated behind `get_agent_instructions`, which must be called first.
 | Tests | vitest (+ v8 coverage) | ^4.1.10 |
 | Dev runner | tsx | ^4.23.8 |
 
-No Node version is pinned in `package.json`; modern Node features (ESM, `import.meta`) are used. See `commands.md` for build/test/run syntax.
+Node runtime floor is declared via `package.json` `engines.node` (`>=18`, maintainer-set consumer baseline) — details in `commands.md`; modern Node features (ESM, `import.meta`) are used. See `commands.md` for build/test/run syntax.
 
 ## Component overview
 ```
