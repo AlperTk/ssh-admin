@@ -103,9 +103,9 @@ function extractWrapperInner(name: string, rest: string): string | null {
   while (i < toks.length) {
     const t = toks[i];
     if (t.startsWith('-')) {
-      const flagName = t.split('=')[0];
       i++;
-      if (spec.valueFlags.has(flagName)) i++;
+      // --flag=value carries its value; only a bare --flag consumes the next token
+      if (!t.includes('=') && spec.valueFlags.has(t)) i++;
       continue;
     }
     if (skipped < spec.skipPositionals) { skipped++; i++; continue; }

@@ -1,6 +1,18 @@
 import { AWK_SAFE_PATTERNS } from '../../data/readonly-rules.js';
 
+// Checked against the whole command: these constructs can appear outside the quoted program too.
+const AWK_WRITE_PATTERNS: RegExp[] = [
+  /\bsystem\s*\(/, // command execution
+  /\bprintf?\b[\s\S]*?(>|\|)/, // print > file, print >> file, print | cmd (also when `}`/`;` sit inside strings)
+  /\|&?\s*getline\b/, // "cmd" | getline, "cmd" |& getline
+  /\bgetline\b[^|]*<\s*["']/, // getline < "cmd"
+];
+
 export function awkHasWriteArg(cmd: string): boolean {
+  // -f/--file: program text lives in a file that cannot be inspected → fail closed
+  if (/(^|\s)(-f|--file)/.test(cmd)) return true;
+  if (AWK_WRITE_PATTERNS.some((pattern) => pattern.test(cmd))) return true;
+
   const rest = cmd.substring(4).trimStart();
   
   let inSingleQuote = false;
@@ -14,11 +26,6 @@ export function awkHasWriteArg(cmd: string): boolean {
       if (ch === ' ' || ch === '\t' || ch === ';') break;
     }
   }
-
-  // Tehlikeli yapılar: komut çalıştırma / dosya yazma → write
-  if (/\bsystem\s*\(/.test(program)) return true;
-  if (/\|\s*["']/.test(program)) return true; // print | "cmd"
-  if (/\bgetline\b[^|]*<\s*["']/.test(program)) return true; // getline < "cmd"
 
   // Whitelist: sadece SAFE_PATTERNS listesindeki pattern'lar izinli
   if (!program.trim()) return false;

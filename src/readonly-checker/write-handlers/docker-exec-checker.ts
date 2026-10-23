@@ -10,6 +10,9 @@ const WRITE_PATTERNS = [
   /\bmv\b/,
   /\bdd\b/,
   /\btruncate\b/,
+  />(?!&)/,
+  /\btee\b/,
+  /\bsed\b.*\s-[a-zA-Z]*i|\bsed\b.*--in-place/,
 ];
 
 const SHELL_SPAWN_PATTERNS = [

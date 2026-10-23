@@ -10,6 +10,7 @@ export function ufwHasWriteArg(cmd: string): boolean {
   if (!subCmd) return false;
   const subCmdLower = subCmd.toLowerCase();
   // ufw status numbered gibi multi-word subcommand'ları kontrol et
-  if (UFW_READ_ONLY.has(subCmdLower)) return false;
+  // 'logging' is listed read-only, but 'logging on|off|...' changes config: always block it
+  if (subCmdLower !== 'logging' && UFW_READ_ONLY.has(subCmdLower)) return false;
   return true;
 }

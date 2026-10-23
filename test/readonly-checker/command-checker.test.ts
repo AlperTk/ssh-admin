@@ -300,7 +300,7 @@ describe("CommandChecker", () => {
       expect(checker.check("dosfsck -n /dev/sda1")).toEqual({ allowed: true });
       expect(checker.check("findfs LABEL=root")).toEqual({ allowed: true });
       expect(checker.check("lsblk")).toEqual({ allowed: true });
-      expect(checker.check("partprobe")).toEqual({ allowed: true });
+      expect(checker.check("partprobe")).toMatchObject({ allowed: false });
       expect(checker.check("partx --add /dev/sda")).toMatchObject({ allowed: false });
       expect(checker.check("kpartx -av /tmp/image.img")).toMatchObject({ allowed: false });
       expect(checker.check("dmsetup ls")).toEqual({ allowed: true });
@@ -925,7 +925,7 @@ describe("CommandChecker", () => {
       expect(checker.check("blkid")).toEqual({ allowed: true });
       expect(checker.check("findmnt")).toEqual({ allowed: true });
       expect(checker.check("lsblk")).toEqual({ allowed: true });
-      expect(checker.check("partprobe")).toEqual({ allowed: true });
+      expect(checker.check("partprobe")).toMatchObject({ allowed: false });
       expect(checker.check("partx --add /dev/sda")).toMatchObject({ allowed: false });
       expect(checker.check("kpartx -av /tmp/image.img")).toMatchObject({ allowed: false });
       expect(checker.check("dmsetup ls")).toEqual({ allowed: true });

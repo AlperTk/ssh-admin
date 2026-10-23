@@ -11,6 +11,12 @@
 
 `ssh-admin` lets MCP clients such as OpenCode manage remote hosts, reuse SSH connections, inspect systems, and make approved changes through a consistent set of tools. It separates read-only commands from potentially mutating operations and keeps a changelog of write actions.
 
+## Read-only command whitelist
+
+The whitelisted command tool (`command_execute_whitelisted`) exists for read-only inspection of remote systems, such as status, listings, and system information. Commands that could change the system persistently are meant to be blocked; write-style arguments are denied per handler.
+
+**Risk notice:** this protection is covered by tests, but it is not a guarantee. An unknown edge case may still allow a persistent change. Use it knowing this residual risk, and do not rely on it as the only safety measure for critical systems.
+
 ## Features
 
 - **Host registry** — add, list, inspect, update, and remove SSH host configurations.

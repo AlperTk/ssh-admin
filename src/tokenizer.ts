@@ -7,7 +7,12 @@ export function getFirstToken(cmd: string): string {
   for (let i = 0; i < cmd.length; i++) {
     const char = cmd[i];
 
-    if (char === "'" && !inDoubleQuote) {
+    if (char === '\\' && !inSingleQuote) {
+      token += char;
+      if (i + 1 < cmd.length) {
+        token += cmd[++i];
+      }
+    } else if (char === "'" && !inDoubleQuote) {
       inSingleQuote = !inSingleQuote;
     } else if (char === '"' && !inSingleQuote) {
       inDoubleQuote = !inDoubleQuote;
@@ -45,7 +50,14 @@ export function tokenize(
   for (let i = 0; i < input.length; i++) {
     const char = input[i];
 
-if (char === "'" && !inDoubleQuote) {
+    // Backslash escapes the next char (not inside single quotes): an escaped char never toggles quote state or separates
+    if (char === "\\" && !inSingleQuote) {
+      current += char;
+      if (i + 1 < input.length) {
+        current += input[i + 1];
+        i++;
+      }
+    } else if (char === "'" && !inDoubleQuote) {
       inSingleQuote = !inSingleQuote;
       current += char;
     } else if (char === '"' && !inSingleQuote) {
@@ -81,7 +93,9 @@ if (char === "'" && !inDoubleQuote) {
       if (depth <= 0 && braceDepth <= 0) {
         let matched = false;
         for (const sep of separators) {
-          if (input.startsWith(sep, i)) {
+          // '&' inside redirect forms (>&, <&, &>) is not a command separator
+          const isRedirectAmp = sep === "&" && (input[i - 1] === ">" || input[i - 1] === "<" || input[i + 1] === ">");
+          if (input.startsWith(sep, i) && !isRedirectAmp) {
             if (current.trim()) {
               segments.push(current.trim());
             }

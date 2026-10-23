@@ -51,7 +51,7 @@ export interface CheckResult {
 
 type WriteHandlerFn = (cmd: string) => boolean;
 
-const SEGMENT_SEPARATORS = ['&&', '||', ';'];
+const SEGMENT_SEPARATORS = ['&&', '||', ';', '&', '\n'];
 const PIPE_SEPARATOR = '|';
 
 const SEGMENT_OPTIONS = {

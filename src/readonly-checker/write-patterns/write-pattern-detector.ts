@@ -6,13 +6,22 @@ import {
   REVERSE_SHELL_NET_RE, REVERSE_SHELL_NC_RE, REVERSE_SHELL_SOCAT_RE, REVERSE_SHELL_TCP_RE,
 } from '../../data/readonly-rules.js';
 
+// Trailing redirect to /dev/null only (e.g. "> /dev/null", "2>/dev/null"); a bare "/dev/null" argument is not a redirect
+const DEV_NULL_TAIL_RE = /\d*&?>>?\s*\/dev\/null\s*$/;
+// GNU sed 'e' command (executes shell) or 's///e' flag; checked on raw segment so quoted scripts are seen
+const SED_EXEC_RE = /\bsed\b.*(?:(?:['"\n;{}]|\s-\w*\s+|\bsed\s+)\s*(?:[\d$]+(?:,[\d$]+)?|\/[^\/\n]*\/)?\s*!?\s*e\b|\bs\/[^\/\n]*\/[^\/\n]*\/[gpiImM\d]*e\b)/;
+
 /** Çift tırnak içindeki içerikleri çıkarır (false positive önleme) */
 function stripDoubleQuotes(cmd: string): string {
   let result = '';
   let inDQ = false;
   for (let i = 0; i < cmd.length; i++) {
     const ch = cmd[i];
-    if (ch === '"' && !inDQ) inDQ = true;
+    if (ch === '\\' && i + 1 < cmd.length) {
+      // escaped char never toggles quote state; keep the pair when outside quotes
+      if (!inDQ) result += ch + cmd[i + 1];
+      i++;
+    } else if (ch === '"' && !inDQ) inDQ = true;
     else if (ch === '"' && inDQ) inDQ = false;
     else if (!inDQ) result += ch;
   }
@@ -21,15 +30,15 @@ function stripDoubleQuotes(cmd: string): string {
 
 /** Redirect hedefi /dev/null ise güvenli (veri kaybı yok) */
 function isDevNullRedirect(segment: string): boolean {
-  return /\/dev\/null\s*$/.test(segment.trim());
+  return DEV_NULL_TAIL_RE.test(segment.trim());
 }
 
 export class WritePatternDetector {
   detect(segment: string): { ok: boolean; debug?: { rule: string; text: string } } {
-    // /dev/null redirect'leri güvenli — gerçek dosya yazma yok
-    if (isDevNullRedirect(segment)) return { ok: false };
+    // /dev/null redirect'leri güvenli — gerçek dosya yazma yok; yalnızca kuyruk yönlendirme düşürülür, komutun geri kalanı yine kontrol edilir
+    const target = isDevNullRedirect(segment) ? segment.trim().replace(DEV_NULL_TAIL_RE, '') : segment;
 
-    const unquoted = stripDoubleQuotes(segment);
+    const unquoted = stripDoubleQuotes(target);
 
     // 1. Temel redirection pattern'ları
     if (REDIR_APPEND_RE.test(unquoted)) return { ok: true, debug: { rule: 'REDIR_APPEND_RE', text: '>>' } };
@@ -55,6 +64,7 @@ export class WritePatternDetector {
       if (SED_INPLACE_LONG_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_INPLACE_LONG_RE', text: 'sed --in-place' } };
       if (SED_WRITE_RE.test(unquoted)) return { ok: true, debug: { rule: 'SED_WRITE_RE', text: 'sed -n w' } };
     }
+    if (SED_EXEC_RE.test(segment)) return { ok: true, debug: { rule: 'SED_EXEC_RE', text: 'sed e' } };
 
     // 5. find -exec / -execdir
     if (FIND_EXEC_RE.test(unquoted)) return { ok: true, debug: { rule: 'FIND_EXEC_RE', text: '-exec' } };

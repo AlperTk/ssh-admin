@@ -1,10 +1,10 @@
 import { TUNE2FS_READ_ONLY } from '../../data/readonly-rules.js';
-import { getFirstToken } from '../resolution/command-resolver.js';
 
 export function tune2fsHasWriteArg(cmd: string): boolean {
   const idx = cmd.toLowerCase().indexOf('tune2fs');
   if (idx === -1) return false;
-  let rest = cmd.substring(idx + 7).trimStart();
+  // Shell strips quotes/escapes before exec: '-c' and "-O" are the same flags
+  let rest = cmd.substring(idx + 7).replace(/["'\\]/g, '').trimStart();
   let hasUnsafeFlag = false;
   // Short flag'leri kontrol et
   while (rest.startsWith('-') && !rest.startsWith('--')) {
@@ -23,10 +23,6 @@ export function tune2fsHasWriteArg(cmd: string): boolean {
     rest = rest.substring(spaceIdx).trimStart();
   }
   if (hasUnsafeFlag) return true;
-  const flag = getFirstToken(rest);
-  if (!flag) return false;
-  if (flag.startsWith('--')) {
-    return !TUNE2FS_READ_ONLY.has(flag);
-  }
-  return false;
-}
+  // getopt permutes args: any write flag after the device is still applied
+  return rest.split(/\s+/).some((t) => t.startsWith('-') && !TUNE2FS_READ_ONLY.has(t));
+}  // getopt permutes args: any write flag after the device is still applied\n  return rest.split(/\s+/).some((t) => t.startsWith('-') && !TUNE2FS_READ_ONLY.has(t));\n}
