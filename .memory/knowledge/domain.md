@@ -26,15 +26,16 @@ description: Domain concepts, business rules, invariants, and workflows of ssh-a
 ## Business rules easy to violate
 - **One session per host.** The pool maps host→sessionId; `open()` reuses a live mapped session (`already_connected`) and silently evicts stale (non-connected) entries before reconnecting.
 - **Credentials never persisted.** Passwords come from env `SSH_PASSWORD_<ALIAS>`; keys are read from `keyPath` at connect time. `listServers` strips secrets.
-- **Read vs write symmetry.** `command_execute_read` runs only whitelist-passing (read-only) commands; if blocked it tells the caller to use `_write`. `command_execute_write` rejects read-only commands and runs non-read-only ones after user approval, appending the remote audit changelog.
+- **Read vs write symmetry.** `command_execute_whitelisted` runs only whitelist-passing (read-only) commands; if blocked it tells the caller to use `command_execute_with_approval`. `command_execute_with_approval` rejects read-only commands (pointing to `command_execute_whitelisted`) and runs non-read-only ones after user approval, appending the remote audit changelog.
 - **Instruction prerequisite.** `requireInstruction()` blocks every tool until `get_agent_instructions` has been called.
 - **File edits are synthesized shell ops** — backup + unified diff over the existing file, with optional `dryRun` preview — not full-file rewrites.
 
 ## Invariants
 - **Fail-closed:** a missing/unparseable whitelist yields an empty set and blocks everything; a missing handler still requires the pattern detector to pass.
-- **Unconditional check:** `CommandChecker.check()` runs on every `command_execute_read` AND `command_execute_write` call (not gated by a mode flag).
+- **Unconditional check:** `CommandChecker.check()` runs on every `command_execute_whitelisted` AND `command_execute_with_approval` call (not gated by a mode flag).
 - **Every evasion path is checked:** loops, subshells, braces, pipes, process substitution, and variable substitution all route back through `check()` recursion.
 - **Consistent error shape:** denials return `{allowed:false, reason, matchedRule, checkLayer}` surfaced via `errorResponse`.
+- **Opaque SSH failures:** exec/stream errors return a generic `COMMAND_FAILED` message; details go only to stderr logs. Unexpected command-tool errors become `INTERNAL_ERROR`.
 - `/dev/null` redirects and double-quoted content are treated as non-writing; the deny-list token `.` is always blocked.
 - **Sentinel verification:** a connection is marked `connected` only after a round-trip sentinel echo succeeds.
 

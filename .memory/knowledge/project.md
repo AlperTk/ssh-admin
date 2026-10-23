@@ -15,8 +15,8 @@ description: What ssh-admin is, who it serves, and its technology stack. Read fi
 ## Core use cases
 1. Manage the host registry: `registry_add_server` / `_list_servers` / `_get_server` / `_update_server` / `_delete_server`.
 2. Open/close/list SSH connections (max one session per host, auto-reused): `connection_open` / `connection_close` / `connection_list`.
-3. Run read-only commands automatically when they pass the whitelist: `command_execute_read`.
-4. Run write commands only after user approval, appending a remote audit changelog: `command_execute_write`.
+3. Run read-only commands automatically when they pass the whitelist: `command_execute_whitelisted`.
+4. Run write commands only after user approval, appending a remote audit changelog: `command_execute_with_approval`.
 5. Edit remote files via backup + unified diff (with dry-run preview): `file_edit`.
 
 All tools are gated behind `get_agent_instructions`, which must be called first.
@@ -24,6 +24,7 @@ All tools are gated behind `get_agent_instructions`, which must be called first.
 ## Consumers
 - OpenCode agents consume it as a stdio MCP subprocess: `node ./ssh-admin/dist/bundle.cjs` (configured under `mcp.ssh-admin` in `opencode.json`). A CLI bin (`ssh-admin`) points at the same bundle but has no argv branching.
 - Public upstream repository: `https://github.com/AlperTk/ssh-admin` (author `AlperTk`); consumed as a stdio MCP subprocess and npm bin `ssh-admin`.
+- License: Apache License 2.0 (`LICENSE`).
 
 ## Technology stack
 | Layer | Tech | Pin |

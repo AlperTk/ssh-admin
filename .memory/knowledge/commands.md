@@ -8,7 +8,7 @@ description: Build/test/run commands, toolchain, required environment variables,
 ## Toolchain
 - TypeScript ^7.0.2 (ESM), esbuild ^0.28.1, vitest ^4.1.10 (+ @vitest/coverage-v8), tsx ^4.23.8. Dependencies: `@modelcontextprotocol/sdk` ^1.30.0, `ssh2` ^1.17.0.
 - Node runtime floored at `>=18` via `package.json` `engines.node` (maintainer-declared consumer-baseline floor); modern features (ESM, `import.meta.url`) are used.
-- Publishing tooling: a `prepack` hook runs `npm run build` before `npm pack` / `npm publish`, so `dist/` is regenerated on clean checkouts (absent until built or prepacked). Audit the tarball with `npm pack --dry-run`; known-good baseline ≈10 files / ~112 kB packed.
+- Publishing tooling: a `prepack` hook runs `npm run build` before `npm pack` / `npm publish`, so `dist/` is regenerated on clean checkouts (absent until built or prepacked). `publishConfig` sets public access on the npm registry; `main` is `dist/bundle.cjs`. Audit the tarball with `npm pack --dry-run`; known-good baseline ≈10 files / ~112 kB packed.
 
 ## Setup & run
 | Command | Runs | Purpose |
