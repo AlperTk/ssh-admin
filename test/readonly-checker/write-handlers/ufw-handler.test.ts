@@ -174,9 +174,10 @@ describe("ufwHasWriteArg", () => {
       expect(ufwHasWriteArg("ufw logging on")).toBe(true);
     });
 
-    it.skip("FALSE POSITIVE: 'ufw app list' is read-only but is blocked (multi-word set entries never match)", () => {
-      // Finding: only the first token is compared, so 'app list' / 'app info' in UFW_READ_ONLY never match.
+    it("'ufw app list' / 'ufw app info' are read-only; 'ufw app update' stays blocked", () => {
       expect(ufwHasWriteArg("ufw app list")).toBe(false);
+      expect(ufwHasWriteArg("ufw app info")).toBe(false);
+      expect(ufwHasWriteArg("ufw app update")).toBe(true);
     });
   });
 

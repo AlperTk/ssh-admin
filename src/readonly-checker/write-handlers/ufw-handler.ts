@@ -12,5 +12,10 @@ export function ufwHasWriteArg(cmd: string): boolean {
   // ufw status numbered gibi multi-word subcommand'ları kontrol et
   // 'logging' is listed read-only, but 'logging on|off|...' changes config: always block it
   if (subCmdLower !== 'logging' && UFW_READ_ONLY.has(subCmdLower)) return false;
+  // Multi-word read-only forms (e.g. 'app list', 'app info'): match subCmd + next token
+  if (subCmdLower === 'app') {
+    const action = getFirstToken(rest.substring(subCmd.length).trimStart()).toLowerCase();
+    if (action && UFW_READ_ONLY.has(`${subCmdLower} ${action}`)) return false;
+  }
   return true;
 }
