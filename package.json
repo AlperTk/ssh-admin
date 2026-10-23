@@ -1,6 +1,6 @@
 {
   "name": "ssh-admin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server for SSH remote server management",
   "keywords": [
     "mcp",
@@ -11,7 +11,7 @@
     "management"
   ],
   "author": "AlperTk",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AlperTk/ssh-admin.git"
@@ -33,7 +33,9 @@
   "main": "./dist/bundle.cjs",
   "files": [
     "dist/bundle.cjs",
-    "dist/data"
+    "dist/data",
+    "!dist/**/*.map",
+    "!dist/**/*.ts"
   ],
   "scripts": {
     "build": "tsc && node build.mjs",

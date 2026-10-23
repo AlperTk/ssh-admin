@@ -1,6 +1,6 @@
 # ssh-admin
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](#)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue)](#)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.0.2-blue)](#)
 [![Runtime dependencies](https://img.shields.io/badge/runtime_dependencies-2-brightgreen)](#)
 [![Node.js](https://img.shields.io/badge/node.js-%3E%3D18-blue)](#)
