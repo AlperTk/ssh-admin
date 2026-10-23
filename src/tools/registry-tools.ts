@@ -11,18 +11,18 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
     "registry_add_server",
     {
       title: "Add Server",
-      description: "Add a new SSH server to the registry. When authMethod is 'password', the password is read from the environment variable SSH_PASSWORD_<ALIAS>.",
+      description: "Adds a host to hosts.json. Credentials come from env or key files; never stored.",
       inputSchema: {
         alias: z.string()
           .min(1, "Alias cannot be empty")
           .max(64, "Alias must be 64 characters or less")
           .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "Alias must start with alphanumeric and contain only letters, numbers, dots, hyphens, or underscores")
-          .describe("Unique alias for this server (e.g., 'prod-web')"),
+          .describe("Unique alias (e.g., 'prod-web')"),
         host: z.string().describe("Hostname or IP address"),
         port: z.number().default(22).describe("SSH port (default: 22)"),
         username: z.string().describe("SSH username"),
-        authMethod: z.enum(["key", "password"]).describe("Authentication method"),
-        keyPath: z.string().optional().describe("Path to SSH private key file (for key auth)"),
+        authMethod: z.enum(["key", "password"]).describe("Auth method"),
+        keyPath: z.string().optional().describe("Private key file path (key auth)"),
       },
     },
     (args: { alias: string; host: string; port: number; username: string; authMethod: "key" | "password"; keyPath?: string }) =>
@@ -38,7 +38,7 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
 
   server.tool(
     "registry_list_servers",
-    "List all registered SSH servers (credentials hidden)",
+    "Lists hosts from hosts.json without credentials.",
     () =>
       handleToolCall(() => {
         const blocked = requireInstruction();
@@ -51,9 +51,9 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
     "registry_get_server",
     {
       title: "Get Server",
-      description: "Get details of a specific registered server",
+      description: "Gets one registered server by alias.",
       inputSchema: {
-        alias: z.string().describe("Server alias"),
+        alias: z.string().describe("Alias"),
       },
     },
     (args: { alias: string }) =>
@@ -69,9 +69,9 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
     "registry_update_server",
     {
       title: "Update Server",
-      description: "Update a registered server's properties (cannot change host/port)",
+      description: "Updates username, auth method, or key path; host and port are not changeable here.",
       inputSchema: {
-        alias: z.string().describe("Server alias to update"),
+        alias: z.string().describe("Alias to update"),
         username: z.string().optional().describe("New username"),
         authMethod: z.enum(["key", "password"]).optional().describe("New auth method"),
         keyPath: z.string().optional().describe("New key path"),
@@ -96,9 +96,9 @@ export function registerRegistryTools(server: McpServer, pool: ConnectionPool): 
     "registry_delete_server",
     {
       title: "Delete Server",
-      description: "Remove a server from the registry",
+      description: "Removes a server from hosts.json.",
       inputSchema: {
-        alias: z.string().describe("Server alias to delete"),
+        alias: z.string().describe("Alias to delete"),
       },
     },
     (args: { alias: string }) =>

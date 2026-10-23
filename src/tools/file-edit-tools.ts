@@ -26,21 +26,18 @@ export function registerFileEditTool(server: McpServer, pool: ConnectionPool): v
     "file_edit",
     {
       title: "Edit File",
-      description:
-        "Make a targeted edit to a file on an open SSH session without rewriting the whole file. " +
-        "mode='replace' swaps exact text (find -> replace); mode='range' replaces a line span (startLine..endLine) with new content. " +
-        "Saves a backup to a temp dir (the path is returned) and gives you a unified diff. Use dryRun=true to preview first.",
+      description: "Applies a targeted edit to an existing file; makes a backup. dryRun previews the diff.",
       inputSchema: {
         sessionId: z.string().describe("Session ID from connection_open"),
-        path: z.string().describe("Absolute path of the file to edit on the remote server"),
-        mode: z.enum(["replace", "range"]).describe("'replace' for exact text swap, 'range' for replacing a line span"),
-        find: z.string().optional().describe("mode=replace: exact text to find (single line). Must occur exactly once unless all is set."),
-        replace: z.string().describe("Replacement text. Empty string deletes the match / lines."),
-        all: z.boolean().optional().describe("mode=replace: replace all occurrences (default false = exactly one match required)"),
-        startLine: z.number().int().optional().describe("mode=range: first line to replace (1-based, inclusive)"),
-        endLine: z.number().int().optional().describe("mode=range: last line to replace (inclusive, must be >= startLine)"),
-        dryRun: z.boolean().optional().describe("Preview the change as a diff without writing (default false)"),
-        timeout: z.number().optional().describe(`Timeout in milliseconds (default: ${DEFAULT_COMMAND_TIMEOUT_MS})`),
+        path: z.string().describe("Absolute path of the remote file"),
+        mode: z.enum(["replace", "range"]).describe("'replace' (exact text swap) or 'range' (line span)"),
+        find: z.string().optional().describe("mode=replace: exact single-line text; must match once unless all is set."),
+        replace: z.string().describe("Replacement text; empty string deletes the match or lines."),
+        all: z.boolean().optional().describe("mode=replace: replace all matches (default false: exactly one required)"),
+        startLine: z.number().int().optional().describe("mode=range: first line (1-based, inclusive)"),
+        endLine: z.number().int().optional().describe("mode=range: last line (inclusive, >= startLine)"),
+        dryRun: z.boolean().optional().describe("Preview as diff without writing (default false)"),
+        timeout: z.number().optional().describe(`Timeout in ms (default: ${DEFAULT_COMMAND_TIMEOUT_MS})`),
       },
     },
     (args: FileEditInput) =>
@@ -48,7 +45,7 @@ export function registerFileEditTool(server: McpServer, pool: ConnectionPool): v
         const blocked = requireInstruction();
         if (blocked) return blocked;
         if (!isValidSessionId(args.sessionId)) {
-          return errorResponse("Invalid sessionId format");
+          return errorResponse("Invalid sessionId format; expected '<alias>-<8 hex>' from connection_open.", "INVALID_INPUT");
         }
 
         const validationError = validateArgs(args);

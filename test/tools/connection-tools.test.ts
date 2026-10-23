@@ -66,7 +66,7 @@ describe("registerConnectionTools", () => {
     registerConnectionTools(mockServer as any, mockPool as any);
     expect(mockServer.tool).toHaveBeenCalledWith(
       "connection_list",
-      expect.stringContaining("active"),
+      expect.stringContaining("SSH session"),
       expect.any(Function)
     );
   });
@@ -75,7 +75,7 @@ describe("registerConnectionTools", () => {
     registerConnectionTools(mockServer as any, mockPool as any);
     const names = mockServer.getRegisteredNames();
     expect(names).not.toContain("registry_add_server");
-    expect(names).not.toContain("command_execute_read");
-    expect(names).not.toContain("command_execute_write");
+    expect(names).not.toContain("command_execute_whitelisted");
+    expect(names).not.toContain("command_execute_with_approval");
   });
 });

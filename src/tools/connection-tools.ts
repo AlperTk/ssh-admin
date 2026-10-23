@@ -11,10 +11,10 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
     "connection_open",
     {
       title: "Open Connection",
-      description: "Open (or reuse an already-open) session for a registered alias; returns the sessionId plus a tree view of ~/server-info/.",
+      description: "Opens or reuses the live session per host; returns its sessionId (verified against the registry).",
       inputSchema: {
-        alias: z.string().describe("Server alias from registry"),
-        timeout: z.number().optional().describe(`Connection timeout in milliseconds (default: ${DEFAULT_CONNECTION_TIMEOUT_MS})`),
+        alias: z.string().describe("Alias from registry"),
+        timeout: z.number().optional().describe(`Timeout in ms (default: ${DEFAULT_CONNECTION_TIMEOUT_MS})`),
       },
     },
     (args: { alias: string; timeout?: number }) =>
@@ -34,7 +34,7 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
     "connection_close",
     {
       title: "Close Session",
-      description: "Close an open SSH session",
+      description: "Closes an open SSH session by sessionId.",
       inputSchema: {
         sessionId: z.string().describe("Session ID to close"),
       },
@@ -45,7 +45,7 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
         if (blocked) return blocked;
         const result = pool.close(args.sessionId);
         if (!result.success) {
-          return errorResponse(result.message);
+          return errorResponse(result.message, "NOT_FOUND");
         }
         return successResponse(result);
       })()
@@ -53,7 +53,7 @@ export function registerConnectionTools(server: McpServer, pool: ConnectionPool)
 
   server.tool(
     "connection_list",
-    "List all active SSH sessions",
+    "Lists live SSH sessions.",
     () =>
       handleToolCall(() => {
         const blocked = requireInstruction();

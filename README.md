@@ -62,12 +62,12 @@ Consuming AI agents should grant explicit per-tool permission entries rather tha
 {
   "permissions": {
     "ssh-admin_get_agent_instructions": "allow",
-    "ssh-admin_command_execute_read": "allow",
+    "ssh-admin_command_execute_whitelisted": "allow",
     "ssh-admin_registry_list_servers": "allow",
     "ssh-admin_connection_close": "allow",
     "ssh-admin_registry_get_server": "allow",
     "ssh-admin_connection_list": "allow",
-    "ssh-admin_command_execute_write": "ask",
+    "ssh-admin_command_execute_with_approval": "ask",
     "ssh-admin_registry_add_server": "ask",
     "ssh-admin_registry_update_server": "ask",
     "ssh-admin_registry_delete_server": "ask",
@@ -80,8 +80,8 @@ Consuming AI agents should grant explicit per-tool permission entries rather tha
 These grants are grouped by intent — read-only instructions and inspection tools auto-run, while everything mutating or privileged asks first:
 
 - **Instructions & introspection (allow):** `get_agent_instructions` initializes agent usage rules; `registry_list_servers`, `registry_get_server`, and `connection_list` inspect local registry state and session health with no side effects.
-- **Read path (allow):** `command_execute_read` executes commands classified as safe by the bundled read-only checker.
-- **Write/privileged paths (ask):** `registry add/update/delete` mutate the local host store containing connection credentials; `connection_open` establishes an outbound privileged SSH channel; `command_execute_write` appends the remote audit changelog and is gated behind explicit approval anyway; `file_edit` performs remote file mutations with backup plus unified-diff preview.
+- **Read path (allow):** `command_execute_whitelisted` executes commands classified as safe by the bundled read-only checker.
+- **Write/privileged paths (ask):** `registry add/update/delete` mutate the local host store containing connection credentials; `connection_open` establishes an outbound privileged SSH channel; `command_execute_with_approval` appends the remote audit changelog and is gated behind explicit approval anyway; `file_edit` performs remote file mutations with backup plus unified-diff preview.
 - **Defense-in-depth guardrail:** client-side allow-lists harden but never replace the bundled fail-closed read/write checker, which enforces its safety decision unconditionally regardless of any granted permission.
 
 ## How it works
@@ -89,8 +89,8 @@ These grants are grouped by intent — read-only instructions and inspection too
 1. The agent calls **`get_agent_instructions`** before using the other tools.
 2. It registers or selects a host through the host registry.
 3. **`connection_open`** creates a verified SSH session, or reuses an existing live session for that host.
-4. The agent uses **`command_execute_read`** for commands accepted by the read-only checker.
-5. Potentially mutating commands use **`command_execute_write`**, subject to the MCP client's approval policy. Remote file changes use **`file_edit`**.
+4. The agent uses **`command_execute_whitelisted`** for commands accepted by the read-only checker.
+5. Potentially mutating commands use **`command_execute_with_approval`**, subject to the MCP client's approval policy. Remote file changes use **`file_edit`**.
 6. Write operations are logged to `~/server-info/changelog.log` on the remote host.
 
 ```text
@@ -115,7 +115,7 @@ MCP client (e.g. OpenCode)
 | Instructions | `get_agent_instructions` | Initialize the agent's required tool-use instructions. |
 | Registry | `registry_add_server`, `registry_list_servers`, `registry_get_server`, `registry_update_server`, `registry_delete_server` | Manage known SSH hosts. |
 | Connections | `connection_open`, `connection_close`, `connection_list` | Create, reuse, close, and inspect SSH sessions. |
-| Commands | `command_execute_read`, `command_execute_write` | Run commands through separate read and write paths. |
+| Commands | `command_execute_whitelisted`, `command_execute_with_approval` | Run commands through separate read and write paths. |
 | Files | `file_edit` | Apply remote file changes with backup/diff support. |
 
 ## Credentials and persistence
@@ -135,8 +135,8 @@ For password authentication, expose the corresponding environment variable to th
 `ssh-admin` distinguishes between read operations and commands that may change remote state:
 
 - **Instruction gate:** the agent must call `get_agent_instructions` before other tools become available.
-- **Read-only checker:** `command_execute_read` accepts only commands classified as safe to read; rejected commands must not run through that path.
-- **Write path:** `command_execute_write` is distinct from read execution and is intended to require explicit client-side approval.
+- **Read-only checker:** `command_execute_whitelisted` accepts only commands classified as safe to read; rejected commands must not run through that path.
+- **Write path:** `command_execute_with_approval` is distinct from read execution and is intended to require explicit client-side approval.
 - **Global read-only mode:** write operations can be blocked centrally.
 - **Session verification:** newly established SSH connections must pass a round-trip sentinel check before use.
 - **Audit logging:** write operations append entries to a changelog on the remote host, with rotation at 500 lines.

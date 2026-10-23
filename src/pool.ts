@@ -267,7 +267,7 @@ export class ConnectionPool {
   ): Promise<CommandResult> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      throw new AppError(`Session '${sessionId}' not found or closed. Try calling pool.open() again to establish a new connection.`, "NOT_FOUND");
+      throw new AppError(`Session '${sessionId}' not found or closed. Call connection_open to open a new session.`, "NOT_FOUND");
     }
 
     // Update last used
@@ -278,14 +278,16 @@ export class ConnectionPool {
       try {
         session.client.exec(command, { env: { TERM: "xterm" } } as ExecOptions, (err: Error | undefined, stream: ClientChannel) => {
           if (err) {
-            reject(new AppError(`Command execution failed: ${err.message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`, "COMMAND_FAILED"));
+            console.error("[pool] exec failed:", err.message);
+            reject(new AppError("Command execution failed (SSH error)", "COMMAND_FAILED"));
             return;
           }
           this.wireStreamEvents(stream, start, timeout, resolve, reject);
         });
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
-        reject(new AppError(`Command execution failed: ${message}. The SSH connection may have been closed. Try calling pool.open() again to establish a new connection.`, "COMMAND_FAILED"));
+        console.error("[pool] exec threw:", message);
+        reject(new AppError("Command execution failed (SSH error)", "COMMAND_FAILED"));
       }
     });
   }
@@ -300,7 +302,7 @@ export class ConnectionPool {
     const state: CommandStreamState = { stdout: "", stderr: "", exitCode: null };
     const timer = setTimeout(() => {
       stream.close();
-      reject(new AppError(`Command timed out after ${timeout}ms`, "TIMEOUT"));
+      reject(new AppError(`Command timed out after ${timeout}ms. Retry with a larger timeout argument or split the command.`, "TIMEOUT"));
     }, timeout);
 
     stream.on("data", (data: Buffer) => {
@@ -325,7 +327,8 @@ export class ConnectionPool {
     });
     stream.on("error", (err: Error) => {
       clearTimeout(timer);
-      reject(new AppError(`Stream error: ${err.message}`, "COMMAND_FAILED"));
+      console.error("[pool] stream error:", err.message);
+      reject(new AppError("Command execution failed (SSH error)", "COMMAND_FAILED"));
     });
   }
 
